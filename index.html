@@ -12,7 +12,7 @@
   --bg:#080b0f;--s1:#0f1318;--s2:#161b22;--s3:#1d242d;
   --bd:#232b36;--bd2:#2c3647;--txt:#d8e0ed;--muted:#55647a;--dim:#2e3a4a;
   --gold:#f0a500;--teal:#3ecfbe;--red:#e05454;--green:#3ecf6e;
-  --blue:#4a9eff;--violet:#a78bfa;--orange:#f97316;
+  --blue:#4a9eff;--violet:#a78bfa;--orange:#e8c200;
   --kor:var(--blue);--eng:var(--gold);--math:var(--green);--soc:var(--red);
 }
 html,body{height:100%;background:var(--bg);color:var(--txt);
@@ -92,7 +92,7 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 .dow.sun{color:var(--red);background:rgba(224,84,84,.1)}
 .day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .dc{background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:5px;
-  cursor:pointer;min-height:80px;transition:border-color .15s,transform .1s;
+  cursor:pointer;min-height:70px;transition:border-color .15s,transform .1s;
   display:flex;flex-direction:column;gap:2px}
 .dc:hover{border-color:var(--gold);transform:translateY(-1px)}
 .dc.today{border-color:var(--gold)}.dc.selected{border-color:var(--teal);background:rgba(62,207,190,.04)}
@@ -161,13 +161,13 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 
 /* EXERCISE */
 .ex-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
-.ex-btn{background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:8px 4px;
-  cursor:pointer;text-align:center;color:var(--muted);font-family:inherit;font-size:9px;transition:all .15s}
-.ex-btn .ico{font-size:17px;display:block;margin-bottom:3px}
-.ex-btn:hover{border-color:var(--gold)}
-.ex-btn.on-swim{border-color:var(--teal);background:rgba(62,207,190,.08);color:var(--teal)}
-.ex-btn.on-run{border-color:var(--orange);background:rgba(249,115,22,.08);color:var(--orange)}
-.ex-btn.on-bike{border-color:var(--violet);background:rgba(167,139,250,.08);color:var(--violet)}
+.ex-btn{background:transparent;border:none;border-radius:6px;padding:6px 4px;
+  cursor:pointer;text-align:center;color:var(--muted);font-family:inherit;font-size:9px;transition:all .15s;opacity:.45}
+.ex-btn .ico{font-size:22px;display:block;margin-bottom:3px}
+.ex-btn:hover{opacity:.8}
+.ex-btn.on-swim{opacity:1;color:var(--teal)}
+.ex-btn.on-run{opacity:1;color:var(--orange)}
+.ex-btn.on-bike{opacity:1;color:var(--violet)}
 .ex-detail{display:none}.ex-detail.show{display:block;margin-bottom:8px}
 .ex-frow{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
 .ex-metric{background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;
@@ -211,6 +211,11 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 .hb-hrs{font-size:10px;color:var(--violet);font-weight:700;text-align:right}
 
 /* MOOD */
+.food-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fcheck{display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:7px 10px;cursor:pointer;font-size:11px;transition:all .15s}
+.fcheck:hover{border-color:var(--green)}
+.fcheck input{width:14px;height:14px;accent-color:var(--green);cursor:pointer}
+.fcheck input:checked+span{color:var(--green);text-decoration:line-through;opacity:.7}
 .mood-row{display:flex;gap:4px;margin-bottom:8px}
 .mood-btn{flex:1;background:var(--s3);border:1px solid var(--bd);border-radius:6px;
   padding:5px 2px;text-align:center;cursor:pointer;font-size:17px;transition:all .15s}
@@ -336,7 +341,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 <div class="mob-tabbar">
   <div class="mob-tab on"  id="mtab-cal"   onclick="switchTab('cal')"><span class="ico">📅</span>캘린더</div>
   <div class="mob-tab"     id="mtab-study" onclick="switchTab('study')"><span class="ico">📚</span>공부</div>
-  <div class="mob-tab"     id="mtab-ex"    onclick="switchTab('ex')"><span class="ico">🏃</span>운동</div>
+  <div class="mob-tab"     id="mtab-ex"    onclick="switchTab('ex')"><span class="ico">💪</span>건강</div>
   <div class="mob-tab"     id="mtab-work"  onclick="switchTab('work')"><span class="ico">💰</span>업무</div>
   <div class="mob-tab"     id="mtab-etc"   onclick="switchTab('etc')"><span class="ico">🎮</span>기타</div>
 </div>
@@ -394,10 +399,16 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 <!-- ══ RIGHT (데스크탑/폴드 펼침) ══ -->
 <div class="right" id="rightPanel">
 
-  <!-- 탭: 운동 섹션 (먼저) -->
+  <!-- 날짜·요일: 항상 오른쪽 최상단 고정 -->
+  <div class="panel-date">
+    <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
+    <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
+  </div>
+
+  <!-- 탭: 운동·건강 섹션 (먼저) -->
   <div class="mob-section" id="sec-ex">
     <div class="card">
-      <div class="sec-title">🏃 운동</div>
+      <div class="sec-title">🏃 운동 · 건강</div>
       <div class="ex-btns">
         <button class="ex-btn" id="exSwim" onclick="toggleEx('swim')"><span class="ico">🏊</span>수영</button>
         <button class="ex-btn" id="exRun"  onclick="toggleEx('run')"><span class="ico">🏃</span>러닝</button>
@@ -427,15 +438,28 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
         </div>
         <div class="ex-metric"><span class="em-l">평균 속도</span><span class="em-v em-bike" id="bikeMetric">—</span></div>
       </div>
+      <!-- 수면 -->
+      <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
+        <div class="field">
+          <label>😴 수면 시간</label>
+          <select id="sleepHours" onchange="autoSave()" style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;color:var(--txt);font-family:inherit;font-size:13px;padding:6px 8px;width:100%;outline:none"></select>
+        </div>
+      </div>
+      <!-- 식습관 체크박스 -->
+      <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">🥗 식습관</div>
+        <div class="food-checks">
+          <label class="fcheck"><input type="checkbox" id="fcSpicy" onchange="autoSave()"><span>자극적 음식 ✗</span></label>
+          <label class="fcheck"><input type="checkbox" id="fcOver"  onchange="autoSave()"><span>과식 ✗</span></label>
+          <label class="fcheck"><input type="checkbox" id="fcCafe"  onchange="autoSave()"><span>카페인 ✗</span></label>
+          <label class="fcheck"><input type="checkbox" id="fcSoda"  onchange="autoSave()"><span>탄산 ✗</span></label>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- 탭: 업무 섹션 (다음) -->
   <div class="mob-section" id="sec-work">
-    <div class="panel-date">
-      <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
-      <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
-    </div>
     <div class="card">
       <div class="sec-title">💰 업무 · 수입</div>
       <div class="target-row">
@@ -510,12 +534,6 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
       #rightPanel .mob-section{display:contents!important;position:static!important}
     }
   </style>
-
-  <!-- 데스크탑 전용 저장버튼 (탭 없을 때) -->
-  <div id="desktopSave" style="display:none">
-    <button class="save-btn" id="saveBtnD" onclick="saveRecord()" disabled>날짜를 선택하세요</button>
-    <div class="save-status" id="saveStatusD"></div>
-  </div>
 
 </div><!-- /right -->
 </div><!-- /body -->
@@ -605,7 +623,7 @@ async function dbGetAllDay() {
     return out;
   }
   const s = await db.collection('tracker').where('_type','==','day').get();
-  s.forEach(d => { out['d:'+d.id] = d.data(); });
+  s.forEach(d => { out[d.id] = d.data(); }); // d.id already includes 'd:' prefix
   return out;
 }
 
@@ -808,13 +826,16 @@ async function renderWeek() {
   document.getElementById('ws-income').textContent  = krw(wInc);
   document.getElementById('ws-achieve').textContent = Math.round((wInc/(dynTarget*7))*100)+'%';
   document.getElementById('ws-work').textContent    = wWork.toFixed(1)+'h';
+  // 주간 공부 달성률 (35h 기준)
+  const spct = Math.round((wStudy/35)*100);
+  const spEl = document.getElementById('studyPct');
+  if(spEl){ spEl.textContent=spct+'%'; spEl.style.color=spct>=100?'var(--green)':'var(--teal)'; }
   renderCalendar(dates); renderWkChart(dates); renderSubjectAccordion();
 }
 function prevWeek(){ wkOffset--; renderWeek(); }
 function nextWeek(){ wkOffset++; renderWeek(); }
 
 /* ════ CALENDAR ════ */
-// 연속 업무일수 계산: ds 당일까지 연속으로 workHours>0인 날 수
 function calcWorkStreak(ds) {
   let streak = 0, cur = new Date(ds);
   while(true) {
@@ -825,6 +846,14 @@ function calcWorkStreak(ds) {
   }
   return streak;
 }
+function workLeafIcon(h) {
+  if(h<=0) return '';
+  if(h<2) return '🌱';
+  if(h<4) return '🌱';
+  if(h<6) return '🌿';
+  if(h<8) return '🌲';
+  return '🍀';
+}
 function renderCalendar(dates) {
   const grid = document.getElementById('dayGrid'); grid.innerHTML = '';
   const td = today();
@@ -833,44 +862,72 @@ function renderCalendar(dates) {
     const card = document.createElement('div');
     card.className = 'dc'+(ds===td?' today':'')+(ds===curDate?' selected':'')+(dow===6?' dc-sat':dow===0?' dc-sun':'');
     card.onclick = () => selectDay(ds);
+
+    // 날짜 숫자
     const num = document.createElement('div'); num.className='dc-num'; num.textContent=d.getDate(); card.appendChild(num);
-    if (r.exOn&&(r.exOn.swim||r.exOn.run||r.exOn.bike)) {
-      const bd = document.createElement('div'); bd.className='dc-badges';
-      if(r.exOn.swim) bd.innerHTML+='<span class="badge b-swim">🏊</span>';
-      if(r.exOn.run)  bd.innerHTML+='<span class="badge b-run">🏃</span>';
-      if(r.exOn.bike) bd.innerHTML+='<span class="badge b-bike">🚴</span>';
-      card.appendChild(bd);
+
+    // 운동+수면+식사 한 줄 표시
+    const healthRow = document.createElement('div');
+    healthRow.style.cssText='display:flex;flex-wrap:wrap;gap:2px;min-height:14px;';
+    if(r.exOn){
+      if(r.exOn.swim) { const s=document.createElement('span');s.textContent='🏊';s.style.fontSize='11px';healthRow.appendChild(s); }
+      if(r.exOn.run)  { const s=document.createElement('span');s.textContent='🏃';s.style.fontSize='11px';healthRow.appendChild(s); }
+      if(r.exOn.bike) { const s=document.createElement('span');s.textContent='🚴';s.style.fontSize='11px';healthRow.appendChild(s); }
     }
-    const rows = document.createElement('div'); rows.className='dc-rows';
+    if((r.sleepHours||0)>=7){ const s=document.createElement('span');s.textContent='🌙';s.style.fontSize='11px';healthRow.appendChild(s); }
+    if(r.fcSpicy&&r.fcOver&&r.fcCafe&&r.fcSoda){ const s=document.createElement('span');s.textContent='🥗';s.style.fontSize='11px';healthRow.appendChild(s); }
+    if(healthRow.children.length) card.appendChild(healthRow);
+
+    // 공부 바 차트
     const tot=(r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
     if (tot>0) {
       const bars=document.createElement('div'); bars.className='dc-bars';
       [{v:r.sKor||0,c:'var(--kor)'},{v:r.sMath||0,c:'var(--math)'},{v:r.sEng||0,c:'var(--eng)'},{v:r.sSoc||0,c:'var(--soc)'}].forEach(({v,c})=>{
         const b=document.createElement('div');b.className='dc-bar';b.style.cssText=`background:${c};height:${Math.max(2,Math.round((v/tot)*13))}px`;bars.appendChild(b);
       });
-      rows.appendChild(bars);
+      card.appendChild(bars);
     }
-    const icons=document.createElement('div'); icons.className='dc-icons';
-    if(r.income){const e=document.createElement('span');e.style.cssText='font-size:7px;color:var(--gold);font-weight:700';e.textContent=krw(r.income);icons.appendChild(e);}
-    // 업무 연속일수: 이날 workHours>0이고 어제는 workHours=0인 경우 또는 연속 마지막날에만 숫자 표시
-    if((r.workHours||0) > 0) {
+
+    // 아이콘 행 (연속일수 + 기분)
+    const icons=document.createElement('div');
+    icons.style.cssText='display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
+
+    // 업무 연속일 (연속 마지막날만 표시)
+    const wh = r.workHours||0;
+    if(wh > 0) {
       const streak = calcWorkStreak(ds);
-      // 다음날 일했는지 확인 (다음날 기록 있으면 이날은 중간이라 숫자 숨김)
       const nextDate = new Date(ds); nextDate.setDate(nextDate.getDate()+1);
-      const nextKey = 'd:' + toStr(nextDate);
-      const nextR = _allRec[nextKey] || weekData[nextKey];
+      const nextR = _allRec['d:'+toStr(nextDate)] || weekData['d:'+toStr(nextDate)];
       const nextWorked = nextR && (nextR.workHours||0) > 0;
       if(!nextWorked) {
+        const leaf = workLeafIcon(wh);
         const w=document.createElement('span');
-        w.style.cssText='font-size:9px;color:var(--teal);font-weight:700;background:rgba(62,207,190,.15);padding:1px 3px;border-radius:2px;';
-        w.textContent = streak + '일';
-        w.title = '연속 업무 '+streak+'일';
+        w.style.cssText='font-size:8px;color:var(--teal);font-weight:700;background:rgba(62,207,190,.15);padding:1px 3px;border-radius:2px;white-space:nowrap';
+        w.textContent = leaf+' '+streak+'일';
         icons.appendChild(w);
+      } else {
+        const leaf = workLeafIcon(wh);
+        if(leaf){ const s=document.createElement('span');s.textContent=leaf;s.style.fontSize='11px';icons.appendChild(s); }
       }
     }
-    if(r.mood){const m=document.createElement('span');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';icons.appendChild(m);}
-    if(icons.children.length) rows.appendChild(icons);
-    card.appendChild(rows); grid.appendChild(card);
+
+    // 기분
+    if(r.mood){
+      const m=document.createElement('span');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';m.style.fontSize='11px';
+      icons.appendChild(m);
+    }
+
+    if(icons.children.length) card.appendChild(icons);
+
+    // 수입: 맨 밑 단독 표시
+    if(r.income){
+      const incEl=document.createElement('div');
+      incEl.style.cssText='margin-top:auto;padding-top:3px;font-size:8px;color:var(--gold);font-weight:700;border-top:1px solid rgba(240,165,0,.2);';
+      incEl.textContent=krw(r.income);
+      card.appendChild(incEl);
+    }
+
+    grid.appendChild(card);
   }
 }
 
@@ -905,7 +962,7 @@ async function selectDay(ds) {
   const dsub = dN[d.getDay()]+'요일';
   for (const id of ['panelDStr']) { const el=document.getElementById(id); if(el) el.textContent=dstr; }
   for (const id of ['panelDSub']) { const el=document.getElementById(id); if(el) el.textContent=dsub; }
-  for (const id of ['saveBtn','saveBtnD']) { const el=document.getElementById(id); if(el){el.disabled=false;el.textContent='💾  저장';} }
+  for (const id of ['saveBtn']) { const el=document.getElementById(id); if(el){el.disabled=false;el.textContent='💾  저장';} }
 
   const r = weekData['d:'+ds]||{};
   exOn = r.exOn ? {...r.exOn} : {swim:false,run:false,bike:false};
@@ -913,6 +970,9 @@ async function selectDay(ds) {
   setV('swimLaps',r.swimLaps); setV('swimMin',r.swimMin); calcSwim();
   setV('runKm',r.runKm); setV('runMin',r.runMin); calcRun();
   setV('bikeKm',r.bikeKm); setV('bikeMin',r.bikeMin); calcBike();
+  setV('sleepHours', r.sleepHours||0);
+  const fids=['fcSpicy','fcOver','fcCafe','fcSoda'];
+  fids.forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=!!(r[id]); });
   setV('todayIncome',r.income); setV('todayExpense',r.expense); setV('workHours',r.workHours);
   onIncome();
   setV('hobbyName',r.hobbyName); setV('hobbyHours',r.hobbyHours);
@@ -925,13 +985,26 @@ async function selectDay(ds) {
 
 /* ════ STUDY ════ */
 function onStudyH(sid) {
-  const val = parseFloat(document.getElementById('s-'+sid)?.value)||0;
-  const prev = document.getElementById('prev-'+sid); if(prev) prev.textContent=val>0?val+'h':'';
   let tot=0;
   for(const s of SUBJECTS) tot+=parseFloat(document.getElementById('s-'+s.id)?.value)||0;
   const st=document.getElementById('studyTotal');
   if(st) st.innerHTML=tot.toFixed(1)+'<span style="font-size:11px;color:var(--muted);font-weight:400">h</span>';
+  // 주간 35h 기준 달성률 (주간 누적 기준)
+  updateStudyPct(tot);
   autoSave();
+}
+function updateStudyPct(todayTot) {
+  // 이번주 전체 공부시간 합산
+  let wTot = todayTot;
+  const dates = getWeekDates(wkOffset);
+  for(const d of dates) {
+    if(d === curDate) continue;
+    const r = weekData['d:'+d]||{};
+    wTot += (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+  }
+  const pct = Math.round((wTot/35)*100);
+  const el = document.getElementById('studyPct');
+  if(el) { el.textContent=pct+'%'; el.style.color=pct>=100?'var(--green)':'var(--teal)'; }
 }
 
 /* ════ INCOME ════ */
@@ -1013,6 +1086,11 @@ async function saveRecord(silent=false){
     swimLaps:getN('swimLaps'),swimMin:getN('swimMin'),
     runKm:getN('runKm'),runMin:getN('runMin'),
     bikeKm:getN('bikeKm'),bikeMin:getN('bikeMin'),
+    sleepHours:getN('sleepHours'),
+    fcSpicy:!!(document.getElementById('fcSpicy')?.checked),
+    fcOver:!!(document.getElementById('fcOver')?.checked),
+    fcCafe:!!(document.getElementById('fcCafe')?.checked),
+    fcSoda:!!(document.getElementById('fcSoda')?.checked),
     sKor:getN('s-kor'),sMath:getN('s-math'),sEng:getN('s-eng'),sSoc:getN('s-soc'),
     income:getN('todayIncome'),expense:getN('todayExpense'),workHours:getN('workHours'),
     hobbyName:document.getElementById('hobbyName').value.trim(),
@@ -1020,7 +1098,7 @@ async function saveRecord(silent=false){
     mood,note:document.getElementById('noteText').value.trim(),
     projProgress,updatedAt:new Date().toISOString()
   };
-  const sts=['saveStatus','saveStatusD'];
+  const sts=['saveStatus'];
   try{
     await dbSet('d:'+curDate,rec);
     weekData['d:'+curDate]=rec;
@@ -1081,18 +1159,26 @@ function buildStudySelect(id) {
   }
 }
 
-/* ════ INIT ════ */
+/* 수면 드롭다운: 5h~12h, 30분 간격 */
+function buildSleepSelect(id) {
+  const sel = document.getElementById(id); if(!sel) return;
+  sel.innerHTML = '<option value="0">기록 안함</option>';
+  for(let m=300; m<=720; m+=30){
+    const h=Math.floor(m/60), min=m%60;
+    const label = min>0 ? `${h}시간 ${min}분` : `${h}시간`;
+    const val=(m/60).toFixed(1).replace(/\.0$/,'');
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=label;
+    sel.appendChild(opt);
+  }
+}
 async function init(){
   initFB();
   buildHoursSelect('workHours');
+  buildSleepSelect('sleepHours');
   await loadSubjectProjects();
   await renderWeek();
   const td=today();
   if(getWeekDates(0).includes(td)) await selectDay(td);
-  // 데스크탑 저장버튼 표시
-  const isMobile = window.innerWidth <= 539;
-  const dsave = document.getElementById('desktopSave');
-  if(dsave && !isMobile) dsave.style.display='block';
   const l=document.getElementById('loader');
   l.style.opacity='0';setTimeout(()=>l.style.display='none',400);
 }
