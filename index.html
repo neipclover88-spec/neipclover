@@ -498,7 +498,7 @@ function getWeekDates(off=0){
   return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return toStr(d);});
 }
 function krw(n){return'₩'+(Math.round(n)||0).toLocaleString('ko-KR');}
-function secToMinSec(s){const m=Math.floor(s/60),sec=Math.round(s%60);return`${m}'${String(sec).padStart(2,'0')}"``;}
+function secToMinSec(s){const m=Math.floor(s/60),sec=Math.round(s%60);return m+"'"+ String(sec).padStart(2,'0')+'"';}
 
 /* ─── DYNAMIC TARGET ─── */
 function calcDynTarget(){
