@@ -256,29 +256,6 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 </style>
 </head>
 <body>
-  <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyC59lvF_LFGum04mc6zER-2GFWxQjQVc9U",
-    authDomain: "dashboard-b71bb.firebaseapp.com",
-    projectId: "dashboard-b71bb",
-    storageBucket: "dashboard-b71bb.firebasestorage.app",
-    messagingSenderId: "528755986354",
-    appId: "1:528755986354:web:3f2b81b01be9cdd24a1eab",
-    measurementId: "G-E2CCM15KTM"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
 <div id="loader"><div class="spin"></div><p style="font-size:10px;color:var(--muted);letter-spacing:3px">LOADING</p></div>
 <div id="cfgBanner">
   <strong>⚙️ Firebase 미설정</strong> — 현재 <strong>로컬 모드</strong>로 동작 중입니다 (기기간 동기화 없음).<br>
@@ -468,13 +445,14 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
   아래 값을 본인 프로젝트로 교체하세요
 ════════════════════════════════════════ -->
 <script>
-const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+const firebaseConfig = {
+  apiKey: "AIzaSyC59lvF_LFGum04mc6zER-2GFWxQjQVc9U",
+  authDomain: "dashboard-b71bb.firebaseapp.com",
+  projectId: "dashboard-b71bb",
+  storageBucket: "dashboard-b71bb.firebasestorage.app",
+  messagingSenderId: "528755986354",
+  appId: "1:528755986354:web:3f2b81b01be9cdd24a1eab",
+  measurementId: "G-E2CCM15KTM"
 };
 
 /* ════ 재무 상수 ════
