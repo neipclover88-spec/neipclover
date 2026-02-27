@@ -11,8 +11,8 @@
 :root{
   --bg:#080b0f;--s1:#0f1318;--s2:#161b22;--s3:#1d242d;
   --bd:#232b36;--bd2:#2c3647;--txt:#d8e0ed;--muted:#55647a;--dim:#2e3a4a;
-  --gold:#ffd000;--teal:#3ecfbe;--red:#e05454;--green:#3ecf6e;
-  --blue:#4a9eff;--violet:#a78bfa;--orange:#ffc233;
+  --gold:#f0a500;--teal:#3ecfbe;--red:#e05454;--green:#3ecf6e;
+  --blue:#4a9eff;--violet:#a78bfa;--orange:#f97316;
   --kor:var(--blue);--eng:var(--gold);--math:var(--green);--soc:var(--red);
 }
 html,body{height:100%;background:var(--bg);color:var(--txt);
@@ -298,12 +298,13 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
   }
   .mob-section.on{display:flex}
 
-  .wsummary{grid-template-columns:repeat(2,1fr);gap:4px}
-  .ws{padding:7px 8px}.ws .v{font-size:14px}
+  .wsummary{grid-template-columns:repeat(2,1fr);gap:3px}
+  .ws{padding:4px 7px}.ws .v{font-size:12px}.ws .l{font-size:8px;letter-spacing:0}
   .inc-inputs{grid-template-columns:1fr 1fr}
   .target-row{grid-template-columns:repeat(3,1fr)}
-  /* 캘린더 칸: 자동 높이, 작은 폰트 */
-  .dc{min-height:0;height:auto;padding:2px;overflow:hidden;gap:1px}.dc-num{font-size:9px;font-weight:700}
+  /* 캘린더 칸: 최소 높이 충분히, 내용 다 보이게 */
+  .dc{min-height:74px;height:auto;padding:3px 2px;overflow:visible;gap:1px;border-radius:4px}
+  .dc-num{font-size:10px;font-weight:700}
   .dc-bars{height:7px}
   .day-grid{gap:2px}
   .dow-row{gap:2px}.dow{font-size:8px;padding:2px 1px}
@@ -882,14 +883,14 @@ function renderCalendar(dates) {
 
     // 운동+수면+식사 한 줄 표시
     const healthRow = document.createElement('div');
-    healthRow.style.cssText='display:flex;flex-wrap:wrap;gap:1px;line-height:1;';
+    healthRow.style.cssText='display:flex;flex-direction:column;gap:0;line-height:1.2;';
     if(r.exOn){
-      if(r.exOn.swim) { const s=document.createElement('span');s.textContent='🏊';s.style.fontSize='9px';healthRow.appendChild(s); }
-      if(r.exOn.run)  { const s=document.createElement('span');s.textContent='🏃';s.style.fontSize='9px';healthRow.appendChild(s); }
-      if(r.exOn.bike) { const s=document.createElement('span');s.textContent='🚴';s.style.fontSize='9px';healthRow.appendChild(s); }
+      if(r.exOn.swim) { const s=document.createElement('div');s.textContent='🏊';s.style.fontSize='11px';healthRow.appendChild(s); }
+      if(r.exOn.run)  { const s=document.createElement('div');s.textContent='🏃';s.style.fontSize='11px';healthRow.appendChild(s); }
+      if(r.exOn.bike) { const s=document.createElement('div');s.textContent='🚴';s.style.fontSize='11px';healthRow.appendChild(s); }
     }
-    if((r.sleepHours||0)>=7){ const s=document.createElement('span');s.textContent='🌙';s.style.fontSize='9px';healthRow.appendChild(s); }
-    if(r.fcSpicy&&r.fcOver&&r.fcCafe&&r.fcSoda){ const s=document.createElement('span');s.textContent='🥗';s.style.fontSize='9px';healthRow.appendChild(s); }
+    if((r.sleepHours||0)>=7){ const s=document.createElement('div');s.textContent='🌙';s.style.fontSize='11px';healthRow.appendChild(s); }
+    if(r.fcSpicy&&r.fcOver&&r.fcCafe&&r.fcSoda){ const s=document.createElement('div');s.textContent='🥗';s.style.fontSize='11px';healthRow.appendChild(s); }
     if(healthRow.children.length) card.appendChild(healthRow);
 
     // 공부 바 차트
@@ -903,7 +904,7 @@ function renderCalendar(dates) {
     }
 
     const icons=document.createElement('div');
-    icons.style.cssText='display:flex;flex-wrap:wrap;gap:1px;align-items:center;';
+    icons.style.cssText='display:flex;flex-direction:column;gap:1px;';
 
     const wh = r.workHours||0;
     if(wh > 0) {
@@ -913,21 +914,21 @@ function renderCalendar(dates) {
       const nextWorked = nextR && (nextR.workHours||0) > 0;
       if(!nextWorked) {
         const leaf = workLeafIcon(wh);
-        const w=document.createElement('span');
-        w.style.cssText='font-size:7px;color:var(--teal);font-weight:700;background:rgba(62,207,190,.15);padding:0 2px;border-radius:2px;white-space:nowrap';
+        const w=document.createElement('div');
+        w.style.cssText='font-size:8px;color:var(--teal);font-weight:700;background:rgba(62,207,190,.15);padding:0 2px;border-radius:2px;white-space:nowrap;width:fit-content';
         w.textContent = leaf+streak+'일';
         icons.appendChild(w);
       } else {
         const leaf = workLeafIcon(wh);
-        if(leaf){ const s=document.createElement('span');s.textContent=leaf;s.style.fontSize='9px';icons.appendChild(s); }
+        if(leaf){ const s=document.createElement('div');s.textContent=leaf;s.style.fontSize='11px';icons.appendChild(s); }
       }
     }
 
     if(r.income && r.income >= dynTarget){
-      const s=document.createElement('span');s.textContent='💰';s.style.fontSize='9px';icons.appendChild(s);
+      const s=document.createElement('div');s.textContent='💰';s.style.fontSize='11px';icons.appendChild(s);
     }
     if(r.mood){
-      const m=document.createElement('span');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';m.style.fontSize='9px';icons.appendChild(m);
+      const m=document.createElement('div');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';m.style.fontSize='11px';icons.appendChild(m);
     }
 
     if(icons.children.length) card.appendChild(icons);
