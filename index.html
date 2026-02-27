@@ -302,8 +302,12 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
   .ws{padding:7px 8px}.ws .v{font-size:14px}
   .inc-inputs{grid-template-columns:1fr 1fr}
   .target-row{grid-template-columns:repeat(3,1fr)}
-  .dc{min-height:56px;padding:3px}.dc-num{font-size:11px}
+  .dc{min-height:0;height:80px;padding:3px;overflow:hidden}.dc-num{font-size:11px}
   .dow{font-size:9px;padding:3px 1px}
+  /* 캘린더 내 아이콘/텍스트 더 작게 */
+  .dc-bars{height:10px}
+  .day-grid{gap:2px}
+  .dow-row{gap:2px}
   .card{padding:9px}
   .panel-d-str{font-size:16px}
 }
@@ -670,10 +674,13 @@ async function loadAllTime() {
   allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
   for (const k in all) {
     const r = all[k], ds = k.replace('d:','');
-    if (ds < START_STR) continue;
-    allTimeIncome   += (r.income   || 0);
-    allTimeExpenses += (r.expense  || 0);
-    hobbyCumul      += (r.hobbyHours || 0);
+    // 재무(수입/지출)는 START_STR 이후만 집계
+    if (ds >= START_STR) {
+      allTimeIncome   += (r.income   || 0);
+      allTimeExpenses += (r.expense  || 0);
+    }
+    // 목표 진척/취미/기타는 날짜 무관 전체 누적
+    hobbyCumul += (r.hobbyHours || 0);
     if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
     if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
   }
@@ -741,7 +748,9 @@ function renderSubjectAccordion() {
     const mini = document.createElement('div'); mini.className = 'subj-mini-prog';
     if (projs.length > 0) {
       for (const p of projs) {
-        const cumul = projCumul[p.id]||0, pct = p.total>0?Math.min(100,Math.round((cumul/p.total)*100)):0;
+        const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
+        const displayCumul = projCumul[p.id]||0;
+        const pct = p.total>0?Math.min(100,Math.round((displayCumul/p.total)*100)):0;
         const row = document.createElement('div'); row.className = 'subj-mini-row';
         row.innerHTML = `<span class="subj-mini-name" title="${p.name||''}">${p.name||'—'}</span>
           <div class="subj-mini-track"><div class="subj-mini-fill" style="background:${subj.hex};width:${pct}%"></div></div>
@@ -772,7 +781,12 @@ function renderSubjectAccordion() {
     const listEl = body.querySelector('.proj-list');
     for (let idx=0; idx<projs.length; idx++) {
       const p = projs[idx], c = PCOLS[idx%PCOLS.length];
-      const cumul = projCumul[p.id]||0, pct = p.total>0?Math.min(100,Math.round((cumul/p.total)*100)):0;
+      // 오늘 저장된 값을 빼서 "오늘 제외 누적"을 구함
+      const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
+      const cumulAll = projCumul[p.id]||0;
+      const cumulExclToday = Math.max(0, cumulAll - savedTodayVal);
+      const displayCumul = cumulAll; // 저장된 상태 기준 표시
+      const pct = p.total>0 ? Math.min(100,Math.round((displayCumul/p.total)*100)) : 0;
       const div = document.createElement('div'); div.className = 'proj-item';
       div.innerHTML = `<button class="del-btn" onclick="delProjectFromSubj('${subj.id}','${p.id}')">✕</button>
         <div class="proj-top">
@@ -783,14 +797,15 @@ function renderSubjectAccordion() {
           <input type="text" placeholder="단위" value="${p.unit||''}" style="font-size:11px"
             onchange="updateSubjProj('${subj.id}','${p.id}','unit',this.value)">
         </div>
-        <div class="proj-bar-wrap"><div class="proj-bar-fill" style="background:${c};width:${pct}%"></div></div>
+        <div class="proj-bar-wrap"><div class="proj-bar-fill" id="pbar-${p.id}" style="background:${c};width:${pct}%"></div></div>
         <div class="proj-meta">
-          <span>누적 <strong style="color:${c}">${cumul}</strong>/${p.total||'?'} ${p.unit||''}</span>
-          <span style="color:${c};font-weight:700">${pct}%</span>
+          <span>누적 <strong style="color:${c}" id="pcumul-${p.id}">${displayCumul}</strong>/${p.total||'?'} ${p.unit||''}</span>
+          <span style="color:${c};font-weight:700" id="ppct-${p.id}">${pct}%</span>
         </div>
         <div class="proj-today-row">
           <label>오늘 달성:</label>
-          <input type="number" id="pp-${p.id}" placeholder="0" min="0" style="width:65px;font-size:12px" oninput="autoSave()">
+          <input type="number" id="pp-${p.id}" placeholder="0" min="0" style="width:65px;font-size:12px"
+            oninput="liveUpdateProj('${p.id}',${cumulExclToday},${p.total||0},'${c}');autoSave()">
           <span style="font-size:10px;color:var(--muted)">${p.unit||''}</span>
         </div>`;
       listEl.appendChild(div);
@@ -888,7 +903,7 @@ function renderCalendar(dates) {
       card.appendChild(bars);
     }
 
-    // 아이콘 행 (연속일수 + 기분)
+    // 아이콘 행 (연속일수 + 💰 초과 + 기분)
     const icons=document.createElement('div');
     icons.style.cssText='display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:2px;';
 
@@ -911,6 +926,12 @@ function renderCalendar(dates) {
       }
     }
 
+    // 수입 목표 초과 시 💰
+    if(r.income && r.income >= dynTarget){
+      const s=document.createElement('span');s.textContent='💰';s.style.fontSize='11px';
+      icons.appendChild(s);
+    }
+
     // 기분
     if(r.mood){
       const m=document.createElement('span');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';m.style.fontSize='11px';
@@ -919,7 +940,7 @@ function renderCalendar(dates) {
 
     if(icons.children.length) card.appendChild(icons);
 
-    // 수입: 맨 밑 단독 표시
+    // 수입 금액: 맨 밑 단독 표시
     if(r.income){
       const incEl=document.createElement('div');
       incEl.style.cssText='margin-top:auto;padding-top:3px;font-size:8px;color:var(--gold);font-weight:700;border-top:1px solid rgba(240,165,0,.2);';
@@ -984,6 +1005,19 @@ async function selectDay(ds) {
 }
 
 /* ════ STUDY ════ */
+/* 오늘 달성 입력 시 바 즉시 업데이트 */
+function liveUpdateProj(pid, cumulExclToday, total, color) {
+  const inp = document.getElementById('pp-'+pid);
+  const todayVal = parseFloat(inp?.value)||0;
+  const live = cumulExclToday + todayVal;
+  const pct = total>0 ? Math.min(100,Math.round((live/total)*100)) : 0;
+  const bar = document.getElementById('pbar-'+pid);
+  const pctEl = document.getElementById('ppct-'+pid);
+  const cumulEl = document.getElementById('pcumul-'+pid);
+  if(bar) bar.style.width = pct+'%';
+  if(pctEl) pctEl.textContent = pct+'%';
+  if(cumulEl) cumulEl.textContent = live;
+}
 function onStudyH(sid) {
   let tot=0;
   for(const s of SUBJECTS) tot+=parseFloat(document.getElementById('s-'+s.id)?.value)||0;
