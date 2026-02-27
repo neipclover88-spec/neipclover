@@ -896,16 +896,6 @@ function renderCalendar(dates) {
     if(r.fcSpicy&&r.fcOver&&r.fcCafe&&r.fcSoda){ const s=document.createElement('span');s.textContent='🥗';s.className='dc-ico';healthRow.appendChild(s); }
     if(healthRow.children.length) card.appendChild(healthRow);
 
-    // 공부 바 차트
-    const tot=(r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
-    if (tot>0) {
-      const bars=document.createElement('div'); bars.className='dc-bars';
-      [{v:r.sKor||0,c:'var(--kor)'},{v:r.sMath||0,c:'var(--math)'},{v:r.sEng||0,c:'var(--eng)'},{v:r.sSoc||0,c:'var(--soc)'}].forEach(({v,c})=>{
-        const b=document.createElement('div');b.className='dc-bar';b.style.cssText=`background:${c};height:${Math.max(2,Math.round((v/tot)*13))}px`;bars.appendChild(b);
-      });
-      card.appendChild(bars);
-    }
-
     const icons=document.createElement('div');
     icons.className='dc-icon-row';
     icons.style.cssText='display:flex;flex-wrap:wrap;gap:1px;align-items:center;';
@@ -938,9 +928,20 @@ function renderCalendar(dates) {
 
     if(icons.children.length) card.appendChild(icons);
 
+    // 공부 바 + 수입: 맨 아래에 함께
+    const tot=(r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+    if (tot>0) {
+      const bars=document.createElement('div'); bars.className='dc-bars';
+      bars.style.marginTop='auto';
+      [{v:r.sKor||0,c:'var(--kor)'},{v:r.sMath||0,c:'var(--math)'},{v:r.sEng||0,c:'var(--eng)'},{v:r.sSoc||0,c:'var(--soc)'}].forEach(({v,c})=>{
+        const b=document.createElement('div');b.className='dc-bar';b.style.cssText=`background:${c};height:${Math.max(2,Math.round((v/tot)*13))}px`;bars.appendChild(b);
+      });
+      card.appendChild(bars);
+    }
+
     if(r.income){
       const incEl=document.createElement('div');
-      incEl.style.cssText='margin-top:auto;padding-top:2px;font-size:7px;color:var(--gold);font-weight:700;border-top:1px solid rgba(240,165,0,.2);';
+      incEl.style.cssText=(tot>0?'':'margin-top:auto;')+'padding-top:2px;font-size:7px;color:var(--gold);font-weight:700;border-top:1px solid rgba(240,165,0,.2);';
       incEl.textContent=krw(r.income);
       card.appendChild(incEl);
     }
