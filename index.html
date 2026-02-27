@@ -263,6 +263,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
   .dc{min-height:130px;height:auto;padding:4px}.dc-num{font-size:12px}
   .dc-ico{font-size:7px!important;line-height:1.15!important}
   .dc-streak{font-size:7px!important}
+  .dc-health-row, .dc-icon-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:1px!important}
   .dow{font-size:10px;padding:4px 2px}
 }
 
@@ -884,6 +885,7 @@ function renderCalendar(dates) {
 
     // 운동+수면+식사 한 줄 표시
     const healthRow = document.createElement('div');
+    healthRow.className = 'dc-health-row';
     healthRow.style.cssText='display:flex;flex-wrap:wrap;gap:1px;line-height:1.1;';
     if(r.exOn){
       if(r.exOn.swim) { const s=document.createElement('span');s.textContent='🏊';s.className='dc-ico';healthRow.appendChild(s); }
@@ -905,6 +907,7 @@ function renderCalendar(dates) {
     }
 
     const icons=document.createElement('div');
+    icons.className='dc-icon-row';
     icons.style.cssText='display:flex;flex-wrap:wrap;gap:1px;align-items:center;';
 
     const wh = r.workHours||0;
