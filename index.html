@@ -260,7 +260,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
   .wsummary{grid-template-columns:repeat(2,1fr);gap:5px}
   .ws .v{font-size:14px}
   .inc-inputs{grid-template-columns:1fr 1fr}
-  .dc{min-height:62px;padding:4px}.dc-num{font-size:12px}
+  .dc{min-height:90px;padding:4px}.dc-num{font-size:12px}
   .dow{font-size:10px;padding:4px 2px}
 }
 
@@ -345,8 +345,8 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 <!-- 모바일 탭 바 (≤539px 에서만 표시) -->
 <div class="mob-tabbar">
   <div class="mob-tab on"  id="mtab-cal"   onclick="switchTab('cal')"><span class="ico">📅</span>캘린더</div>
-  <div class="mob-tab"     id="mtab-study" onclick="switchTab('study')"><span class="ico">📚</span>공부</div>
   <div class="mob-tab"     id="mtab-ex"    onclick="switchTab('ex')"><span class="ico">💪</span>건강</div>
+  <div class="mob-tab"     id="mtab-study" onclick="switchTab('study')"><span class="ico">📚</span>공부</div>
   <div class="mob-tab"     id="mtab-work"  onclick="switchTab('work')"><span class="ico">💰</span>업무</div>
   <div class="mob-tab"     id="mtab-etc"   onclick="switchTab('etc')"><span class="ico">🎮</span>기타</div>
 </div>
@@ -374,43 +374,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
     </div>
   </div>
 
-  <!-- 탭: 공부 섹션 -->
-  <div class="mob-section" id="sec-study">
-    <div class="card">
-      <div class="sec-title">📚 공부 · 학습 목표</div>
-      <div class="subj-accordion" id="subjAccordion"></div>
-      <div class="study-footer">
-        <div>
-          <span class="study-total-n" id="studyTotal">0<span style="font-size:11px;color:var(--muted);font-weight:400">h</span></span>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">총 공부시간</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:9px;color:var(--muted)">달성률</div>
-          <div style="font-size:18px;font-weight:700;color:var(--teal)" id="studyPct">-</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 데스크탑/폴드펼침 전용: 두 섹션 모두 표시 -->
-  <style>
-    @media(min-width:540px){
-      #leftPanel .mob-section{display:contents!important;position:static!important}
-    }
-  </style>
-
-</div><!-- /left -->
-
-<!-- ══ RIGHT (데스크탑/폴드 펼침) ══ -->
-<div class="right" id="rightPanel">
-
-  <!-- 날짜·요일: 항상 오른쪽 최상단 고정 -->
-  <div class="panel-date">
-    <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
-    <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
-  </div>
-
-  <!-- 탭: 운동·건강 섹션 (먼저) -->
+  <!-- 탭: 운동·건강 섹션 (왼쪽으로 이동) -->
   <div class="mob-section" id="sec-ex">
     <div class="card">
       <div class="sec-title">🏃 운동 · 건강</div>
@@ -443,14 +407,12 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
         </div>
         <div class="ex-metric"><span class="em-l">평균 속도</span><span class="em-v em-bike" id="bikeMetric">—</span></div>
       </div>
-      <!-- 수면 -->
       <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
         <div class="field">
           <label>😴 수면 시간</label>
           <select id="sleepHours" onchange="autoSave()" style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;color:var(--txt);font-family:inherit;font-size:13px;padding:6px 8px;width:100%;outline:none"></select>
         </div>
       </div>
-      <!-- 식습관 체크박스 -->
       <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
         <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">🥗 식습관</div>
         <div class="food-checks">
@@ -463,7 +425,43 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
     </div>
   </div>
 
-  <!-- 탭: 업무 섹션 (다음) -->
+  <!-- 데스크탑/폴드펼침 전용: 두 섹션 모두 표시 -->
+  <style>
+    @media(min-width:540px){
+      #leftPanel .mob-section{display:contents!important;position:static!important}
+    }
+  </style>
+
+</div><!-- /left -->
+
+<!-- ══ RIGHT (데스크탑/폴드 펼침) ══ -->
+<div class="right" id="rightPanel">
+
+  <!-- 날짜·요일: 항상 오른쪽 최상단 고정 -->
+  <div class="panel-date">
+    <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
+    <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
+  </div>
+
+  <!-- 탭: 공부 섹션 (오른쪽으로 이동) -->
+  <div class="mob-section" id="sec-study">
+    <div class="card">
+      <div class="sec-title">📚 공부 · 학습 목표</div>
+      <div class="subj-accordion" id="subjAccordion"></div>
+      <div class="study-footer">
+        <div>
+          <span class="study-total-n" id="studyTotal">0<span style="font-size:11px;color:var(--muted);font-weight:400">h</span></span>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">총 공부시간</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:9px;color:var(--muted)">달성률</div>
+          <div style="font-size:18px;font-weight:700;color:var(--teal)" id="studyPct">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭: 업무 섹션 -->
   <div class="mob-section" id="sec-work">
     <div class="card">
       <div class="sec-title">💰 업무 · 수입</div>
@@ -1087,7 +1085,7 @@ function updateHobbyDisplay(){
 }
 
 /* ════ MOBILE TABS ════ */
-const TAB_MAP = { cal:'sec-cal', study:'sec-study', work:'sec-work', ex:'sec-ex', etc:'sec-etc' };
+const TAB_MAP = { cal:'sec-cal', ex:'sec-ex', study:'sec-study', work:'sec-work', etc:'sec-etc' };
 function switchTab(name) {
   // update tab buttons
   Object.keys(TAB_MAP).forEach(k => {
