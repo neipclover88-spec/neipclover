@@ -212,6 +212,7 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 
 /* MOOD */
 .food-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.house-checks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .fcheck{display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:7px 10px;cursor:pointer;font-size:11px;transition:all .15s}
 .fcheck:hover{border-color:var(--green)}
 .fcheck input{width:14px;height:14px;accent-color:var(--green);cursor:pointer}
@@ -425,10 +426,16 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
           <label class="fcheck"><input type="checkbox" id="fcSoda"  onchange="autoSave()"><span>탄산 ✗</span></label>
         </div>
       </div>
+      <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">🏠 집안일</div>
+        <div class="house-checks">
+          <label class="fcheck"><input type="checkbox" id="hwClean"  onchange="autoSave()"><span>청소 🧹</span></label>
+          <label class="fcheck"><input type="checkbox" id="hwDish"   onchange="autoSave()"><span>설겆이 🍽️</span></label>
+          <label class="fcheck"><input type="checkbox" id="hwTrash"  onchange="autoSave()"><span>쓰레기 🗑️</span></label>
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- 데스크탑/폴드펼침 전용: 두 섹션 모두 표시 -->
   <style>
     @media(min-width:540px){
       #leftPanel .mob-section{display:contents!important;position:static!important}
@@ -894,6 +901,7 @@ function renderCalendar(dates) {
     }
     if((r.sleepHours||0)>=7){ const s=document.createElement('span');s.textContent='🌙';s.className='dc-ico';healthRow.appendChild(s); }
     if(r.fcSpicy&&r.fcOver&&r.fcCafe&&r.fcSoda){ const s=document.createElement('span');s.textContent='🥗';s.className='dc-ico';healthRow.appendChild(s); }
+    if(r.hwClean||r.hwDish||r.hwTrash){ const s=document.createElement('span');s.textContent='🏠';s.className='dc-ico';healthRow.appendChild(s); }
     if(healthRow.children.length) card.appendChild(healthRow);
 
     const icons=document.createElement('div');
@@ -990,7 +998,7 @@ async function selectDay(ds) {
   setV('runKm',r.runKm); setV('runMin',r.runMin); calcRun();
   setV('bikeKm',r.bikeKm); setV('bikeMin',r.bikeMin); calcBike();
   setV('sleepHours', r.sleepHours||0);
-  const fids=['fcSpicy','fcOver','fcCafe','fcSoda'];
+  const fids=['fcSpicy','fcOver','fcCafe','fcSoda','hwClean','hwDish','hwTrash'];
   fids.forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=!!(r[id]); });
   setV('todayIncome',r.income); setV('todayExpense',r.expense); setV('workHours',r.workHours);
   onIncome();
@@ -1123,6 +1131,9 @@ async function saveRecord(silent=false){
     fcOver:!!(document.getElementById('fcOver')?.checked),
     fcCafe:!!(document.getElementById('fcCafe')?.checked),
     fcSoda:!!(document.getElementById('fcSoda')?.checked),
+    hwClean:!!(document.getElementById('hwClean')?.checked),
+    hwDish:!!(document.getElementById('hwDish')?.checked),
+    hwTrash:!!(document.getElementById('hwTrash')?.checked),
     sKor:getN('s-kor'),sMath:getN('s-math'),sEng:getN('s-eng'),sSoc:getN('s-soc'),
     income:getN('todayIncome'),expense:getN('todayExpense'),workHours:getN('workHours'),
     hobbyName:document.getElementById('hobbyName').value.trim(),
