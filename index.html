@@ -156,8 +156,8 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 
 /* PANEL DATE */
 .panel-date{margin-bottom:2px}
-.panel-d-str{font-size:19px;font-weight:700;line-height:1.2}
-.panel-d-sub{font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px}
+.panel-d-str{font-size:24px;font-weight:700;line-height:1.2}
+.panel-d-sub{font-size:13px;color:var(--muted);letter-spacing:1px;margin-top:3px}
 
 /* EXERCISE */
 .ex-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
@@ -182,7 +182,8 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 .tstat .v{font-size:13px;font-weight:700;color:var(--gold);display:block;line-height:1.2}
 .tstat .l{font-size:8px;color:var(--muted);display:block;margin-top:2px}
 .tstat.teal .v{color:var(--teal)}.tstat.red .v{color:var(--red)}
-.inc-inputs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.inc-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.inc-inputs-bottom{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px}
 .wkchart{display:flex;align-items:flex-end;gap:4px;height:60px;position:relative;padding-bottom:16px}
 .wkchart::after{content:'';position:absolute;bottom:15px;left:0;right:0;height:1px;background:var(--bd)}
 .wk-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;height:100%;cursor:pointer}
@@ -335,8 +336,8 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 <div class="mob-tabbar">
   <div class="mob-tab on"  id="mtab-cal"   onclick="switchTab('cal')"><span class="ico">📅</span>캘린더</div>
   <div class="mob-tab"     id="mtab-study" onclick="switchTab('study')"><span class="ico">📚</span>공부</div>
-  <div class="mob-tab"     id="mtab-work"  onclick="switchTab('work')"><span class="ico">💰</span>업무</div>
   <div class="mob-tab"     id="mtab-ex"    onclick="switchTab('ex')"><span class="ico">🏃</span>운동</div>
+  <div class="mob-tab"     id="mtab-work"  onclick="switchTab('work')"><span class="ico">💰</span>업무</div>
   <div class="mob-tab"     id="mtab-etc"   onclick="switchTab('etc')"><span class="ico">🎮</span>기타</div>
 </div>
 
@@ -355,9 +356,9 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
     </div>
     <div class="cal">
       <div class="dow-row">
-        <div class="dow wd">월</div><div class="dow wd">화</div><div class="dow wd">수</div>
-        <div class="dow wd">목</div><div class="dow wd">금</div>
-        <div class="dow sat">토</div><div class="dow sun">일</div>
+        <div class="dow sun">일</div><div class="dow wd">월</div><div class="dow wd">화</div>
+        <div class="dow wd">수</div><div class="dow wd">목</div><div class="dow wd">금</div>
+        <div class="dow sat">토</div>
       </div>
       <div class="day-grid" id="dayGrid"></div>
     </div>
@@ -365,10 +366,6 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 
   <!-- 탭: 공부 섹션 -->
   <div class="mob-section" id="sec-study">
-    <div class="panel-date">
-      <div class="panel-d-str" id="panelDStr2">날짜를 선택하세요</div>
-      <div class="panel-d-sub" id="panelDSub2"></div>
-    </div>
     <div class="card">
       <div class="sec-title">📚 공부 · 학습 목표</div>
       <div class="subj-accordion" id="subjAccordion"></div>
@@ -397,42 +394,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 <!-- ══ RIGHT (데스크탑/폴드 펼침) ══ -->
 <div class="right" id="rightPanel">
 
-  <!-- 탭: 업무 섹션 -->
-  <div class="mob-section" id="sec-work">
-    <div class="panel-date">
-      <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
-      <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
-    </div>
-    <div class="card">
-      <div class="sec-title">💰 업무 · 수입</div>
-      <div class="target-row">
-        <div class="tstat"><span class="v" id="tDynamic">—</span><span class="l">오늘 목표</span></div>
-        <div class="tstat teal"><span class="v" id="tEarned">₩0</span><span class="l">오늘 순수입</span></div>
-        <div class="tstat red"><span class="v" id="tGap">—</span><span class="l" id="tGapLbl">이번달 부족</span></div>
-      </div>
-      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;margin-bottom:10px;font-size:10px;color:var(--muted);line-height:1.9">
-        <span style="color:var(--gold)">일일 목표분</span> = 잔액(<span id="infoRemDebt" style="color:var(--gold)">—</span>) ÷ <span id="infoRemDays" style="color:var(--gold)">—</span>일
-        <span style="float:right;color:var(--teal)">이번달 목표 <strong id="infoMonthTgt" style="color:var(--teal)">—</strong></span>
-      </div>
-      <div class="inc-inputs">
-        <div class="field"><label>수입 (원)</label><input type="number" id="todayIncome" placeholder="0" oninput="onIncome()"></div>
-        <div class="field"><label>지출 (원)</label><input type="number" id="todayExpense" placeholder="0" oninput="onIncome()"></div>
-        <div class="field"><label>업무 시간</label><input type="number" id="workHours" placeholder="0" min="0" step="0.5" oninput="autoSave()"></div>
-      </div>
-      <div style="font-size:9px;color:var(--muted);margin-bottom:4px">이번주 일별 수입</div>
-      <div class="wkchart" id="wkChart"></div>
-      <div class="achieve-row">
-        <span style="color:var(--muted)">오늘 달성률</span>
-        <span style="font-weight:700;color:var(--gold)" id="achPct">0%</span>
-      </div>
-      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:3px;height:7px;margin-top:4px;overflow:hidden">
-        <div id="achBar" style="background:var(--gold);height:100%;width:0%;border-radius:3px;transition:width .35s"></div>
-      </div>
-      <div class="exceed-note" id="exceedNote">✅ 목표 초과! 잉여분이 목표액에서 차감됩니다</div>
-    </div>
-  </div>
-
-  <!-- 탭: 운동 섹션 -->
+  <!-- 탭: 운동 섹션 (먼저) -->
   <div class="mob-section" id="sec-ex">
     <div class="card">
       <div class="sec-title">🏃 운동</div>
@@ -465,6 +427,45 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
         </div>
         <div class="ex-metric"><span class="em-l">평균 속도</span><span class="em-v em-bike" id="bikeMetric">—</span></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 탭: 업무 섹션 (다음) -->
+  <div class="mob-section" id="sec-work">
+    <div class="panel-date">
+      <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
+      <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
+    </div>
+    <div class="card">
+      <div class="sec-title">💰 업무 · 수입</div>
+      <div class="target-row">
+        <div class="tstat"><span class="v" id="tDynamic">—</span><span class="l">오늘 목표</span></div>
+        <div class="tstat teal"><span class="v" id="tEarned">₩0</span><span class="l">오늘 순수입</span></div>
+        <div class="tstat red"><span class="v" id="tGap">—</span><span class="l" id="tGapLbl">이번달 부족</span></div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;margin-bottom:10px;font-size:10px;color:var(--muted);line-height:1.9">
+        <span style="color:var(--gold)">일일 목표분</span> = 잔액(<span id="infoRemDebt" style="color:var(--gold)">—</span>) ÷ <span id="infoRemDays" style="color:var(--gold)">—</span>일
+        <span style="float:right;color:var(--teal)">이번달 목표 <strong id="infoMonthTgt" style="color:var(--teal)">—</strong></span>
+      </div>
+      <div class="inc-inputs">
+        <div class="field"><label>수입 (원)</label><input type="number" id="todayIncome" placeholder="0" oninput="onIncome()"></div>
+        <div class="field"><label>지출 (원)</label><input type="number" id="todayExpense" placeholder="0" oninput="onIncome()"></div>
+      </div>
+      <div class="inc-inputs-bottom">
+        <div class="field work-hours-field"><label>업무 시간</label>
+          <select id="workHours" onchange="autoSave()" style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;color:var(--txt);font-family:inherit;font-size:13px;padding:6px 8px;width:100%;outline:none"></select>
+        </div>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:4px">이번주 일별 수입</div>
+      <div class="wkchart" id="wkChart"></div>
+      <div class="achieve-row">
+        <span style="color:var(--muted)">오늘 달성률</span>
+        <span style="font-weight:700;color:var(--gold)" id="achPct">0%</span>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:3px;height:7px;margin-top:4px;overflow:hidden">
+        <div id="achBar" style="background:var(--gold);height:100%;width:0%;border-radius:3px;transition:width .35s"></div>
+      </div>
+      <div class="exceed-note" id="exceedNote">✅ 목표 초과! 잉여분이 목표액에서 차감됩니다</div>
     </div>
   </div>
 
@@ -612,10 +613,11 @@ async function dbGetAllDay() {
 function toStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function today() { return toStr(new Date()); }
 function getWeekDates(off=0) {
-  const now = new Date(), dow = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (dow===0?6:dow-1) + off*7);
-  return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return toStr(d); });
+  // 일요일 시작
+  const now = new Date(), dow = now.getDay(); // 0=Sun
+  const sun = new Date(now);
+  sun.setDate(now.getDate() - dow + off*7);
+  return Array.from({length:7}, (_,i) => { const d=new Date(sun); d.setDate(sun.getDate()+i); return toStr(d); });
 }
 function krw(n) { return '₩' + (Math.round(n)||0).toLocaleString('ko-KR'); }
 function secToMS(s) { const m=Math.floor(s/60),sec=Math.round(s%60); return m+"'"+String(sec).padStart(2,'0')+'"'; }
@@ -736,16 +738,18 @@ function renderSubjectAccordion() {
     body.innerHTML = `
       <div class="subj-hours-row">
         <label>오늘 공부시간</label>
-        <input type="number" class="subj-hours-input" id="s-${subj.id}"
-          placeholder="0" min="0" max="24" step="0.5" value="${hv||''}"
-          oninput="onStudyH('${subj.id}')">
-        <span style="font-size:11px;color:var(--muted);margin-left:4px">h</span>
+        <select class="subj-hours-input" id="s-${subj.id}" onchange="onStudyH('${subj.id}')">
+          <option value="0">0분</option>
+        </select>
       </div>
       <div style="font-size:9px;color:var(--muted);margin-bottom:6px">학습 목표 진척</div>
       <div class="proj-list" id="pl-${subj.id}"></div>
       <button class="add-proj-btn" onclick="addProjectToSubj('${subj.id}')">+ 목표 추가</button>`;
     item.appendChild(hdr); item.appendChild(mini); item.appendChild(body);
     acc.appendChild(item);
+    // build study hours select
+    buildStudySelect('s-'+subj.id);
+    setV('s-'+subj.id, hv||0);
     // render proj items
     const listEl = body.querySelector('.proj-list');
     for (let idx=0; idx<projs.length; idx++) {
@@ -810,6 +814,17 @@ function prevWeek(){ wkOffset--; renderWeek(); }
 function nextWeek(){ wkOffset++; renderWeek(); }
 
 /* ════ CALENDAR ════ */
+// 연속 업무일수 계산: ds 당일까지 연속으로 workHours>0인 날 수
+function calcWorkStreak(ds) {
+  let streak = 0, cur = new Date(ds);
+  while(true) {
+    const key = 'd:' + toStr(cur);
+    const r = _allRec[key] || weekData[key];
+    if (r && (r.workHours||0) > 0) { streak++; cur.setDate(cur.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
 function renderCalendar(dates) {
   const grid = document.getElementById('dayGrid'); grid.innerHTML = '';
   const td = today();
@@ -837,7 +852,22 @@ function renderCalendar(dates) {
     }
     const icons=document.createElement('div'); icons.className='dc-icons';
     if(r.income){const e=document.createElement('span');e.style.cssText='font-size:7px;color:var(--gold);font-weight:700';e.textContent=krw(r.income);icons.appendChild(e);}
-    if(r.workHours>0){const w=document.createElement('span');w.textContent='🛵';w.title='업무 '+r.workHours+'h';icons.appendChild(w);}
+    // 업무 연속일수: 이날 workHours>0이고 어제는 workHours=0인 경우 또는 연속 마지막날에만 숫자 표시
+    if((r.workHours||0) > 0) {
+      const streak = calcWorkStreak(ds);
+      // 다음날 일했는지 확인 (다음날 기록 있으면 이날은 중간이라 숫자 숨김)
+      const nextDate = new Date(ds); nextDate.setDate(nextDate.getDate()+1);
+      const nextKey = 'd:' + toStr(nextDate);
+      const nextR = _allRec[nextKey] || weekData[nextKey];
+      const nextWorked = nextR && (nextR.workHours||0) > 0;
+      if(!nextWorked) {
+        const w=document.createElement('span');
+        w.style.cssText='font-size:9px;color:var(--teal);font-weight:700;background:rgba(62,207,190,.15);padding:1px 3px;border-radius:2px;';
+        w.textContent = streak + '일';
+        w.title = '연속 업무 '+streak+'일';
+        icons.appendChild(w);
+      }
+    }
     if(r.mood){const m=document.createElement('span');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';icons.appendChild(m);}
     if(icons.children.length) rows.appendChild(icons);
     card.appendChild(rows); grid.appendChild(card);
@@ -847,7 +877,7 @@ function renderCalendar(dates) {
 /* ════ WEEKLY CHART ════ */
 function renderWkChart(dates) {
   const chart = document.getElementById('wkChart'); chart.innerHTML='';
-  const dayN=['월','화','수','목','금','토','일'];
+  const dayN=['일','월','화','수','목','금','토'];
   const maxV = Math.max(dynTarget*1.5,...dates.map(d=>(weekData['d:'+d]||{}).income||0),1);
   const td = today();
   for (const ds of dates) {
@@ -860,7 +890,7 @@ function renderWkChart(dates) {
     bar.style.height=barH+'px';
     bar.style.background=ds===curDate?'var(--gold)':ds===td?'var(--teal)':inc>=dynTarget?'var(--green)':'var(--bd2)';
     const tl=document.createElement('div'); tl.className='wk-tline'; tl.style.bottom=(tH-barH)+'px'; bar.appendChild(tl);
-    const lbl=document.createElement('div'); lbl.className='wk-lbl'; lbl.textContent=dayN[dow===0?6:dow-1];
+    const lbl=document.createElement('div'); lbl.className='wk-lbl'; lbl.textContent=dayN[dow];
     col.appendChild(bar); col.appendChild(lbl); chart.appendChild(col);
   }
 }
@@ -873,8 +903,8 @@ async function selectDay(ds) {
   const dN=['일','월','화','수','목','금','토'];
   const dstr = `${d.getFullYear()}년 ${mN[d.getMonth()]} ${d.getDate()}일`;
   const dsub = dN[d.getDay()]+'요일';
-  for (const id of ['panelDStr','panelDStr2']) { const el=document.getElementById(id); if(el) el.textContent=dstr; }
-  for (const id of ['panelDSub','panelDSub2']) { const el=document.getElementById(id); if(el) el.textContent=dsub; }
+  for (const id of ['panelDStr']) { const el=document.getElementById(id); if(el) el.textContent=dstr; }
+  for (const id of ['panelDSub']) { const el=document.getElementById(id); if(el) el.textContent=dsub; }
   for (const id of ['saveBtn','saveBtnD']) { const el=document.getElementById(id); if(el){el.disabled=false;el.textContent='💾  저장';} }
 
   const r = weekData['d:'+ds]||{};
@@ -1011,11 +1041,50 @@ async function saveRecord(silent=false){
 
 /* ════ HELPERS ════ */
 function getN(id){return parseFloat(document.getElementById(id)?.value)||0;}
-function setV(id,v){const el=document.getElementById(id);if(!el)return;el.value=(v==null||v===0||v==='')?'':v;}
+function setV(id,v){
+  const el=document.getElementById(id); if(!el) return;
+  if(el.tagName==='SELECT'){
+    // find closest option
+    const target = parseFloat(v)||0;
+    let best=null, bestDiff=Infinity;
+    for(const opt of el.options){ const diff=Math.abs(parseFloat(opt.value)-target); if(diff<bestDiff){bestDiff=diff;best=opt.value;} }
+    el.value = target===0?'0':(best||'0');
+  } else {
+    el.value=(v==null||v===0||v==='')?'':v;
+  }
+}
+
+/* 15분 단위 드롭다운 생성 (0~16h) */
+function buildHoursSelect(id, maxH=16) {
+  const sel = document.getElementById(id); if(!sel) return;
+  sel.innerHTML = '<option value="0">0분</option>';
+  for(let m=15; m<=maxH*60; m+=15){
+    const h=Math.floor(m/60), min=m%60;
+    const label = h>0 ? (min>0?`${h}시간 ${min}분`:`${h}시간`) : `${min}분`;
+    const val=(m/60).toFixed(2).replace(/\.?0+$/,'');
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=label;
+    sel.appendChild(opt);
+  }
+}
+
+/* 과목 시간 select 생성 (0~12h) */
+function buildStudySelect(id) {
+  const sel = document.getElementById(id); if(!sel||sel.dataset.built) return;
+  sel.dataset.built='1';
+  sel.innerHTML='<option value="0">0분</option>';
+  for(let m=15; m<=720; m+=15){
+    const h=Math.floor(m/60), min=m%60;
+    const label = h>0?(min>0?`${h}시간 ${min}분`:`${h}시간`):`${min}분`;
+    const val=(m/60).toFixed(4).replace(/0+$/,'').replace(/\.$/, '');
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=label;
+    sel.appendChild(opt);
+  }
+}
 
 /* ════ INIT ════ */
 async function init(){
   initFB();
+  buildHoursSelect('workHours');
   await loadSubjectProjects();
   await renderWeek();
   const td=today();
