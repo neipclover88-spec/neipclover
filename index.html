@@ -678,8 +678,12 @@ function monthlyIncomeSoFar() {
 
 /* ════ ALL-TIME ════ */
 async function loadAllTime() {
-  const all = await dbGetAllDay();
-  _allRec = all;
+  try {
+    const all = await Promise.race([
+      dbGetAllDay(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
+    ]);
+    _allRec = all;
   allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
   for (const k in all) {
     const r = all[k], ds = k.replace('d:','');
@@ -692,7 +696,8 @@ async function loadAllTime() {
     hobbyCumul += (r.hobbyHours || 0);
     if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
     if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
-  }
+    }
+  } catch(e) { console.warn('loadAllTime:', e.message); }
   dynTarget = calcDynTarget();
   updateHeaderStats();
   updateHobbyDisplay();
@@ -711,8 +716,13 @@ function updateHeaderStats() {
 
 /* ════ SUBJECT PROJECTS ════ */
 async function loadSubjectProjects() {
-  const p = await dbGet('subjProjects');
-  if (p) subjectProjects = p;
+  try {
+    const p = await Promise.race([
+      dbGet('subjProjects'),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
+    ]);
+    if (p) subjectProjects = p;
+  } catch(e) { console.warn('loadSubjectProjects:', e.message); }
   renderSubjectAccordion();
 }
 async function saveSubjectProjects() { await dbSet('subjProjects', subjectProjects); renderSubjectAccordion(); }
@@ -1225,15 +1235,20 @@ function buildSleepSelect(id) {
   }
 }
 async function init(){
-  initFB();
-  buildHoursSelect('workHours');
-  buildSleepSelect('sleepHours');
-  await loadSubjectProjects();
-  await renderWeek();
-  const td=today();
-  if(getWeekDates(0).includes(td)) await selectDay(td);
-  const l=document.getElementById('loader');
-  l.style.opacity='0';setTimeout(()=>l.style.display='none',400);
+  try {
+    initFB();
+    buildHoursSelect('workHours');
+    buildSleepSelect('sleepHours');
+    await loadSubjectProjects();
+    await renderWeek();
+    const td=today();
+    if(getWeekDates(0).includes(td)) await selectDay(td);
+  } catch(e) {
+    console.error('init error:', e);
+  } finally {
+    const l=document.getElementById('loader');
+    l.style.opacity='0';setTimeout(()=>l.style.display='none',400);
+  }
 }
 init();
 </script>
