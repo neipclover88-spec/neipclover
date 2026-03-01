@@ -850,7 +850,12 @@ async function renderWeek() {
   document.getElementById('hYear').textContent = first.getFullYear()+'년';
   document.getElementById('hMonth').textContent = first.getMonth()===last.getMonth() ? mN[first.getMonth()] : mN[first.getMonth()]+' · '+mN[last.getMonth()];
   document.getElementById('weekRange').textContent = `${fmt(first)} – ${fmt(last)}`;
-  weekData = await dbGetMany(dates.map(d => 'd:'+d));
+  try {
+    weekData = await Promise.race([
+      dbGetMany(dates.map(d => 'd:'+d)),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
+    ]);
+  } catch(e) { console.warn('renderWeek dbGetMany:', e.message); weekData = {}; }
   await loadAllTime();
   let wInc=0, wStudy=0, wWork=0;
   for (const d of dates) {
