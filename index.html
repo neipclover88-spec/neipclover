@@ -684,18 +684,16 @@ async function loadAllTime() {
       new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
     ]);
     _allRec = all;
-  allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
-  for (const k in all) {
-    const r = all[k], ds = k.replace('d:','');
-    // 재무(수입/지출)는 START_STR 이후만 집계
-    if (ds >= START_STR) {
-      allTimeIncome   += (r.income   || 0);
-      allTimeExpenses += (r.expense  || 0);
-    }
-    // 목표 진척/취미/기타는 날짜 무관 전체 누적
-    hobbyCumul += (r.hobbyHours || 0);
-    if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
-    if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
+    allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
+    for (const k in all) {
+      const r = all[k], ds = k.replace('d:','');
+      if (ds >= START_STR) {
+        allTimeIncome   += (r.income   || 0);
+        allTimeExpenses += (r.expense  || 0);
+      }
+      hobbyCumul += (r.hobbyHours || 0);
+      if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
+      if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
     }
   } catch(e) { console.warn('loadAllTime:', e.message); }
   dynTarget = calcDynTarget();
