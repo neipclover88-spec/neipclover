@@ -436,6 +436,32 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
       </div>
     </div>
   </div>
+
+  <!-- ✨ 웰니스 카드 (왼쪽 하단) -->
+  <div class="card" id="wellnessCard">
+    <!-- 상단: 건강지수 + 주간점수 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">건강지수</div>
+        <div id="healthHeart" style="font-size:28px;line-height:1">❤️</div>
+        <div id="healthLabel" style="font-size:9px;margin-top:3px;color:var(--muted)">—</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">주간 점수</div>
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:3px">
+          <span id="weekScore" style="font-size:24px;font-weight:700;color:var(--teal)">—</span>
+          <span style="font-size:10px;color:var(--muted)">점</span>
+        </div>
+        <div id="weekScoreDiff" style="font-size:10px;margin-top:2px;color:var(--muted)">—</div>
+      </div>
+    </div>
+    <!-- 레이더 차트 -->
+    <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">이번 주 균형</div>
+    <div style="display:flex;justify-content:center">
+      <canvas id="radarChart" width="180" height="160"></canvas>
+    </div>
+  </div>
+
   <style>
     @media(min-width:540px){
       #leftPanel .mob-section{display:contents!important;position:static!important}
@@ -537,6 +563,9 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
       <textarea id="noteText" placeholder="오늘 있었던 일, 느낀 점..."
         style="resize:none;height:70px;font-size:12px" oninput="autoSave()"></textarea>
     </div>
+
+    <!-- 상황별 메시지 -->
+    <div id="motivMsg" style="padding:8px 10px;background:var(--s1);border-left:3px solid var(--teal);border-radius:0 4px 4px 0;font-size:11px;color:var(--txt);line-height:1.6;min-height:36px">—</div>
     <button class="save-btn" id="saveBtn" onclick="saveRecord()" disabled>날짜를 선택하세요</button>
     <div class="save-status" id="saveStatus"></div>
   </div>
@@ -868,6 +897,7 @@ async function renderWeek() {
   const spEl = document.getElementById('studyPct');
   if(spEl){ spEl.textContent=spct+'%'; spEl.style.color=spct>=100?'var(--green)':'var(--teal)'; }
   renderCalendar(dates); renderWkChart(dates); renderSubjectAccordion();
+  updateWellness();
 }
 function prevWeek(){ wkOffset--; renderWeek(); }
 function nextWeek(){ wkOffset++; renderWeek(); }
@@ -1021,6 +1051,7 @@ async function selectDay(ds) {
   renderSubjectAccordion();
   renderCalendar(getWeekDates(wkOffset));
   renderWkChart(getWeekDates(wkOffset));
+  updateWellness();
 }
 
 /* ════ STUDY ════ */
@@ -1169,6 +1200,7 @@ async function saveRecord(silent=false){
     renderCalendar(getWeekDates(wkOffset));
     renderWkChart(getWeekDates(wkOffset));
     renderSubjectAccordion();
+    updateWellness();
     let wInc=0,wStudy=0,wWork=0;
     for(const d of getWeekDates(wkOffset)){const r=weekData['d:'+d];if(!r)continue;wInc+=(r.income||0);wWork+=(r.workHours||0);wStudy+=(r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);}
     document.getElementById('ws-study').textContent=wStudy.toFixed(1)+'h';
@@ -1232,6 +1264,222 @@ function buildSleepSelect(id) {
     sel.appendChild(opt);
   }
 }
+/* ════ WELLNESS ════ */
+
+// 건강지수 계산 (0~100)
+function calcHealthIndex(r) {
+  let score = 50; // 기본
+  // 수면 (최대 +25)
+  const sl = parseFloat(r.sleepHours||0);
+  if      (sl >= 8)  score += 25;
+  else if (sl >= 7)  score += 20;
+  else if (sl >= 6)  score += 10;
+  else if (sl >= 4)  score += 0;
+  else if (sl > 0)   score -= 10;
+  else               score -= 5; // 미기록
+  // 운동 (최대 +20)
+  const exCnt = [r.exOn?.swim, r.exOn?.run, r.exOn?.bike].filter(Boolean).length;
+  score += exCnt * 7;
+  // 식습관 (최대 +15)
+  if (r.fcSpicy) score += 4;
+  if (r.fcOver)  score += 4;
+  if (r.fcCafe)  score += 4;
+  if (r.fcSoda)  score += 3;
+  // 업무 (균형: 2~6h 적정, 없으면 -5, 너무 많으면 -10)
+  const wh = parseFloat(r.workHours||0);
+  if      (wh >= 2 && wh <= 6)  score += 10;
+  else if (wh > 6 && wh <= 10)  score += 5;
+  else if (wh > 10)              score -= 10;
+  else                           score -= 5;
+  // 기분 (+0~5)
+  if (r.mood >= 4) score += 5;
+  else if (r.mood === 3) score += 2;
+  else if (r.mood <= 2 && r.mood > 0) score -= 3;
+  return Math.max(0, Math.min(100, score));
+}
+
+const HEART_LEVELS = [
+  { min:80, heart:'💙', label:'최상', color:'#4a9eff' },
+  { min:65, heart:'💚', label:'양호', color:'#3ecf6e' },
+  { min:50, heart:'💛', label:'보통', color:'#f0a500' },
+  { min:35, heart:'🧡', label:'주의', color:'#f97316' },
+  { min:0,  heart:'❤️', label:'위험', color:'#e05454' },
+];
+function getHeartLevel(score) {
+  return HEART_LEVELS.find(l => score >= l.min) || HEART_LEVELS[4];
+}
+
+// 주간 종합점수 (0~100)
+function calcWeekScore(dates, data) {
+  let total = 0, cnt = 0;
+  for (const d of dates) {
+    const r = data['d:'+d]; if (!r) continue;
+    total += calcHealthIndex(r);
+    // 공부 보너스
+    const studyH = (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+    total += Math.min(10, studyH * 2);
+    // 수입 보너스
+    if ((r.income||0) >= dynTarget) total += 5;
+    cnt++;
+  }
+  return cnt > 0 ? Math.round(total / cnt) : 0;
+}
+
+// 레이더 차트 그리기
+function drawRadar(dates, data) {
+  const canvas = document.getElementById('radarChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const cx = W/2, cy = H/2 + 5, R = Math.min(W,H)*0.36;
+
+  const axes = ['운동', '수면', '공부', '수입', '식습관', '업무균형'];
+  const N = axes.length;
+  const vals = [0,0,0,0,0,0]; // 0~1
+  let cnt = 0;
+  for (const d of dates) {
+    const r = data['d:'+d]; if(!r) continue; cnt++;
+    // 운동 (0~1: 운동종류수/3)
+    vals[0] += [r.exOn?.swim,r.exOn?.run,r.exOn?.bike].filter(Boolean).length / 3;
+    // 수면
+    const sl = parseFloat(r.sleepHours||0);
+    vals[1] += sl >= 8 ? 1 : sl >= 7 ? 0.85 : sl >= 6 ? 0.65 : sl >= 4 ? 0.4 : 0.1;
+    // 공부
+    const sh = (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+    vals[2] += Math.min(1, sh / 5);
+    // 수입
+    vals[3] += dynTarget > 0 ? Math.min(1, (r.income||0) / dynTarget) : 0;
+    // 식습관
+    vals[4] += ([r.fcSpicy,r.fcOver,r.fcCafe,r.fcSoda].filter(Boolean).length) / 4;
+    // 업무균형 (2~6h = 1.0)
+    const wh = parseFloat(r.workHours||0);
+    vals[5] += wh>=2&&wh<=6 ? 1 : wh>0&&wh<=10 ? 0.6 : wh>10 ? 0.3 : 0.2;
+  }
+  if (cnt > 0) for (let i=0;i<N;i++) vals[i] /= cnt;
+
+  // 배경 격자
+  for (let lv=1; lv<=4; lv++) {
+    const r = R * lv/4;
+    ctx.beginPath();
+    for (let i=0; i<N; i++) {
+      const a = (i/N)*Math.PI*2 - Math.PI/2;
+      i===0 ? ctx.moveTo(cx+r*Math.cos(a), cy+r*Math.sin(a))
+             : ctx.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a));
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // 축 선
+  for (let i=0; i<N; i++) {
+    const a = (i/N)*Math.PI*2 - Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx+R*Math.cos(a), cy+R*Math.sin(a));
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.stroke();
+    // 레이블
+    const lx = cx+(R+14)*Math.cos(a), ly = cy+(R+14)*Math.sin(a);
+    ctx.fillStyle = 'rgba(180,180,180,0.8)'; ctx.font='9px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(axes[i], lx, ly);
+  }
+  // 데이터 폴리곤
+  ctx.beginPath();
+  for (let i=0; i<N; i++) {
+    const a = (i/N)*Math.PI*2 - Math.PI/2;
+    const r = R * vals[i];
+    i===0 ? ctx.moveTo(cx+r*Math.cos(a), cy+r*Math.sin(a))
+           : ctx.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a));
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(62,207,190,0.2)';
+  ctx.fill();
+  ctx.strokeStyle = 'var(--teal)'; ctx.lineWidth = 2; ctx.stroke();
+  // 포인트
+  for (let i=0; i<N; i++) {
+    const a = (i/N)*Math.PI*2 - Math.PI/2;
+    const r = R * vals[i];
+    ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), 3, 0, Math.PI*2);
+    ctx.fillStyle = 'var(--teal)'; ctx.fill();
+  }
+}
+
+// 상황별 동기 메시지
+function getMotivMsg(r, weekScore) {
+  const msgs = [];
+  const sl = parseFloat(r.sleepHours||0);
+  const exCnt = [r.exOn?.swim,r.exOn?.run,r.exOn?.bike].filter(Boolean).length;
+  const wh = parseFloat(r.workHours||0);
+  const studyH = (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+  const income = r.income||0;
+
+  if (sl > 0 && sl < 6)  msgs.push('😴 수면이 많이 부족해요. 오늘은 일찍 누워보는 건 어떨까요?');
+  if (sl >= 8)           msgs.push('😊 수면이 충분해요! 오늘 컨디션이 좋을 거예요.');
+  if (exCnt === 0)       msgs.push('🏃 오늘 몸을 움직여보는 건 어떨까요? 10분 산책도 좋아요.');
+  if (exCnt >= 2)        msgs.push('💪 운동 열심히 하셨네요! 근육이 고마워하고 있어요.');
+  if (wh > 10)           msgs.push('⚠️ 업무시간이 너무 길어요. 번아웃 전에 쉬어가세요.');
+  if (wh > 0 && wh <= 4) msgs.push('✅ 적절한 업무 시간이에요. 일과 삶의 균형이 좋아요!');
+  if (studyH >= 3)       msgs.push('📚 오늘 공부 정말 열심히 했네요. 꾸준함이 실력이 됩니다!');
+  if (studyH === 0)      msgs.push('📖 오늘 공부 시간을 기록해보세요. 조금씩이라도 괜찮아요.');
+  if (income >= dynTarget) msgs.push('🎯 오늘 목표 수입을 달성했어요! 대단해요!');
+  if (weekScore >= 80)   msgs.push('🌟 이번 주 정말 건강하게 잘 지내고 있어요!');
+  if (weekScore < 40)    msgs.push('🌱 힘든 한 주였군요. 작은 것 하나부터 다시 시작해봐요.');
+  if (!r.fcSpicy && !r.fcOver && !r.fcCafe && !r.fcSoda && (r.fcSpicy!==undefined))
+    msgs.push('🥗 식습관 관리가 잘 되고 있어요!');
+
+  // 기본 메시지
+  if (msgs.length === 0) msgs.push('💫 오늘 하루도 기록해줘서 고마워요. 꾸준함이 최고예요!');
+
+  // 랜덤 1~2개 선택
+  const shuffled = msgs.sort(()=>Math.random()-0.5);
+  return shuffled.slice(0,2).join('<br>');
+}
+
+function updateWellness() {
+  const dates = getWeekDates(wkOffset);
+  const r = weekData['d:'+(curDate||'')] || {};
+
+  // 건강지수
+  const hi = calcHealthIndex(r);
+  const hl = getHeartLevel(hi);
+  const heartEl = document.getElementById('healthHeart');
+  const lblEl   = document.getElementById('healthLabel');
+  if (heartEl) heartEl.textContent = hl.heart;
+  if (lblEl)   { lblEl.textContent = hl.label+' '+hi+'점'; lblEl.style.color = hl.color; }
+
+  // 주간 점수 + 지난주 비교
+  const thisScore = calcWeekScore(dates, weekData);
+  const lastDates = getWeekDates(wkOffset - 1);
+  // 지난주 데이터는 _allRec에서 읽음
+  const lastData  = {};
+  for (const d of lastDates) { if(_allRec['d:'+d]) lastData['d:'+d] = _allRec['d:'+d]; }
+  const lastScore = calcWeekScore(lastDates, lastData);
+  const scoreEl = document.getElementById('weekScore');
+  const diffEl  = document.getElementById('weekScoreDiff');
+  if (scoreEl) { scoreEl.textContent = thisScore; scoreEl.style.color = thisScore>=70?'var(--teal)':thisScore>=50?'var(--gold)':'#e05454'; }
+  if (diffEl) {
+    if (lastScore === 0) { diffEl.textContent = '지난주 데이터 없음'; diffEl.style.color='var(--muted)'; }
+    else {
+      const diff = thisScore - lastScore;
+      diffEl.textContent = (diff>0?'▲ +':'▼ ')+diff+'점 (지난주 '+lastScore+')';
+      diffEl.style.color = diff>0?'var(--teal)':diff<0?'#e05454':'var(--muted)';
+    }
+  }
+
+  // 레이더 차트
+  drawRadar(dates, weekData);
+
+  // 동기 메시지
+  const msgEl = document.getElementById('motivMsg');
+  if (msgEl) {
+    const hasData = curDate && weekData['d:'+curDate];
+    msgEl.innerHTML = hasData ? getMotivMsg(r, thisScore) : '💡 날짜를 선택하면 맞춤 메시지가 표시돼요.';
+    const borderColors = ['var(--teal)','var(--gold)','#4a9eff','#3ecf6e'];
+    msgEl.style.borderLeftColor = borderColors[Math.floor(Math.random()*borderColors.length)];
+  }
+}
+
 async function init(){
   try {
     initFB();
