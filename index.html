@@ -678,24 +678,22 @@ function monthlyIncomeSoFar() {
 
 /* ════ ALL-TIME ════ */
 async function loadAllTime() {
-  try {
-    const all = await Promise.race([
-      dbGetAllDay(),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
-    ]);
-    _allRec = all;
-    allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
-    for (const k in all) {
-      const r = all[k], ds = k.replace('d:','');
-      if (ds >= START_STR) {
-        allTimeIncome   += (r.income   || 0);
-        allTimeExpenses += (r.expense  || 0);
-      }
-      hobbyCumul += (r.hobbyHours || 0);
-      if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
-      if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
+  const all = await Promise.race([
+    dbGetAllDay(),
+    new Promise(res=>setTimeout(()=>res({}),10000))
+  ]);
+  _allRec = all;
+  allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
+  for (const k in all) {
+    const r = all[k], ds = k.replace('d:','');
+    if (ds >= START_STR) {
+      allTimeIncome   += (r.income   || 0);
+      allTimeExpenses += (r.expense  || 0);
     }
-  } catch(e) { console.warn('loadAllTime:', e.message); }
+    hobbyCumul += (r.hobbyHours || 0);
+    if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
+    if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
+  }
   dynTarget = calcDynTarget();
   updateHeaderStats();
   updateHobbyDisplay();
@@ -714,13 +712,11 @@ function updateHeaderStats() {
 
 /* ════ SUBJECT PROJECTS ════ */
 async function loadSubjectProjects() {
-  try {
-    const p = await Promise.race([
-      dbGet('subjProjects'),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
-    ]);
-    if (p) subjectProjects = p;
-  } catch(e) { console.warn('loadSubjectProjects:', e.message); }
+  const p = await Promise.race([
+    dbGet('subjProjects'),
+    new Promise(res=>setTimeout(()=>res(null),10000))
+  ]);
+  if (p) subjectProjects = p;
   renderSubjectAccordion();
 }
 async function saveSubjectProjects() { await dbSet('subjProjects', subjectProjects); renderSubjectAccordion(); }
@@ -798,13 +794,11 @@ function renderSubjectAccordion() {
     const listEl = body.querySelector('.proj-list');
     for (let idx=0; idx<projs.length; idx++) {
       const p = projs[idx], c = PCOLS[idx%PCOLS.length];
-      // 오늘 저장된 값을 빼서 "오늘 제외 누적"을 구함
       const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
       const cumulAll = projCumul[p.id]||0;
       const cumulExclToday = Math.max(0, cumulAll - savedTodayVal);
-      const pctBase = p.total>0 ? Math.min(100,Math.round((cumulExclToday/p.total)*100)) : 0;
-      const pctToday = p.total>0 ? Math.min(100-pctBase, Math.round((savedTodayVal/p.total)*100)) : 0;
-      const pct = pctBase + pctToday;
+      const displayCumul = cumulAll;
+      const pct = p.total>0 ? Math.min(100,Math.round((displayCumul/p.total)*100)) : 0;
       const div = document.createElement('div'); div.className = 'proj-item';
       div.innerHTML = `<button class="del-btn" onclick="delProjectFromSubj('${subj.id}','${p.id}')">✕</button>
         <div class="proj-top">
@@ -815,12 +809,9 @@ function renderSubjectAccordion() {
           <input type="text" placeholder="단위" value="${p.unit||''}" style="font-size:11px"
             onchange="updateSubjProj('${subj.id}','${p.id}','unit',this.value)">
         </div>
-        <div class="proj-bar-wrap" style="position:relative">
-          <div id="pbar-base-${p.id}" style="position:absolute;left:0;top:0;bottom:0;background:${c};opacity:0.45;border-radius:4px;width:${pctBase}%;transition:width .4s"></div>
-          <div id="pbar-today-${p.id}" style="position:absolute;left:${pctBase}%;top:0;bottom:0;background:${c};border-radius:0 4px 4px 0;width:${pctToday}%;transition:width .4s,left .4s;box-shadow:0 0 4px ${c}88"></div>
-        </div>
+        <div class="proj-bar-wrap"><div class="proj-bar-fill" id="pbar-${p.id}" style="background:${c};width:${pct}%"></div></div>
         <div class="proj-meta">
-          <span>누적 <strong style="color:${c}" id="pcumul-${p.id}">${displayCumul}</strong>/${p.total||'?'} ${p.unit||''} <span style="color:${c};opacity:0.7;font-size:9px" id="ptoday-${p.id}">${savedTodayVal>0?'(+오늘 '+savedTodayVal+')':''}</span></span>
+          <span>누적 <strong style="color:${c}" id="pcumul-${p.id}">${displayCumul}</strong>/${p.total||'?'} ${p.unit||''}</span>
           <span style="color:${c};font-weight:700" id="ppct-${p.id}">${pct}%</span>
         </div>
         <div class="proj-today-row">
@@ -850,12 +841,10 @@ async function renderWeek() {
   document.getElementById('hYear').textContent = first.getFullYear()+'년';
   document.getElementById('hMonth').textContent = first.getMonth()===last.getMonth() ? mN[first.getMonth()] : mN[first.getMonth()]+' · '+mN[last.getMonth()];
   document.getElementById('weekRange').textContent = `${fmt(first)} – ${fmt(last)}`;
-  try {
-    weekData = await Promise.race([
-      dbGetMany(dates.map(d => 'd:'+d)),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
-    ]);
-  } catch(e) { console.warn('renderWeek dbGetMany:', e.message); weekData = {}; }
+  weekData = await Promise.race([
+    dbGetMany(dates.map(d => 'd:'+d)),
+    new Promise(res=>setTimeout(()=>res({}),10000))
+  ]);
   await loadAllTime();
   let wInc=0, wStudy=0, wWork=0;
   for (const d of dates) {
@@ -1033,19 +1022,13 @@ function liveUpdateProj(pid, cumulExclToday, total, color) {
   const inp = document.getElementById('pp-'+pid);
   const todayVal = parseFloat(inp?.value)||0;
   const live = cumulExclToday + todayVal;
-  const pctBase = total>0 ? Math.min(100,Math.round((cumulExclToday/total)*100)) : 0;
-  const pctToday = total>0 ? Math.min(100-pctBase, Math.round((todayVal/total)*100)) : 0;
-  const pct = pctBase + pctToday;
-  const barBase = document.getElementById('pbar-base-'+pid);
-  const barToday = document.getElementById('pbar-today-'+pid);
+  const pct = total>0 ? Math.min(100,Math.round((live/total)*100)) : 0;
+  const bar = document.getElementById('pbar-'+pid);
   const pctEl = document.getElementById('ppct-'+pid);
   const cumulEl = document.getElementById('pcumul-'+pid);
-  const todayEl = document.getElementById('ptoday-'+pid);
-  if(barBase) barBase.style.width = pctBase+'%';
-  if(barToday) { barToday.style.left = pctBase+'%'; barToday.style.width = pctToday+'%'; }
+  if(bar) bar.style.width = pct+'%';
   if(pctEl) pctEl.textContent = pct+'%';
   if(cumulEl) cumulEl.textContent = live;
-  if(todayEl) todayEl.textContent = todayVal>0 ? '(+오늘 '+todayVal+')' : '';
 }
 function onStudyH(sid) {
   let tot=0;
@@ -1248,10 +1231,9 @@ async function init(){
     if(getWeekDates(0).includes(td)) await selectDay(td);
   } catch(e) {
     console.error('init error:', e);
-  } finally {
-    const l=document.getElementById('loader');
-    l.style.opacity='0';setTimeout(()=>l.style.display='none',400);
   }
+  const l=document.getElementById('loader');
+  l.style.opacity='0'; setTimeout(()=>l.style.display='none',400);
 }
 init();
 </script>
