@@ -563,10 +563,11 @@ const FIREBASE_CONFIG = {
 };
 
 /* ════ 재무 상수 ════ */
-const PRINCIPAL   = 15_000_000;
-const RATE        = 0.08;
-const DEBT_GOAL   = Math.round(PRINCIPAL * (1 + RATE)); // 16,200,000
-const MONTHLY_FIX = 1_000_000;
+const PRINCIPAL    = 15_800_000;          // 목표 총액 1580만원
+const FIXED_MONTHLY = 1_000_000;          // 고정비 (월세+관리비+공과금)
+const MONTHLY_GOAL = Math.round(PRINCIPAL / 12) + FIXED_MONTHLY; // ≈ 2,316,667원/월
+const DEBT_GOAL    = PRINCIPAL;
+const MONTHLY_FIX = 0;
 const START_STR   = '2026-03-01';
 const START_DATE  = new Date('2026-03-01T00:00:00');
 const END_DATE    = new Date('2027-03-01T23:59:59');
@@ -655,19 +656,15 @@ function secToMS(s) { const m=Math.floor(s/60),sec=Math.round(s%60); return m+"'
 
 /* ════ FINANCE ════ */
 function calcDynTarget() {
-  const remDays = Math.max(1, Math.ceil((END_DATE - new Date()) / 86400000));
-  const netRepaid = Math.max(0, allTimeIncome - allTimeExpenses);
-  const remDebt = Math.max(0, DEBT_GOAL - netRepaid);
-  return Math.ceil(remDebt / remDays) + dailyFix(new Date());
+  const now = new Date();
+  const dim = daysInMonth(now);
+  return Math.ceil(MONTHLY_GOAL / dim);
 }
 function remainingDebt() {
   return Math.max(0, DEBT_GOAL - Math.max(0, allTimeIncome - allTimeExpenses));
 }
 function monthlyTarget() {
-  const now = new Date(), dim = daysInMonth(now);
-  const remDays = Math.max(1, Math.ceil((END_DATE - now) / 86400000));
-  const remDebt = remainingDebt();
-  return Math.ceil(remDebt / remDays) * dim + MONTHLY_FIX;
+  return MONTHLY_GOAL;
 }
 function monthlyIncomeSoFar() {
   const ym = toStr(new Date()).slice(0,7);
@@ -762,11 +759,17 @@ function renderSubjectAccordion() {
     if (projs.length > 0) {
       for (const p of projs) {
         const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
-        const displayCumul = projCumul[p.id]||0;
-        const pct = p.total>0?Math.min(100,Math.round((displayCumul/p.total)*100)):0;
+        const cumulAll = projCumul[p.id]||0;
+        const cumulExclToday = Math.max(0, cumulAll - savedTodayVal);
+        const pctBase  = p.total>0 ? Math.min(100, Math.round((cumulExclToday/p.total)*100)) : 0;
+        const pctToday = p.total>0 ? Math.min(100-pctBase, Math.round((savedTodayVal/p.total)*100)) : 0;
+        const pct = pctBase + pctToday;
         const row = document.createElement('div'); row.className = 'subj-mini-row';
         row.innerHTML = `<span class="subj-mini-name" title="${p.name||''}">${p.name||'—'}</span>
-          <div class="subj-mini-track"><div class="subj-mini-fill" style="background:${subj.hex};width:${pct}%"></div></div>
+          <div class="subj-mini-track" style="position:relative">
+            <div style="position:absolute;inset:0 auto 0 0;width:${pctBase}%;background:${subj.hex};opacity:0.4;border-radius:3px"></div>
+            <div style="position:absolute;inset:0 auto 0 ${pctBase}%;width:${pctToday}%;background:${subj.hex};border-radius:0 3px 3px 0;box-shadow:0 0 4px ${subj.hex}"></div>
+          </div>
           <span class="subj-mini-pct" style="color:${subj.hex}">${pct}%</span>`;
         mini.appendChild(row);
       }
@@ -797,8 +800,9 @@ function renderSubjectAccordion() {
       const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
       const cumulAll = projCumul[p.id]||0;
       const cumulExclToday = Math.max(0, cumulAll - savedTodayVal);
-      const displayCumul = cumulAll;
-      const pct = p.total>0 ? Math.min(100,Math.round((displayCumul/p.total)*100)) : 0;
+      const pctBase  = p.total>0 ? Math.min(100, Math.round((cumulExclToday/p.total)*100)) : 0;
+      const pctToday = p.total>0 ? Math.min(100-pctBase, Math.round((savedTodayVal/p.total)*100)) : 0;
+      const pct = pctBase + pctToday;
       const div = document.createElement('div'); div.className = 'proj-item';
       div.innerHTML = `<button class="del-btn" onclick="delProjectFromSubj('${subj.id}','${p.id}')">✕</button>
         <div class="proj-top">
@@ -809,9 +813,12 @@ function renderSubjectAccordion() {
           <input type="text" placeholder="단위" value="${p.unit||''}" style="font-size:11px"
             onchange="updateSubjProj('${subj.id}','${p.id}','unit',this.value)">
         </div>
-        <div class="proj-bar-wrap"><div class="proj-bar-fill" id="pbar-${p.id}" style="background:${c};width:${pct}%"></div></div>
+        <div class="proj-bar-wrap" style="position:relative;overflow:hidden">
+          <div id="pbar-base-${p.id}"  style="position:absolute;inset:0 auto 0 0;width:${pctBase}%;background:${c};opacity:0.4;border-radius:4px;transition:width .4s"></div>
+          <div id="pbar-today-${p.id}" style="position:absolute;inset:0 auto 0 ${pctBase}%;width:${pctToday}%;background:${c};border-radius:0 4px 4px 0;box-shadow:0 0 6px ${c};transition:width .4s,left .4s"></div>
+        </div>
         <div class="proj-meta">
-          <span>누적 <strong style="color:${c}" id="pcumul-${p.id}">${displayCumul}</strong>/${p.total||'?'} ${p.unit||''}</span>
+          <span>누적 <strong style="color:${c}" id="pcumul-${p.id}">${cumulAll}</strong>/${p.total||'?'} ${p.unit||''}<span id="ptoday-lbl-${p.id}" style="color:${c};opacity:0.75;font-size:9px;margin-left:4px">${savedTodayVal>0?'+오늘 '+savedTodayVal:''}</span></span>
           <span style="color:${c};font-weight:700" id="ppct-${p.id}">${pct}%</span>
         </div>
         <div class="proj-today-row">
@@ -1022,13 +1029,18 @@ function liveUpdateProj(pid, cumulExclToday, total, color) {
   const inp = document.getElementById('pp-'+pid);
   const todayVal = parseFloat(inp?.value)||0;
   const live = cumulExclToday + todayVal;
-  const pct = total>0 ? Math.min(100,Math.round((live/total)*100)) : 0;
-  const bar = document.getElementById('pbar-'+pid);
-  const pctEl = document.getElementById('ppct-'+pid);
-  const cumulEl = document.getElementById('pcumul-'+pid);
-  if(bar) bar.style.width = pct+'%';
-  if(pctEl) pctEl.textContent = pct+'%';
-  if(cumulEl) cumulEl.textContent = live;
+  const pctBase  = total>0 ? Math.min(100, Math.round((cumulExclToday/total)*100)) : 0;
+  const pctToday = total>0 ? Math.min(100-pctBase, Math.round((todayVal/total)*100)) : 0;
+  const barBase  = document.getElementById('pbar-base-'+pid);
+  const barToday = document.getElementById('pbar-today-'+pid);
+  const pctEl    = document.getElementById('ppct-'+pid);
+  const cumulEl  = document.getElementById('pcumul-'+pid);
+  const lblEl    = document.getElementById('ptoday-lbl-'+pid);
+  if(barBase)  barBase.style.width  = pctBase+'%';
+  if(barToday) { barToday.style.left = pctBase+'%'; barToday.style.width = pctToday+'%'; }
+  if(pctEl)    pctEl.textContent  = (pctBase+pctToday)+'%';
+  if(cumulEl)  cumulEl.textContent = live;
+  if(lblEl)    lblEl.textContent   = todayVal>0 ? '+오늘 '+todayVal : '';
 }
 function onStudyH(sid) {
   let tot=0;
