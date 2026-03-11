@@ -104,7 +104,7 @@ header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
 .b-run{background:rgba(249,115,22,.15);color:var(--orange)}
 .b-bike{background:rgba(167,139,250,.15);color:var(--violet)}
 .dc-rows{display:flex;flex-direction:column;gap:2px;margin-top:auto}
-.dc-bars{display:flex;gap:1px;align-items:flex-end;height:14px}
+.dc-bars{display:flex;gap:1px;align-items:flex-end;height:22px}
 .dc-bar{flex:1;border-radius:1px 1px 0 0;min-height:2px}
 .dc-icons{display:flex;gap:2px;font-size:10px;line-height:1;flex-wrap:wrap}
 
@@ -310,7 +310,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
   .dc-num{font-size:10px;font-weight:700}
   .dc-ico{font-size:6px!important;line-height:1.1!important}
   .dc-streak{font-size:6px!important}
-  .dc-bars{height:7px}
+  .dc-bars{height:14px}
   .day-grid{gap:2px}
   .dow-row{gap:2px}.dow{font-size:8px;padding:2px 1px}
   .card{padding:9px}
@@ -985,7 +985,7 @@ function renderCalendar(dates) {
       const bars=document.createElement('div'); bars.className='dc-bars';
       bars.style.marginTop='auto';
       [{v:r.sKor||0,c:'var(--kor)'},{v:r.sMath||0,c:'var(--math)'},{v:r.sEng||0,c:'var(--eng)'},{v:r.sSoc||0,c:'var(--soc)'}].forEach(({v,c})=>{
-        const b=document.createElement('div');b.className='dc-bar';b.style.cssText=`background:${c};height:${Math.max(2,Math.round((v/tot)*13))}px`;bars.appendChild(b);
+        const b=document.createElement('div');b.className='dc-bar';b.style.cssText=`background:${c};height:${Math.max(2,Math.round((v/tot)*22))}px`;bars.appendChild(b);
       });
       card.appendChild(bars);
     }
