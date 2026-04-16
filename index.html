@@ -63,11 +63,11 @@ input:focus,select:focus{outline:none}
 .cday.dsun .dname,.cday.dsun .dnum{color:var(--sun)}
 .cday.dsat .dname,.cday.dsat .dnum{color:var(--sat)}
 
-.dhdr{padding:3px 4px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:column;gap:1px;min-height:34px}
+.dhdr{padding:3px 4px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:3px;min-height:24px}
 .dhdr-top{display:flex;align-items:center;gap:3px}
 .dname{font-size:8px;color:var(--m);line-height:1}
 .dnum{font-family:var(--bebas);font-size:16px;line-height:1;letter-spacing:.3px}
-.dsleep-tag{font-family:var(--mono);font-size:8px;font-weight:700;color:#a855f7;white-space:nowrap;line-height:1}
+.dsleep-tag{font-family:var(--mono);font-size:7px;font-weight:700;color:#a855f7;white-space:nowrap;line-height:1;margin-left:auto}
 
 .dbody{padding:2px 3px 3px;display:flex;flex-direction:column;gap:2px;min-height:40px}
 .drow{display:flex;align-items:center;gap:2px;min-height:11px}
@@ -149,7 +149,7 @@ input:focus,select:focus{outline:none}
 /* ── WORK PANEL ── */
 .debt-box{background:linear-gradient(135deg,rgba(245,166,35,.12),rgba(245,166,35,.03));border-bottom:1px solid var(--b);padding:8px 9px}
 .debt-tag{font-size:7px;color:var(--work);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px}
-.debt-num{font-family:var(--bebas);font-size:30px;letter-spacing:.5px;line-height:1;color:var(--t)}
+.debt-num{font-family:var(--bebas);font-size:22px;letter-spacing:.5px;line-height:1;color:var(--t)}
 .debt-unit{font-size:12px;color:var(--m);font-family:var(--sans);margin-left:2px}
 .debt-meta{display:flex;gap:8px;margin-top:5px;flex-wrap:wrap}
 .dm-item{display:flex;flex-direction:column;gap:1px}
@@ -187,8 +187,14 @@ input:focus,select:focus{outline:none}
 select.hinp{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath fill='%2355558a' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:18px}
 .hunit{font-size:9px;color:var(--m);flex-shrink:0}
 .hcalc{font-family:var(--mono);font-size:8px;font-weight:700;text-align:right;margin-top:1px}
-.shoe-box{background:var(--s2);border-radius:6px;padding:5px 7px;display:flex;flex-direction:column;gap:3px}
-.shoe-hdr{font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:1px}
+.shoe-box{background:var(--s2);border-radius:6px;overflow:hidden}
+.shoe-toggle{display:flex;align-items:center;justify-content:space-between;padding:5px 7px;cursor:pointer;user-select:none}
+.shoe-toggle:hover{background:rgba(255,255,255,.03)}
+.shoe-hdr{font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase}
+.shoe-chev{font-size:8px;color:var(--m);transition:transform .2s}
+.shoe-chev.op{transform:rotate(180deg)}
+.shoe-list{display:none;padding:0 7px 5px;flex-direction:column;gap:3px}
+.shoe-list.op{display:flex}
 .shoe-row{display:flex;align-items:center;gap:4px}
 .shoe-nm{font-size:8px;color:var(--m);width:38px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shoe-bw{flex:1;height:3px;background:var(--b);border-radius:2px;overflow:hidden}
@@ -246,8 +252,9 @@ const DEBT_TOTAL = 16_500_000; // 15,000,000 × 1.1
 // ─── STATE ───
 let sel   = todayStr();
 let db    = {};
-let openS = {};
-let fbApp = null;
+let openS    = {};
+let openShoe = false;
+let fbApp    = null;
 
 // ─── DATE UTILS (timezone-safe) ───
 function todayStr() {
@@ -442,11 +449,9 @@ function renderCal() {
 
     h+=`<div class="${cls}" onclick="clickDay('${dk}')">
       <div class="dhdr">
-        <div class="dhdr-top">
-          <span class="dname">${DAYS_KR[i]}</span>
-          <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        </div>
-        ${slpStr?`<div class="dsleep-tag">💤${slpStr}</div>`:''}
+        <span class="dname">${DAYS_KR[i]}</span>
+        <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
+        ${slpStr?`<span class="dsleep-tag">💤${slpStr}</span>`:''}
       </div>
       <div class="dbody">
         <div class="drow"><div class="ddot" style="background:#4f8ef7"></div><span class="dval${!stStr?' nil':''}">${stStr||'–'}</span></div>
@@ -631,7 +636,7 @@ function renderWork() {
     <div class="wstat-row"><span class="wslbl">배달 건수</span><span class="wsval">${ws.deliveries||0}건</span></div>
     <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wh,wm)||'–'}</span></div>
     ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
-    ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시간당 수입</span><span class="wsval">₩${Math.round(ws.income/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
+    ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (주간)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.income/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
   </div>`;
 
   document.getElementById('pWork').innerHTML = h;
@@ -762,12 +767,17 @@ function renderHealth() {
       </div>
       ${pace?`<div class="hcalc" style="color:#27c96e">⚡ 평균 페이스 ${pace}</div>`:''}
       <div class="shoe-box">
-        <div class="shoe-hdr">신발별 누적 거리 (기초km 포함)</div>
-        ${SHOES.map(sn=>`<div class="shoe-row">
-          <span class="shoe-nm">${sn}</span>
-          <div class="shoe-bw"><div class="shoe-bf" style="width:${Math.round(ss[sn]/maxKm*100)}%"></div></div>
-          <span class="shoe-km">${ss[sn]>0?(ss[sn]%1===0?ss[sn]:(ss[sn]).toFixed(1)):'0'}km</span>
-        </div>`).join('')}
+        <div class="shoe-toggle" onclick="toggleShoe()">
+          <span class="shoe-hdr">신발별 누적 거리 (기초km 포함)</span>
+          <span class="shoe-chev${openShoe?' op':''}" id="shoeChev">▼</span>
+        </div>
+        <div class="shoe-list${openShoe?' op':''}" id="shoeList">
+          ${SHOES.map(sn=>`<div class="shoe-row">
+            <span class="shoe-nm">${sn}</span>
+            <div class="shoe-bw"><div class="shoe-bf" style="width:${Math.round(ss[sn]/maxKm*100)}%"></div></div>
+            <span class="shoe-km">${ss[sn]>0?(ss[sn]%1===0?ss[sn]:(ss[sn]).toFixed(1)):'0'}km</span>
+          </div>`).join('')}
+        </div>
       </div>
     </div>
   </div>`;
@@ -885,6 +895,12 @@ function updH(cat, fld, val) {
   const numFlds = ['laps','swimM','km','runH','runM','cycH','cycM','sleepH','sleepM'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderHealth(); renderCal();
+}
+
+function toggleShoe() {
+  openShoe = !openShoe;
+  document.getElementById('shoeList')?.classList.toggle('op', openShoe);
+  document.getElementById('shoeChev')?.classList.toggle('op', openShoe);
 }
 
 function updHTxt(cat, val) {
