@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>배달한의 대시보드</title>
+<title>배달한의 대시보드 (라이트)</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root{
-  --bg:#05050e;--s1:#0b0b1c;--s2:#111122;--s3:#16162a;
-  --b:#1c1c35;--b2:#222240;--t:#ddddf8;--m:#55558a;--m2:#35355a;
-  --study:#4f8ef7;--work:#f5a623;--health:#27c96e;
-  --kr:#4f8ef7;--ma:#27c96e;--en:#f5a623;--so:#e74c3c;--sc:#a855f7;
-  --sun:#e74c3c;--sat:#7fa8f7;
+  --bg:#f0f0f5;--s1:#ffffff;--s2:#f5f5fa;--s3:#ededf5;
+  --b:#dcdce8;--b2:#c8c8dc;--t:#1a1a2e;--m:#7070a0;--m2:#a0a0c0;
+  --study:#2e74e8;--work:#d4870a;--health:#16a855;
+  --kr:#2e74e8;--ma:#16a855;--en:#d4870a;--so:#cc3333;--sc:#8833cc;
+  --sun:#cc3333;--sat:#4488dd;
   --bebas:'Bebas Neue',display;
   --mono:'JetBrains Mono',monospace;
   --sans:'Noto Sans KR',sans-serif;
@@ -24,7 +24,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:var(--bg);color:var(--t);font-family:var(--sans);font-size:12px}
 input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none}
 input[type=number]{-moz-appearance:textfield}
-input::placeholder{color:var(--m)}
+input::placeholder{color:var(--m2)}
 input:focus,select:focus{outline:none}
 
 /* ── APP LAYOUT ── */
@@ -52,13 +52,13 @@ input:focus,select:focus{outline:none}
 .cday{border-right:1px solid var(--b);cursor:pointer;transition:background .1s;min-width:0}
 .cday:last-child{border-right:none}
 .cday:hover{background:rgba(255,255,255,.025)}
-.cday.sel{background:rgba(79,142,247,.07)}
+.cday.sel{background:rgba(46,116,232,.07)}
 
 /* TODAY — prominent highlight */
 .cday.today{border-left:2px solid var(--study)}
-.cday.today .dhdr{background:rgba(79,142,247,.14)}
+.cday.today .dhdr{background:rgba(46,116,232,.1)}
 .cday.today .dnum-wrap{background:var(--study);border-radius:4px;padding:0 4px;display:inline-flex;align-items:center}
-.cday.today .dnum{color:var(--bg)!important}
+.cday.today .dnum{color:#ffffff!important}
 
 .cday.dsun .dname,.cday.dsun .dnum{color:var(--sun)}
 .cday.dsat .dname,.cday.dsat .dnum{color:var(--sat)}
@@ -72,7 +72,7 @@ input:focus,select:focus{outline:none}
 .dbody{padding:2px 3px 3px;display:flex;flex-direction:column;gap:2px;min-height:40px}
 .drow{display:flex;align-items:center;gap:2px;min-height:11px}
 .ddot{width:4px;height:4px;border-radius:50%;flex-shrink:0;margin-top:1px}
-.dval{font-family:var(--mono);font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b0b0d8;max-width:calc(100% - 8px)}
+.dval{font-family:var(--mono);font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#3a3a6a;max-width:calc(100% - 8px)}
 .dval.nil{color:var(--m2);opacity:.4;font-weight:400}
 
 /* ── PANELS ── */
@@ -124,7 +124,7 @@ input:focus,select:focus{outline:none}
 .sweek-sub{font-size:7px;color:var(--m2);text-align:right;margin-top:-2px}
 
 /* expandable goals */
-.scard-body{display:none;background:rgba(0,0,0,.12);border-top:1px solid var(--b);padding:5px 8px 8px}
+.scard-body{display:none;background:rgba(0,0,0,.03);border-top:1px solid var(--b);padding:5px 8px 8px}
 .scard-body.op{display:block}
 .goal-item{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)}
 .goal-item:last-of-type{border-bottom:none}
@@ -142,12 +142,12 @@ input:focus,select:focus{outline:none}
 .gadd{margin-top:7px;display:flex;flex-direction:column;gap:4px}
 .gadd-row{display:flex;gap:3px;align-items:stretch}
 
-.study-foot{padding:6px 8px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:baseline;background:rgba(79,142,247,.05);flex-shrink:0}
+.study-foot{padding:6px 8px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:baseline;background:rgba(46,116,232,.05);flex-shrink:0}
 .sfoot-lbl{font-size:9px;color:var(--m)}
 .sfoot-val{font-family:var(--bebas);font-size:22px;color:var(--study);letter-spacing:.5px}
 
 /* ── WORK PANEL ── */
-.debt-box{background:linear-gradient(135deg,rgba(245,166,35,.12),rgba(245,166,35,.03));border-bottom:1px solid var(--b);padding:8px 9px}
+.debt-box{background:linear-gradient(135deg,rgba(212,135,10,.08),rgba(212,135,10,.02));border-bottom:1px solid var(--b);padding:8px 9px}
 .debt-tag{font-size:7px;color:var(--work);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px}
 .debt-num{font-family:var(--bebas);font-size:22px;letter-spacing:.5px;line-height:1;color:var(--t)}
 .debt-unit{font-size:12px;color:var(--m);font-family:var(--sans);margin-left:2px}
