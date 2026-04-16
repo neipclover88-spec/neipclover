@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>배달한의 대시보드</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -67,12 +67,12 @@ input:focus,select:focus{outline:none}
 .dhdr-top{display:flex;align-items:center;gap:3px}
 .dname{font-size:8px;color:var(--m);line-height:1}
 .dnum{font-family:var(--bebas);font-size:16px;line-height:1;letter-spacing:.3px}
-.dsleep-tag{font-family:var(--mono);font-size:7px;font-weight:700;color:#a855f7;white-space:nowrap;line-height:1;margin-left:auto}
+.dsleep-tag{font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:700;color:#a855f7;white-space:nowrap;line-height:1;margin-left:auto}
 
 .dbody{padding:2px 3px 3px;display:flex;flex-direction:column;gap:2px;min-height:40px}
 .drow{display:flex;align-items:center;gap:2px;min-height:11px}
 .ddot{width:4px;height:4px;border-radius:50%;flex-shrink:0;margin-top:1px}
-.dval{font-family:var(--mono);font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b0b0d8;max-width:calc(100% - 8px)}
+.dval{font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b0b0d8;max-width:calc(100% - 8px)}
 .dval.nil{color:var(--m2);opacity:.4;font-weight:400}
 
 /* ── PANELS ── */
@@ -451,7 +451,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpStr?`<span class="dsleep-tag">💤${slpStr}</span>`:''}
+        ${slpStr?`<span class="dsleep-tag">💤${slpStr.replace(' ','')}</span>`:''}
       </div>
       <div class="dbody">
         <div class="drow"><div class="ddot" style="background:#4f8ef7"></div><span class="dval${!stStr?' nil':''}">${stStr||'–'}</span></div>
