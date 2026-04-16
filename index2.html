@@ -1,1 +1,1503 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">a
+<title>Daily Tracker</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080b0f;--s1:#0f1318;--s2:#161b22;--s3:#1d242d;
+  --bd:#232b36;--bd2:#2c3647;--txt:#d8e0ed;--muted:#55647a;--dim:#2e3a4a;
+  --gold:#f0a500;--teal:#3ecfbe;--red:#e05454;--green:#3ecf6e;
+  --blue:#4a9eff;--violet:#a78bfa;--orange:#f97316;
+  --kor:var(--blue);--eng:var(--gold);--math:var(--green);--soc:var(--red);
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);
+  font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;font-size:13px;line-height:1.4;
+  overflow-x:hidden}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:4px}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;z-index:9999;transition:opacity .4s}
+.spin{width:34px;height:34px;border:3px solid var(--bd2);border-top-color:var(--gold);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* BANNER */
+#cfgBanner{display:none;background:#0e0800;border-bottom:2px solid var(--gold);
+  padding:10px 20px;font-size:11px;color:var(--muted);line-height:1.8;position:relative;z-index:200}
+#cfgBanner.show{display:block}
+#cfgBanner strong{color:var(--gold)}
+#cfgBanner code{background:var(--bg);padding:1px 5px;border-radius:3px;color:var(--teal);font-size:10px}
+#cfgBanner button{margin-top:6px;background:var(--gold);border:none;border-radius:4px;
+  padding:5px 12px;color:#000;font-weight:700;cursor:pointer;font-size:11px}
+
+/* APP SHELL */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* HEADER */
+header{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 16px;
+  height:54px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:100}
+.h-dateblock{display:flex;flex-direction:column;line-height:1.1;min-width:90px}
+.h-year{font-size:10px;color:var(--muted);letter-spacing:1px}
+.h-month{font-size:15px;font-weight:700}
+.h-nav{display:flex;align-items:center;gap:6px}
+.h-nav button{background:var(--bd);border:none;color:var(--txt);width:26px;height:26px;
+  border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.h-nav button:hover{background:var(--gold);color:#000}
+#weekRange{font-size:11px;color:var(--muted);min-width:80px;text-align:center}
+.h-logo{font-size:11px;font-weight:700;letter-spacing:3px;color:var(--gold);text-transform:uppercase}
+.h-space{flex:1}
+.h-stats{display:flex;gap:14px}
+.hst .v{font-size:14px;font-weight:700;color:var(--gold);display:block;line-height:1.1}
+.hst .l{font-size:9px;color:var(--muted);letter-spacing:1px;display:block}
+.hst.teal .v{color:var(--teal)}.hst.red .v{color:var(--red)}
+
+/* ── MOBILE TAB BAR ── */
+.mob-tabbar{
+  display:none;flex-shrink:0;
+  background:var(--s1);border-bottom:2px solid var(--bd);
+}
+.mob-tab{
+  flex:1;padding:8px 2px 6px;text-align:center;cursor:pointer;
+  color:var(--muted);font-size:9px;font-weight:700;letter-spacing:.3px;
+  border-bottom:2px solid transparent;margin-bottom:-2px;
+  transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:2px
+}
+.mob-tab .ico{font-size:16px;line-height:1}
+.mob-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* BODY */
+.body{display:grid;grid-template-columns:1fr 1fr;flex:1;min-height:0;overflow:hidden}
+.left{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.right{background:var(--s1);border-left:1px solid var(--bd);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+
+/* SUMMARY */
+.wsummary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ws{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:9px 10px}
+.ws .v{font-size:18px;font-weight:700;color:var(--gold);display:block;line-height:1.1}
+.ws .l{font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px;display:block}
+.ws.teal .v{color:var(--teal)}.ws.green .v{color:var(--green)}
+
+/* CALENDAR */
+.cal{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:10px}
+.dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:5px}
+.dow{text-align:center;padding:6px 2px;font-size:12px;font-weight:700;border-radius:5px;background:var(--s3)}
+.dow.wd{color:var(--muted)}.dow.sat{color:var(--blue);background:rgba(74,158,255,.1)}
+.dow.sun{color:var(--red);background:rgba(224,84,84,.1)}
+.day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.dc{background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:4px 3px;
+  cursor:pointer;height:90px;overflow:hidden;transition:border-color .15s;
+  display:flex;flex-direction:column;gap:1px}
+.dc:hover{border-color:var(--gold)}
+.dc.today{border-color:var(--gold)}.dc.selected{border-color:var(--teal);background:rgba(62,207,190,.04)}
+.dc-num{font-size:13px;font-weight:700;line-height:1.1}
+.dc.today .dc-num{color:var(--gold)}.dc.dc-sat .dc-num{color:rgba(74,158,255,.85)}.dc.dc-sun .dc-num{color:rgba(224,84,84,.85)}
+.dc-ico{font-size:11px;line-height:1.15}
+.badge{font-size:7px;padding:1px 3px;border-radius:2px;font-weight:700}
+.b-swim{background:rgba(62,207,190,.15);color:var(--teal)}
+.b-run{background:rgba(249,115,22,.15);color:var(--orange)}
+.b-bike{background:rgba(167,139,250,.15);color:var(--violet)}
+.dc-rows{display:flex;flex-direction:column;gap:2px;margin-top:auto}
+.dc-bars{display:flex;gap:1px;align-items:flex-end;height:22px}
+.dc-bar{flex:1;border-radius:1px 1px 0 0;min-height:2px}
+.dc-icons{display:flex;gap:2px;font-size:10px;line-height:1;flex-wrap:wrap}
+
+/* CARD */
+.card{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:12px}
+.sec-title{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;
+  margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+/* SUBJECT ACCORDION */
+.subj-accordion{display:flex;flex-direction:column;gap:6px}
+.subj-item{background:var(--s3);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.subj-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none;transition:background .15s}
+.subj-header:hover{background:rgba(255,255,255,.03)}
+.subj-color-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.subj-name{font-size:12px;font-weight:700;flex:1}
+.subj-hours-preview{font-size:11px;color:var(--muted)}
+.subj-arrow{font-size:10px;color:var(--muted);transition:transform .2s}
+.subj-item.open .subj-arrow{transform:rotate(90deg)}
+.subj-body{display:none;padding:0 12px 12px;border-top:1px solid var(--bd)}
+.subj-item.open .subj-body{display:block}
+.subj-hours-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd);margin-bottom:10px}
+.subj-hours-row label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;flex:1}
+.subj-hours-input{width:70px!important;text-align:center;font-size:14px!important;font-weight:700!important;padding:5px!important}
+.subj-mini-prog{padding:0 12px 8px;display:flex;flex-direction:column;gap:3px}
+.subj-mini-row{display:flex;align-items:center;gap:6px}
+.subj-mini-name{font-size:9px;color:var(--muted);width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.subj-mini-track{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--bd)}
+.subj-mini-fill{height:100%;border-radius:3px;transition:width .4s}
+.subj-mini-pct{font-size:9px;font-weight:700;width:28px;text-align:right}
+.study-footer{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--bd);margin-top:4px}
+.study-total-n{font-size:22px;font-weight:700;color:var(--teal)}
+
+/* PROJ items */
+.proj-list{display:flex;flex-direction:column;gap:6px}
+.proj-item{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;position:relative}
+.proj-top{display:grid;grid-template-columns:1fr 56px 38px;gap:4px;margin-bottom:6px;align-items:center}
+.proj-bar-wrap{height:9px;border-radius:4px;background:var(--s3);overflow:hidden;margin-bottom:5px;border:1px solid var(--bd)}
+.proj-bar-fill{height:100%;border-radius:4px;transition:width .4s}
+.proj-meta{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.proj-today-row{display:flex;align-items:center;gap:5px;margin-top:6px}
+.proj-today-row label{font-size:9px;color:var(--muted);white-space:nowrap}
+.add-proj-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;
+  padding:7px;background:transparent;border:1px dashed var(--bd2);border-radius:5px;
+  cursor:pointer;color:var(--muted);font-size:10px;font-family:inherit;margin-top:6px;transition:all .15s}
+.add-proj-btn:hover{border-color:var(--gold);color:var(--gold)}
+.del-btn{position:absolute;top:5px;right:5px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;opacity:.4}
+.del-btn:hover{opacity:1;color:var(--red)}
+
+/* PANEL DATE */
+.panel-date{margin-bottom:2px}
+.panel-d-str{font-size:24px;font-weight:700;line-height:1.2}
+.panel-d-sub{font-size:13px;color:var(--muted);letter-spacing:1px;margin-top:3px}
+
+/* EXERCISE */
+.ex-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.ex-btn{background:transparent;border:none;border-radius:6px;padding:6px 4px;
+  cursor:pointer;text-align:center;color:var(--muted);font-family:inherit;font-size:9px;transition:all .15s;opacity:.45}
+.ex-btn .ico{font-size:22px;display:block;margin-bottom:3px}
+.ex-btn:hover{opacity:.8}
+.ex-btn.on-swim{opacity:1;color:var(--teal)}
+.ex-btn.on-run{opacity:1;color:var(--orange)}
+.ex-btn.on-bike{opacity:1;color:var(--violet)}
+.ex-detail{display:none}.ex-detail.show{display:block;margin-bottom:8px}
+.ex-frow{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.ex-metric{background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;
+  display:flex;justify-content:space-between;align-items:center}
+.em-l{font-size:9px;color:var(--muted)}.em-v{font-size:14px;font-weight:700}
+.em-swim{color:var(--teal)}.em-run{color:var(--orange)}.em-bike{color:var(--violet)}
+.ex-hdr{font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:6px}
+
+/* INCOME */
+.target-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.tstat{background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:8px;text-align:center}
+.tstat .v{font-size:13px;font-weight:700;color:var(--gold);display:block;line-height:1.2}
+.tstat .l{font-size:8px;color:var(--muted);display:block;margin-top:2px}
+.tstat.teal .v{color:var(--teal)}.tstat.red .v{color:var(--red)}
+.inc-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.inc-inputs-bottom{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px}
+.wkchart{display:flex;align-items:flex-end;gap:4px;height:60px;position:relative;padding-bottom:16px}
+.wkchart::after{content:'';position:absolute;bottom:15px;left:0;right:0;height:1px;background:var(--bd)}
+.wk-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;height:100%;cursor:pointer}
+.wk-bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.wk-tline{position:absolute;width:100%;height:2px;background:var(--red);opacity:.5}
+.wk-lbl{position:absolute;bottom:0;font-size:7px;color:var(--muted);text-align:center;width:100%}
+.achieve-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:11px}
+.exceed-note{font-size:10px;color:var(--green);margin-top:5px;display:none}
+.exceed-note.show{display:block}
+
+/* HOBBY */
+.hobby-inputs{display:grid;grid-template-columns:1fr 90px;gap:6px;margin-bottom:8px}
+.hobby-summary{display:flex;align-items:center;justify-content:space-between;
+  background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:9px 12px;
+  cursor:pointer;user-select:none;margin-bottom:8px}
+.hobby-summary:hover{border-color:var(--violet)}
+.hobby-cumul-val{font-size:18px;font-weight:700;color:var(--violet)}
+.hobby-panel{display:none;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:10px;margin-bottom:6px}
+.hobby-panel.open{display:block}
+.hb-row{display:grid;grid-template-columns:80px 1fr 36px;gap:6px;align-items:center;margin-bottom:5px}
+.hb-row:last-child{margin-bottom:0}
+.hb-name{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-track{background:var(--s2);border-radius:3px;height:7px;overflow:hidden}
+.hb-fill{height:100%;border-radius:3px;background:var(--violet);transition:width .35s}
+.hb-hrs{font-size:10px;color:var(--violet);font-weight:700;text-align:right}
+
+/* MOOD */
+.food-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.house-checks{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.fcheck{display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bd);border-radius:6px;padding:7px 10px;cursor:pointer;font-size:11px;transition:all .15s}
+.fcheck:hover{border-color:var(--green)}
+.fcheck input{width:14px;height:14px;accent-color:var(--green);cursor:pointer}
+.fcheck input:checked+span{color:var(--green);text-decoration:line-through;opacity:.7}
+.mood-row{display:flex;gap:4px;margin-bottom:8px}
+.mood-btn{flex:1;background:var(--s3);border:1px solid var(--bd);border-radius:6px;
+  padding:5px 2px;text-align:center;cursor:pointer;font-size:17px;transition:all .15s}
+.mood-btn:hover{border-color:var(--gold);transform:scale(1.06)}
+.mood-btn.on{border-color:var(--teal);background:rgba(62,207,190,.08)}
+
+/* INPUTS */
+.field{display:flex;flex-direction:column;gap:3px}
+label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+input[type=number],input[type=text],textarea{background:var(--bg);border:1px solid var(--bd);
+  border-radius:4px;color:var(--txt);font-family:inherit;font-size:13px;
+  padding:6px 8px;width:100%;outline:none;transition:border-color .15s}
+input:focus,textarea:focus{border-color:var(--teal)}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+.save-btn{width:100%;padding:12px;background:var(--gold);border:none;border-radius:6px;
+  color:#000;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer}
+.save-btn:disabled{opacity:.35;cursor:not-allowed}
+.save-status{text-align:center;font-size:10px;color:var(--teal);height:14px;margin-top:4px}
+
+/* ════ RESPONSIVE ════ */
+
+/* Desktop (769px+): 2-column fixed */
+@media(min-width:769px){
+  .mob-tabbar{display:none!important}
+  .body{height:calc(100vh - 54px)}
+  .left,.right{height:100%;overflow-y:auto}
+}
+
+/* Galaxy Fold 펼침 & 태블릿 (540px ~ 768px): 2컬럼, 탭 없음 */
+@media(min-width:540px) and (max-width:768px){
+  .mob-tabbar{display:none!important}
+  .app{height:100vh;overflow:hidden}
+  .body{display:grid!important;grid-template-columns:1fr 1fr;height:calc(100vh - 54px);overflow:hidden}
+  .left,.right{
+    height:100%;overflow-y:auto;padding:10px;
+    display:flex!important;flex-direction:column;gap:8px
+  }
+  .right{border-left:1px solid var(--bd)}
+  header{height:48px;padding:0 10px;gap:8px}
+  .h-logo{display:none}
+  .hst .v{font-size:12px}
+  .wsummary{grid-template-columns:repeat(2,1fr);gap:5px}
+  .ws .v{font-size:14px}
+  .inc-inputs{grid-template-columns:1fr 1fr}
+  .dc{min-height:60px;height:auto;padding:4px}.dc-num{font-size:12px}
+  .dc-ico{font-size:7px!important;line-height:1.15!important}
+  .dc-streak{font-size:7px!important}
+  .dc-health-row, .dc-icon-row{display:grid!important;grid-template-columns:1fr 1fr!important;gap:1px!important}
+  .dow{font-size:10px;padding:4px 2px}
+}
+
+/* Galaxy Fold 접힘 & 폰 (~539px): 탭 네비게이션 */
+@media(max-width:539px){
+  .app{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  header{padding:4px 8px;height:auto;flex-wrap:wrap;gap:4px}
+  .h-logo,.h-space{display:none}
+  .h-year{font-size:9px}.h-month{font-size:12px}
+  .hst .v{font-size:11px}.hst .l{font-size:8px}
+  .h-stats{gap:8px}
+  #weekRange{font-size:10px;min-width:60px}
+  .h-nav button{width:22px;height:22px;font-size:12px}
+
+  /* 탭 바 표시 */
+  .mob-tabbar{display:flex}
+
+  /* 바디: 상대 위치 컨테이너 */
+  .body{
+    display:block!important;
+    flex:1;overflow:hidden;position:relative;min-height:0;
+  }
+
+  /* left/right 래퍼를 투명하게 (공간 차지 안 함) */
+  .left, .right{
+    display:contents!important;
+  }
+
+  /* 섹션 패널: 절대 위치로 전체 영역 차지 */
+  .mob-section{
+    display:none;
+    position:absolute;inset:0;overflow-y:auto;
+    padding:8px;background:var(--bg);
+    flex-direction:column;gap:8px;
+  }
+  .mob-section.on{display:flex}
+
+  .wsummary{grid-template-columns:repeat(2,1fr);gap:3px}
+  .ws{padding:4px 7px}.ws .v{font-size:12px}.ws .l{font-size:8px;letter-spacing:0}
+  .inc-inputs{grid-template-columns:1fr 1fr}
+  .target-row{grid-template-columns:repeat(3,1fr)}
+  .dc{min-height:74px;height:auto;padding:3px 2px;overflow:visible;gap:1px;border-radius:4px}
+  .dc-num{font-size:10px;font-weight:700}
+  .dc-ico{font-size:6px!important;line-height:1.1!important}
+  .dc-streak{font-size:6px!important}
+  .dc-bars{height:14px}
+  .day-grid{gap:2px}
+  .dow-row{gap:2px}.dow{font-size:8px;padding:2px 1px}
+  .card{padding:9px}
+  .panel-d-str{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div id="loader"><div class="spin"></div><p style="font-size:10px;color:var(--muted);letter-spacing:3px">LOADING</p></div>
+<div id="cfgBanner">
+  <strong>⚙️ Firebase 미설정</strong> — 현재 <strong>로컬 모드</strong>로 동작 중입니다.<br>
+  파일 하단 <code>FIREBASE_CONFIG</code> 값을 교체하면 기기간 동기화됩니다.
+  <br><button onclick="document.getElementById('cfgBanner').classList.remove('show')">확인 (로컬 유지)</button>
+</div>
+
+<div class="app">
+<header>
+  <div class="h-dateblock">
+    <span class="h-year" id="hYear"></span>
+    <span class="h-month" id="hMonth"></span>
+  </div>
+  <div class="h-nav">
+    <button onclick="prevWeek()">‹</button>
+    <div id="weekRange"></div>
+    <button onclick="nextWeek()">›</button>
+  </div>
+  <div class="h-logo">◈ DAILY</div>
+  <div class="h-space"></div>
+  <div class="h-stats">
+    <div class="hst"><span class="v" id="hTarget">—</span><span class="l">오늘 목표</span></div>
+    <div class="hst teal"><span class="v" id="hPaid">₩0</span><span class="l">누적 수입</span></div>
+    <div class="hst red"><span class="v" id="hRemain">—</span><span class="l">남은 목표액</span></div>
+  </div>
+</header>
+
+<!-- 모바일 탭 바 (≤539px 에서만 표시) -->
+<div class="mob-tabbar">
+  <div class="mob-tab on"  id="mtab-cal"   onclick="switchTab('cal')"><span class="ico">📅</span>캘린더</div>
+  <div class="mob-tab"     id="mtab-ex"    onclick="switchTab('ex')"><span class="ico">💪</span>건강</div>
+  <div class="mob-tab"     id="mtab-study" onclick="switchTab('study')"><span class="ico">📚</span>공부</div>
+  <div class="mob-tab"     id="mtab-work"  onclick="switchTab('work')"><span class="ico">💰</span>업무</div>
+  <div class="mob-tab"     id="mtab-etc"   onclick="switchTab('etc')"><span class="ico">🎮</span>기타</div>
+</div>
+
+<div class="body">
+
+<!-- ══ LEFT (데스크탑/폴드 펼침) ══ -->
+<div class="left" id="leftPanel">
+
+  <!-- 탭: 캘린더 섹션 -->
+  <div class="mob-section on" id="sec-cal">
+    <div class="wsummary">
+      <div class="ws teal"><span class="v" id="ws-study">0h</span><span class="l">주간 공부</span></div>
+      <div class="ws"><span class="v" id="ws-income">-</span><span class="l">주간 수입</span></div>
+      <div class="ws green"><span class="v" id="ws-achieve">0%</span><span class="l">주간 달성률</span></div>
+      <div class="ws"><span class="v" id="ws-work">0h</span><span class="l">주간 업무</span></div>
+    </div>
+    <div class="cal">
+      <div class="dow-row">
+        <div class="dow sun">일</div><div class="dow wd">월</div><div class="dow wd">화</div>
+        <div class="dow wd">수</div><div class="dow wd">목</div><div class="dow wd">금</div>
+        <div class="dow sat">토</div>
+      </div>
+      <div class="day-grid" id="dayGrid"></div>
+    </div>
+  </div>
+
+  <!-- 탭: 운동·건강 섹션 (왼쪽으로 이동) -->
+  <div class="mob-section" id="sec-ex">
+    <div class="card">
+      <div class="sec-title">🏃 운동 · 건강</div>
+      <div class="ex-btns">
+        <button class="ex-btn" id="exSwim" onclick="toggleEx('swim')"><span class="ico">🏊</span>수영</button>
+        <button class="ex-btn" id="exRun"  onclick="toggleEx('run')"><span class="ico">🏃</span>러닝</button>
+        <button class="ex-btn" id="exBike" onclick="toggleEx('bike')"><span class="ico">🚴</span>자전거</button>
+      </div>
+      <div class="ex-detail" id="det-swim">
+        <div class="ex-hdr" style="color:var(--teal)">🏊 수영</div>
+        <div class="ex-frow">
+          <div class="field"><label>바퀴 수 (laps)</label><input type="number" id="swimLaps" placeholder="0" min="0" oninput="calcSwim();autoSave()"></div>
+          <div class="field"><label>시간 (분)</label><input type="number" id="swimMin" placeholder="0" min="0" oninput="calcSwim();autoSave()"></div>
+        </div>
+        <div class="ex-metric"><span class="em-l">랩 페이스</span><span class="em-v em-swim" id="swimMetric">—</span></div>
+      </div>
+      <div class="ex-detail" id="det-run">
+        <div class="ex-hdr" style="color:var(--orange)">🏃 러닝</div>
+        <div class="ex-frow">
+          <div class="field"><label>거리 (km)</label><input type="number" id="runKm" placeholder="0.0" min="0" step="0.1" oninput="calcRun();autoSave()"></div>
+          <div class="field"><label>시간 (분)</label><input type="number" id="runMin" placeholder="0" min="0" oninput="calcRun();autoSave()"></div>
+        </div>
+        <div class="ex-metric"><span class="em-l">km 페이스</span><span class="em-v em-run" id="runMetric">—</span></div>
+      </div>
+      <div class="ex-detail" id="det-bike">
+        <div class="ex-hdr" style="color:var(--violet)">🚴 자전거</div>
+        <div class="ex-frow">
+          <div class="field"><label>거리 (km)</label><input type="number" id="bikeKm" placeholder="0.0" min="0" step="0.1" oninput="calcBike();autoSave()"></div>
+          <div class="field"><label>시간 (분)</label><input type="number" id="bikeMin" placeholder="0" min="0" oninput="calcBike();autoSave()"></div>
+        </div>
+        <div class="ex-metric"><span class="em-l">평균 속도</span><span class="em-v em-bike" id="bikeMetric">—</span></div>
+      </div>
+      <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
+        <div class="field">
+          <label>😴 수면 시간</label>
+          <select id="sleepHours" onchange="autoSave()" style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;color:var(--txt);font-family:inherit;font-size:13px;padding:6px 8px;width:100%;outline:none"></select>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">🥗 식습관</div>
+        <div class="food-checks">
+          <label class="fcheck"><input type="checkbox" id="fcSpicy" onchange="autoSave()"><span>자극적 음식 ✗</span></label>
+          <label class="fcheck"><input type="checkbox" id="fcOver"  onchange="autoSave()"><span>과식 ✗</span></label>
+          <label class="fcheck"><input type="checkbox" id="fcCafe"  onchange="autoSave()"><span>카페인 ✗</span></label>
+          <label class="fcheck"><input type="checkbox" id="fcSoda"  onchange="autoSave()"><span>탄산 ✗</span></label>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--bd);margin-top:10px;padding-top:10px">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">🏠 집안일</div>
+        <div class="house-checks">
+          <label class="fcheck"><input type="checkbox" id="hwClean"  onchange="autoSave()"><span>청소 🧹</span></label>
+          <label class="fcheck"><input type="checkbox" id="hwDish"   onchange="autoSave()"><span>설겆이 🍽️</span></label>
+          <label class="fcheck"><input type="checkbox" id="hwTrash"  onchange="autoSave()"><span>쓰레기 🗑️</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✨ 웰니스 카드 (왼쪽 하단) -->
+  <div class="card" id="wellnessCard">
+    <!-- 상단: 건강지수 + 주간점수 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">건강지수</div>
+        <div id="healthHeart" style="font-size:28px;line-height:1">❤️</div>
+        <div id="healthLabel" style="font-size:9px;margin-top:3px;color:var(--muted)">—</div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">주간 점수</div>
+        <div style="display:flex;align-items:baseline;justify-content:center;gap:3px">
+          <span id="weekScore" style="font-size:24px;font-weight:700;color:var(--teal)">—</span>
+          <span style="font-size:10px;color:var(--muted)">점</span>
+        </div>
+        <div id="weekScoreDiff" style="font-size:10px;margin-top:2px;color:var(--muted)">—</div>
+      </div>
+    </div>
+    <!-- 레이더 차트 -->
+    <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px">이번 주 균형</div>
+    <div style="display:flex;justify-content:center">
+      <canvas id="radarChart" width="180" height="160"></canvas>
+    </div>
+  </div>
+
+  <style>
+    @media(min-width:540px){
+      #leftPanel .mob-section{display:contents!important;position:static!important}
+    }
+  </style>
+
+</div><!-- /left -->
+
+<!-- ══ RIGHT (데스크탑/폴드 펼침) ══ -->
+<div class="right" id="rightPanel">
+
+  <!-- 날짜·요일: 항상 오른쪽 최상단 고정 -->
+  <div class="panel-date">
+    <div class="panel-d-str" id="panelDStr">날짜를 선택하세요</div>
+    <div class="panel-d-sub" id="panelDSub">캘린더의 날짜를 클릭하세요</div>
+  </div>
+
+  <!-- 탭: 공부 섹션 (오른쪽으로 이동) -->
+  <div class="mob-section" id="sec-study">
+    <div class="card">
+      <div class="sec-title">📚 공부 · 학습 목표</div>
+      <div class="subj-accordion" id="subjAccordion"></div>
+      <div class="study-footer">
+        <div>
+          <span class="study-total-n" id="studyTotal">0<span style="font-size:11px;color:var(--muted);font-weight:400">h</span></span>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">총 공부시간</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:9px;color:var(--muted)">달성률</div>
+          <div style="font-size:18px;font-weight:700;color:var(--teal)" id="studyPct">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 탭: 업무 섹션 -->
+  <div class="mob-section" id="sec-work">
+    <div class="card">
+      <div class="sec-title">💰 업무 · 수입</div>
+      <div class="target-row">
+        <div class="tstat"><span class="v" id="tDynamic">—</span><span class="l">오늘 목표</span></div>
+        <div class="tstat teal"><span class="v" id="tEarned">₩0</span><span class="l">오늘 순수입</span></div>
+        <div class="tstat red"><span class="v" id="tGap">—</span><span class="l" id="tGapLbl">이번달 부족</span></div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:7px 10px;margin-bottom:10px;font-size:10px;color:var(--muted);line-height:1.9">
+        <span style="color:var(--gold)">일일 목표분</span> = 잔액(<span id="infoRemDebt" style="color:var(--gold)">—</span>) ÷ <span id="infoRemDays" style="color:var(--gold)">—</span>일
+        <span style="float:right;color:var(--teal)">이번달 목표 <strong id="infoMonthTgt" style="color:var(--teal)">—</strong></span>
+      </div>
+      <div class="inc-inputs">
+        <div class="field"><label>수입 (원)</label><input type="number" id="todayIncome" placeholder="0" oninput="onIncome()"></div>
+        <div class="field"><label>지출 (원)</label><input type="number" id="todayExpense" placeholder="0" oninput="onIncome()"></div>
+      </div>
+      <div class="inc-inputs-bottom">
+        <div class="field work-hours-field"><label>업무 시간</label>
+          <select id="workHours" onchange="autoSave()" style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;color:var(--txt);font-family:inherit;font-size:13px;padding:6px 8px;width:100%;outline:none"></select>
+        </div>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:4px">이번주 일별 수입</div>
+      <div class="wkchart" id="wkChart"></div>
+      <div class="achieve-row">
+        <span style="color:var(--muted)">오늘 달성률</span>
+        <span style="font-weight:700;color:var(--gold)" id="achPct">0%</span>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--bd);border-radius:3px;height:7px;margin-top:4px;overflow:hidden">
+        <div id="achBar" style="background:var(--gold);height:100%;width:0%;border-radius:3px;transition:width .35s"></div>
+      </div>
+      <div class="exceed-note" id="exceedNote">✅ 목표 초과! 잉여분이 목표액에서 차감됩니다</div>
+    </div>
+  </div>
+
+  <!-- 탭: 기타 (취미+감정) 섹션 -->
+  <div class="mob-section" id="sec-etc">
+    <div class="card">
+      <div class="sec-title">🎮 취미</div>
+      <div class="hobby-inputs">
+        <div class="field"><label>오늘 취미</label><input type="text" id="hobbyName" placeholder="독서, 게임, 그림..." oninput="autoSave()"></div>
+        <div class="field"><label>오늘 (h)</label><input type="number" id="hobbyHours" placeholder="0" min="0" step="0.5" oninput="autoSave()"></div>
+      </div>
+      <div class="hobby-summary" onclick="toggleHobby()">
+        <div>
+          <div style="font-size:9px;color:var(--muted);margin-bottom:2px">3/1 이후 누적</div>
+          <span class="hobby-cumul-val" id="hobbyCumul">0h</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+          취미별 보기 <span id="hobbyArrow">▶</span>
+        </div>
+      </div>
+      <div class="hobby-panel" id="hobbyPanel"></div>
+    </div>
+    <div class="card">
+      <div class="sec-title">💭 오늘 기록</div>
+      <div class="mood-row">
+        <button class="mood-btn" id="mood1" onclick="setMood(1)">😞</button>
+        <button class="mood-btn" id="mood2" onclick="setMood(2)">😕</button>
+        <button class="mood-btn" id="mood3" onclick="setMood(3)">😐</button>
+        <button class="mood-btn" id="mood4" onclick="setMood(4)">🙂</button>
+        <button class="mood-btn" id="mood5" onclick="setMood(5)">😄</button>
+      </div>
+      <textarea id="noteText" placeholder="오늘 있었던 일, 느낀 점..."
+        style="resize:none;height:70px;font-size:12px" oninput="autoSave()"></textarea>
+    </div>
+
+    <!-- 상황별 메시지 -->
+    <div id="motivMsg" style="padding:8px 10px;background:var(--s1);border-left:3px solid var(--teal);border-radius:0 4px 4px 0;font-size:11px;color:var(--txt);line-height:1.6;min-height:36px">—</div>
+    <button class="save-btn" id="saveBtn" onclick="saveRecord()" disabled>날짜를 선택하세요</button>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+
+  <!-- 데스크탑/폴드펼침: 오른쪽 패널에 모든 섹션 표시 -->
+  <style>
+    @media(min-width:540px){
+      #rightPanel .mob-section{display:contents!important;position:static!important}
+    }
+  </style>
+
+</div><!-- /right -->
+</div><!-- /body -->
+</div><!-- /app -->
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyC59lvF_LFGum04mc6zER-2GFWxQjQVc9U",
+  authDomain:        "dashboard-b71bb.firebaseapp.com",
+  projectId:         "dashboard-b71bb",
+  storageBucket:     "dashboard-b71bb.firebasestorage.app",
+  messagingSenderId: "528755986354",
+  appId:             "1:528755986354:web:3f2b81b01be9cdd24a1eab"
+};
+
+/* ════ 재무 상수 ════ */
+const PRINCIPAL    = 15_800_000;          // 목표 총액 1580만원
+const FIXED_MONTHLY = 1_000_000;          // 고정비 (월세+관리비+공과금)
+const MONTHLY_GOAL = Math.round(PRINCIPAL / 12) + FIXED_MONTHLY; // ≈ 2,316,667원/월
+const DEBT_GOAL    = PRINCIPAL;
+const MONTHLY_FIX = 0;
+const START_STR   = '2026-03-01';
+const START_DATE  = new Date('2026-03-01T00:00:00');
+const END_DATE    = new Date('2027-03-01T23:59:59');
+const TOTAL_DAYS  = 365;
+
+const SUBJECTS = [
+  { id:'kor',  name:'국어', color:'var(--kor)',  hex:'#4a9eff' },
+  { id:'math', name:'수학', color:'var(--math)', hex:'#3ecf6e' },
+  { id:'eng',  name:'영어', color:'var(--eng)',  hex:'#f0a500' },
+  { id:'soc',  name:'사탐', color:'var(--soc)',  hex:'#e05454' },
+];
+
+/* ════ STATE ════ */
+let db = null, localMode = false;
+let curDate = null, wkOffset = 0, weekData = {};
+let allTimeIncome = 0, allTimeExpenses = 0;
+let subjectProjects = { kor:[], math:[], eng:[], soc:[] };
+let projCumul = {}, _allRec = {};
+let hobbyCumul = 0, hobbyBreakdown = {};
+let exOn = { swim:false, run:false, bike:false };
+let mood = 0, asTimer = null;
+let dynTarget = 0;
+
+function daysInMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+function dailyFix(d){ return Math.round(MONTHLY_FIX / daysInMonth(d)); }
+
+/* ════ FIREBASE ════ */
+function initFB() {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+  } catch(err) {
+    localMode = true;
+    const b = document.getElementById('cfgBanner');
+    b.innerHTML = `<strong>⚙️ Firebase 연결 실패</strong> — 로컬 모드로 동작 중입니다.<br>
+      <span style="color:#e05454;font-size:10px">오류: ${err && err.message ? err.message : err}</span><br>
+      <button onclick="this.parentElement.classList.remove('show')">확인 (로컬 유지)</button>`;
+    b.classList.add('show');
+  }
+}
+async function dbGet(k) {
+  if (localMode) { const r = localStorage.getItem(k); return r ? JSON.parse(r) : null; }
+  const s = await db.collection('tracker').doc(k).get();
+  return s.exists ? s.data() : null;
+}
+async function dbSet(k, v) {
+  if (localMode) { localStorage.setItem(k, JSON.stringify(v)); return; }
+  await db.collection('tracker').doc(k).set(v);
+}
+async function dbGetMany(keys) {
+  const out = {};
+  if (localMode) {
+    for (const k of keys) { const r = localStorage.getItem(k); if (r) out[k] = JSON.parse(r); }
+    return out;
+  }
+  const snaps = await Promise.all(keys.map(k => db.collection('tracker').doc(k).get()));
+  for (let i = 0; i < keys.length; i++) if (snaps[i].exists) out[keys[i]] = snaps[i].data();
+  return out;
+}
+async function dbGetAllDay() {
+  const out = {};
+  if (localMode) {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith('d:')) out[k] = JSON.parse(localStorage.getItem(k));
+    }
+    return out;
+  }
+  const s = await db.collection('tracker').where('_type','==','day').get();
+  s.forEach(d => { out[d.id] = d.data(); }); // d.id already includes 'd:' prefix
+  return out;
+}
+
+/* ════ DATE UTILS ════ */
+function toStr(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function today() { return toStr(new Date()); }
+function getWeekDates(off=0) {
+  // 일요일 시작
+  const now = new Date(), dow = now.getDay(); // 0=Sun
+  const sun = new Date(now);
+  sun.setDate(now.getDate() - dow + off*7);
+  return Array.from({length:7}, (_,i) => { const d=new Date(sun); d.setDate(sun.getDate()+i); return toStr(d); });
+}
+function krw(n) { return '₩' + (Math.round(n)||0).toLocaleString('ko-KR'); }
+function secToMS(s) { const m=Math.floor(s/60),sec=Math.round(s%60); return m+"'"+String(sec).padStart(2,'0')+'"'; }
+
+/* ════ FINANCE ════ */
+function calcDynTarget() {
+  const now = new Date();
+  const dim = daysInMonth(now);
+  return Math.ceil(MONTHLY_GOAL / dim);
+}
+function remainingDebt() {
+  return Math.max(0, DEBT_GOAL - Math.max(0, allTimeIncome - allTimeExpenses));
+}
+function monthlyTarget() {
+  return MONTHLY_GOAL;
+}
+function monthlyIncomeSoFar() {
+  const ym = toStr(new Date()).slice(0,7);
+  let sum = 0;
+  for (const k in _allRec) if (k.replace('d:','').startsWith(ym)) sum += (_allRec[k].income||0);
+  return sum;
+}
+
+/* ════ ALL-TIME ════ */
+async function loadAllTime() {
+  const all = await Promise.race([
+    dbGetAllDay(),
+    new Promise(res=>setTimeout(()=>res({}),10000))
+  ]);
+  _allRec = all;
+  allTimeIncome = 0; allTimeExpenses = 0; hobbyCumul = 0; hobbyBreakdown = {}; projCumul = {};
+  for (const k in all) {
+    const r = all[k], ds = k.replace('d:','');
+    if (ds >= START_STR) {
+      allTimeIncome   += (r.income   || 0);
+      allTimeExpenses += (r.expense  || 0);
+    }
+    hobbyCumul += (r.hobbyHours || 0);
+    if (r.hobbyName && r.hobbyHours) hobbyBreakdown[r.hobbyName] = (hobbyBreakdown[r.hobbyName]||0) + r.hobbyHours;
+    if (r.projProgress) for (const id in r.projProgress) projCumul[id] = (projCumul[id]||0) + (r.projProgress[id]||0);
+  }
+  dynTarget = calcDynTarget();
+  updateHeaderStats();
+  updateHobbyDisplay();
+}
+function updateHeaderStats() {
+  const remD = remainingDebt();
+  const remDays = Math.max(1, Math.ceil((END_DATE - new Date()) / 86400000));
+  document.getElementById('hTarget').textContent  = krw(dynTarget);
+  document.getElementById('hPaid').textContent    = krw(allTimeIncome);
+  document.getElementById('hRemain').textContent  = krw(remD);
+  document.getElementById('tDynamic').textContent = krw(dynTarget);
+  const rd = document.getElementById('infoRemDebt'); if(rd) rd.textContent = krw(remD);
+  const rdy = document.getElementById('infoRemDays'); if(rdy) rdy.textContent = remDays;
+  const mt = document.getElementById('infoMonthTgt'); if(mt) mt.textContent = krw(monthlyTarget());
+}
+
+/* ════ SUBJECT PROJECTS ════ */
+async function loadSubjectProjects() {
+  const p = await Promise.race([
+    dbGet('subjProjects'),
+    new Promise(res=>setTimeout(()=>res(null),10000))
+  ]);
+  if (p) subjectProjects = p;
+  renderSubjectAccordion();
+}
+async function saveSubjectProjects() { await dbSet('subjProjects', subjectProjects); renderSubjectAccordion(); }
+function addProjectToSubj(sid) {
+  if ((subjectProjects[sid]||[]).length >= 5) return;
+  subjectProjects[sid].push({ id:'p'+Date.now(), name:'', unit:'', total:0 });
+  saveSubjectProjects();
+}
+function delProjectFromSubj(sid, pid) {
+  subjectProjects[sid] = subjectProjects[sid].filter(p => p.id !== pid);
+  saveSubjectProjects(); loadAllTime();
+}
+function updateSubjProj(sid, pid, field, val) {
+  const p = subjectProjects[sid].find(x => x.id===pid);
+  if (p) { p[field]=val; saveSubjectProjects(); }
+}
+function renderSubjectAccordion() {
+  const acc = document.getElementById('subjAccordion');
+  const openState = {};
+  acc.querySelectorAll('.subj-item').forEach(el => { openState[el.dataset.subj] = el.classList.contains('open'); });
+  acc.innerHTML = '';
+  let totalH = 0;
+  const PCOLS = ['#e05454','#4a9eff','#3ecf6e','#a78bfa','#f97316'];
+  for (const subj of SUBJECTS) {
+    const r = curDate ? (weekData['d:'+curDate]||{}) : {};
+    const hv = r['s'+subj.id.charAt(0).toUpperCase()+subj.id.slice(1)] || 0;
+    totalH += hv;
+    const projs = subjectProjects[subj.id]||[];
+    const isOpen = openState[subj.id] !== undefined ? openState[subj.id] : false;
+    const item = document.createElement('div');
+    item.className = 'subj-item'+(isOpen?' open':'');
+    item.dataset.subj = subj.id;
+    // header
+    const hdr = document.createElement('div');
+    hdr.className = 'subj-header';
+    hdr.innerHTML = `<div class="subj-color-dot" style="background:${subj.hex}"></div>
+      <span class="subj-name" style="color:${subj.color}">${subj.name}</span>
+      <span class="subj-hours-preview" id="prev-${subj.id}">${hv>0?hv+'h':''}</span>
+      <span class="subj-arrow">▶</span>`;
+    hdr.onclick = () => item.classList.toggle('open');
+    // mini progress bars
+    const mini = document.createElement('div'); mini.className = 'subj-mini-prog';
+    if (projs.length > 0) {
+      for (const p of projs) {
+        const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
+        const cumulAll = projCumul[p.id]||0;
+        const cumulExclToday = Math.max(0, cumulAll - savedTodayVal);
+        const pctBase  = p.total>0 ? Math.min(100, Math.round((cumulExclToday/p.total)*100)) : 0;
+        const pctToday = p.total>0 ? Math.min(100-pctBase, Math.round((savedTodayVal/p.total)*100)) : 0;
+        const pct = pctBase + pctToday;
+        const row = document.createElement('div'); row.className = 'subj-mini-row';
+        row.innerHTML = `<span class="subj-mini-name" title="${p.name||''}">${p.name||'—'}</span>
+          <div class="subj-mini-track" style="position:relative">
+            <div style="position:absolute;inset:0 auto 0 0;width:${pctBase}%;background:${subj.hex};opacity:0.4;border-radius:3px"></div>
+            <div style="position:absolute;inset:0 auto 0 ${pctBase}%;width:${pctToday}%;background:${subj.hex};border-radius:0 3px 3px 0;box-shadow:0 0 4px ${subj.hex}"></div>
+          </div>
+          <span class="subj-mini-pct" style="color:${subj.hex}">${pct}%</span>`;
+        mini.appendChild(row);
+      }
+    } else {
+      mini.innerHTML = `<span style="font-size:9px;color:var(--dim)">클릭해서 목표 추가</span>`;
+    }
+    // body
+    const body = document.createElement('div'); body.className = 'subj-body';
+    body.innerHTML = `
+      <div class="subj-hours-row">
+        <label>오늘 공부시간</label>
+        <select class="subj-hours-input" id="s-${subj.id}" onchange="onStudyH('${subj.id}')">
+          <option value="0">0분</option>
+        </select>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:6px">학습 목표 진척</div>
+      <div class="proj-list" id="pl-${subj.id}"></div>
+      <button class="add-proj-btn" onclick="addProjectToSubj('${subj.id}')">+ 목표 추가</button>`;
+    item.appendChild(hdr); item.appendChild(mini); item.appendChild(body);
+    acc.appendChild(item);
+    // build study hours select
+    buildStudySelect('s-'+subj.id);
+    setV('s-'+subj.id, hv||0);
+    // render proj items
+    const listEl = body.querySelector('.proj-list');
+    for (let idx=0; idx<projs.length; idx++) {
+      const p = projs[idx], c = PCOLS[idx%PCOLS.length];
+      const savedTodayVal = parseFloat((weekData['d:'+(curDate||'')]||{})?.projProgress?.[p.id]||0);
+      const cumulAll = projCumul[p.id]||0;
+      const cumulExclToday = Math.max(0, cumulAll - savedTodayVal);
+      const pctBase  = p.total>0 ? Math.min(100, Math.round((cumulExclToday/p.total)*100)) : 0;
+      const pctToday = p.total>0 ? Math.min(100-pctBase, Math.round((savedTodayVal/p.total)*100)) : 0;
+      const pct = pctBase + pctToday;
+      const div = document.createElement('div'); div.className = 'proj-item';
+      div.innerHTML = `<button class="del-btn" onclick="delProjectFromSubj('${subj.id}','${p.id}')">✕</button>
+        <div class="proj-top">
+          <input type="text" placeholder="목표명" value="${p.name||''}" style="font-size:11px;font-weight:600"
+            onchange="updateSubjProj('${subj.id}','${p.id}','name',this.value)">
+          <input type="number" placeholder="전체량" value="${p.total||''}" min="0" style="font-size:11px"
+            onchange="updateSubjProj('${subj.id}','${p.id}','total',+this.value)">
+          <input type="text" placeholder="단위" value="${p.unit||''}" style="font-size:11px"
+            onchange="updateSubjProj('${subj.id}','${p.id}','unit',this.value)">
+        </div>
+        <div class="proj-bar-wrap" style="position:relative;overflow:hidden">
+          <div id="pbar-base-${p.id}"  style="position:absolute;inset:0 auto 0 0;width:${pctBase}%;background:${c};opacity:0.4;border-radius:4px;transition:width .4s"></div>
+          <div id="pbar-today-${p.id}" style="position:absolute;inset:0 auto 0 ${pctBase}%;width:${pctToday}%;background:${c};border-radius:0 4px 4px 0;box-shadow:0 0 6px ${c};transition:width .4s,left .4s"></div>
+        </div>
+        <div class="proj-meta">
+          <span>누적 <strong style="color:${c}" id="pcumul-${p.id}">${cumulAll}</strong>/${p.total||'?'} ${p.unit||''}<span id="ptoday-lbl-${p.id}" style="color:${c};opacity:0.75;font-size:9px;margin-left:4px">${savedTodayVal>0?'+오늘 '+savedTodayVal:''}</span></span>
+          <span style="color:${c};font-weight:700" id="ppct-${p.id}">${pct}%</span>
+        </div>
+        <div class="proj-today-row">
+          <label>오늘 달성:</label>
+          <input type="number" id="pp-${p.id}" placeholder="0" min="0" style="width:65px;font-size:12px"
+            oninput="liveUpdateProj('${p.id}',${cumulExclToday},${p.total||0},'${c}');autoSave()">
+          <span style="font-size:10px;color:var(--muted)">${p.unit||''}</span>
+        </div>`;
+      listEl.appendChild(div);
+      if (curDate) {
+        const rec = weekData['d:'+curDate]||{};
+        const inp = div.querySelector('#pp-'+p.id);
+        if (inp && rec.projProgress) inp.value = rec.projProgress[p.id]||'';
+      }
+    }
+  }
+  const st = document.getElementById('studyTotal');
+  if (st) st.innerHTML = totalH.toFixed(1)+'<span style="font-size:11px;color:var(--muted);font-weight:400">h</span>';
+}
+
+/* ════ RENDER WEEK ════ */
+async function renderWeek() {
+  const dates = getWeekDates(wkOffset);
+  const first = new Date(dates[0]), last = new Date(dates[6]);
+  const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+  const mN = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('hYear').textContent = first.getFullYear()+'년';
+  document.getElementById('hMonth').textContent = first.getMonth()===last.getMonth() ? mN[first.getMonth()] : mN[first.getMonth()]+' · '+mN[last.getMonth()];
+  document.getElementById('weekRange').textContent = `${fmt(first)} – ${fmt(last)}`;
+  weekData = await Promise.race([
+    dbGetMany(dates.map(d => 'd:'+d)),
+    new Promise(res=>setTimeout(()=>res({}),10000))
+  ]);
+  await loadAllTime();
+  let wInc=0, wStudy=0, wWork=0;
+  for (const d of dates) {
+    const r = weekData['d:'+d]; if (!r) continue;
+    wInc += (r.income||0); wWork += (r.workHours||0);
+    wStudy += (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+  }
+  document.getElementById('ws-study').textContent   = wStudy.toFixed(1)+'h';
+  document.getElementById('ws-income').textContent  = krw(wInc);
+  document.getElementById('ws-achieve').textContent = Math.round((wInc/(dynTarget*7))*100)+'%';
+  document.getElementById('ws-work').textContent    = wWork.toFixed(1)+'h';
+  // 주간 공부 달성률 (35h 기준)
+  const spct = Math.round((wStudy/35)*100);
+  const spEl = document.getElementById('studyPct');
+  if(spEl){ spEl.textContent=spct+'%'; spEl.style.color=spct>=100?'var(--green)':'var(--teal)'; }
+  renderCalendar(dates); renderWkChart(dates); renderSubjectAccordion();
+  updateWellness();
+}
+function prevWeek(){ wkOffset--; renderWeek(); }
+function nextWeek(){ wkOffset++; renderWeek(); }
+
+/* ════ CALENDAR ════ */
+function calcWorkStreak(ds) {
+  let streak = 0, cur = new Date(ds);
+  while(true) {
+    const key = 'd:' + toStr(cur);
+    const r = _allRec[key] || weekData[key];
+    if (r && (r.workHours||0) > 0) { streak++; cur.setDate(cur.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+function workLeafIcon(h) {
+  if(h<=0) return '';
+  if(h<2) return '🌱';
+  if(h<4) return '🌱';
+  if(h<6) return '🌿';
+  if(h<8) return '🌲';
+  return '🍀';
+}
+function renderCalendar(dates) {
+  const grid = document.getElementById('dayGrid'); grid.innerHTML = '';
+  const td = today();
+  for (const ds of dates) {
+    const r = weekData['d:'+ds]||{}, d = new Date(ds), dow = d.getDay();
+    const card = document.createElement('div');
+    card.className = 'dc'+(ds===td?' today':'')+(ds===curDate?' selected':'')+(dow===6?' dc-sat':dow===0?' dc-sun':'');
+    card.onclick = () => selectDay(ds);
+
+    // 날짜 숫자
+    const num = document.createElement('div'); num.className='dc-num'; num.textContent=d.getDate(); card.appendChild(num);
+
+    // 운동+수면+식사 한 줄 표시
+    const healthRow = document.createElement('div');
+    healthRow.className = 'dc-health-row';
+    healthRow.style.cssText='display:flex;flex-wrap:wrap;gap:1px;line-height:1.1;';
+    if(r.exOn){
+      if(r.exOn.swim) { const s=document.createElement('span');s.textContent='🏊';s.className='dc-ico';healthRow.appendChild(s); }
+      if(r.exOn.run)  { const s=document.createElement('span');s.textContent='🏃';s.className='dc-ico';healthRow.appendChild(s); }
+      if(r.exOn.bike) { const s=document.createElement('span');s.textContent='🚴';s.className='dc-ico';healthRow.appendChild(s); }
+    }
+    if((r.sleepHours||0)>=7){ const s=document.createElement('span');s.textContent='🌙';s.className='dc-ico';healthRow.appendChild(s); }
+    if(r.fcSpicy&&r.fcOver&&r.fcCafe&&r.fcSoda){ const s=document.createElement('span');s.textContent='🥗';s.className='dc-ico';healthRow.appendChild(s); }
+    if(r.hwClean||r.hwDish||r.hwTrash){ const s=document.createElement('span');s.textContent='🏠';s.className='dc-ico';healthRow.appendChild(s); }
+    if(healthRow.children.length) card.appendChild(healthRow);
+
+    const icons=document.createElement('div');
+    icons.className='dc-icon-row';
+    icons.style.cssText='display:flex;flex-wrap:wrap;gap:1px;align-items:center;';
+
+    const wh = r.workHours||0;
+    if(wh > 0) {
+      const streak = calcWorkStreak(ds);
+      const nextDate = new Date(ds); nextDate.setDate(nextDate.getDate()+1);
+      const nextR = _allRec['d:'+toStr(nextDate)] || weekData['d:'+toStr(nextDate)];
+      const nextWorked = nextR && (nextR.workHours||0) > 0;
+      if(!nextWorked) {
+        const leaf = workLeafIcon(wh);
+        const w=document.createElement('span');
+        w.className='dc-streak';
+        w.style.cssText='color:var(--teal);font-weight:700;background:rgba(62,207,190,.15);padding:0 2px;border-radius:2px;white-space:nowrap;font-size:7px';
+        w.textContent = leaf+streak+'일';
+        icons.appendChild(w);
+      } else {
+        const leaf = workLeafIcon(wh);
+        if(leaf){ const s=document.createElement('span');s.textContent=leaf;s.className='dc-ico';icons.appendChild(s); }
+      }
+    }
+
+    if(r.income && r.income >= dynTarget){
+      const s=document.createElement('span');s.textContent='💰';s.className='dc-ico';icons.appendChild(s);
+    }
+    if(r.mood){
+      const m=document.createElement('span');m.textContent=['','😞','😕','😐','🙂','😄'][r.mood]||'';m.className='dc-ico';icons.appendChild(m);
+    }
+
+    if(icons.children.length) card.appendChild(icons);
+
+    // 공부 바 + 수입: 맨 아래에 함께
+    const tot=(r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+    if (tot>0) {
+      const bars=document.createElement('div'); bars.className='dc-bars';
+      bars.style.marginTop='auto';
+      [{v:r.sKor||0,c:'var(--kor)'},{v:r.sMath||0,c:'var(--math)'},{v:r.sEng||0,c:'var(--eng)'},{v:r.sSoc||0,c:'var(--soc)'}].forEach(({v,c})=>{
+        if(!v) return;
+        const b=document.createElement('div');b.className='dc-bar';b.style.cssText=`background:${c};height:${Math.round((v/tot)*22)}px`;bars.appendChild(b);
+      });
+      card.appendChild(bars);
+    }
+
+    if(r.income){
+      const incEl=document.createElement('div');
+      incEl.style.cssText=(tot>0?'':'margin-top:auto;')+'padding-top:2px;font-size:7px;color:var(--gold);font-weight:700;border-top:1px solid rgba(240,165,0,.2);';
+      incEl.textContent=krw(r.income);
+      card.appendChild(incEl);
+    }
+
+    grid.appendChild(card);
+  }
+}
+
+/* ════ WEEKLY CHART ════ */
+function renderWkChart(dates) {
+  const chart = document.getElementById('wkChart'); chart.innerHTML='';
+  const dayN=['일','월','화','수','목','금','토'];
+  const maxV = Math.max(dynTarget*1.5,...dates.map(d=>(weekData['d:'+d]||{}).income||0),1);
+  const td = today();
+  for (const ds of dates) {
+    const r=weekData['d:'+ds]||{}, inc=r.income||0;
+    const barH=Math.max(2,Math.round(Math.min(1,inc/maxV)*45));
+    const tH=Math.min(45,Math.round((dynTarget/maxV)*45));
+    const d=new Date(ds), dow=d.getDay();
+    const col=document.createElement('div'); col.className='wk-col'; col.onclick=()=>selectDay(ds);
+    const bar=document.createElement('div'); bar.className='wk-bar';
+    bar.style.height=barH+'px';
+    bar.style.background=ds===curDate?'var(--gold)':ds===td?'var(--teal)':inc>=dynTarget?'var(--green)':'var(--bd2)';
+    const tl=document.createElement('div'); tl.className='wk-tline'; tl.style.bottom=(tH-barH)+'px'; bar.appendChild(tl);
+    const lbl=document.createElement('div'); lbl.className='wk-lbl'; lbl.textContent=dayN[dow];
+    col.appendChild(bar); col.appendChild(lbl); chart.appendChild(col);
+  }
+}
+
+/* ════ SELECT DAY ════ */
+async function selectDay(ds) {
+  curDate = ds;
+  const d=new Date(ds);
+  const mN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const dN=['일','월','화','수','목','금','토'];
+  const dstr = `${d.getFullYear()}년 ${mN[d.getMonth()]} ${d.getDate()}일`;
+  const dsub = dN[d.getDay()]+'요일';
+  for (const id of ['panelDStr']) { const el=document.getElementById(id); if(el) el.textContent=dstr; }
+  for (const id of ['panelDSub']) { const el=document.getElementById(id); if(el) el.textContent=dsub; }
+  for (const id of ['saveBtn']) { const el=document.getElementById(id); if(el){el.disabled=false;el.textContent='💾  저장';} }
+
+  const r = weekData['d:'+ds]||{};
+  exOn = r.exOn ? {...r.exOn} : {swim:false,run:false,bike:false};
+  refreshExBtns();
+  setV('swimLaps',r.swimLaps); setV('swimMin',r.swimMin); calcSwim();
+  setV('runKm',r.runKm); setV('runMin',r.runMin); calcRun();
+  setV('bikeKm',r.bikeKm); setV('bikeMin',r.bikeMin); calcBike();
+  setV('sleepHours', r.sleepHours||0);
+  const fids=['fcSpicy','fcOver','fcCafe','fcSoda','hwClean','hwDish','hwTrash'];
+  fids.forEach(id=>{ const el=document.getElementById(id); if(el) el.checked=!!(r[id]); });
+  setV('todayIncome',r.income); setV('todayExpense',r.expense); setV('workHours',r.workHours);
+  onIncome();
+  setV('hobbyName',r.hobbyName); setV('hobbyHours',r.hobbyHours);
+  mood=r.mood||0; refreshMoodBtns();
+  document.getElementById('noteText').value = r.note||'';
+  renderSubjectAccordion();
+  renderCalendar(getWeekDates(wkOffset));
+  renderWkChart(getWeekDates(wkOffset));
+  updateWellness();
+}
+
+/* ════ STUDY ════ */
+/* 오늘 달성 입력 시 바 즉시 업데이트 */
+function liveUpdateProj(pid, cumulExclToday, total, color) {
+  const inp = document.getElementById('pp-'+pid);
+  const todayVal = parseFloat(inp?.value)||0;
+  const live = cumulExclToday + todayVal;
+  const pctBase  = total>0 ? Math.min(100, Math.round((cumulExclToday/total)*100)) : 0;
+  const pctToday = total>0 ? Math.min(100-pctBase, Math.round((todayVal/total)*100)) : 0;
+  const barBase  = document.getElementById('pbar-base-'+pid);
+  const barToday = document.getElementById('pbar-today-'+pid);
+  const pctEl    = document.getElementById('ppct-'+pid);
+  const cumulEl  = document.getElementById('pcumul-'+pid);
+  const lblEl    = document.getElementById('ptoday-lbl-'+pid);
+  if(barBase)  barBase.style.width  = pctBase+'%';
+  if(barToday) { barToday.style.left = pctBase+'%'; barToday.style.width = pctToday+'%'; }
+  if(pctEl)    pctEl.textContent  = (pctBase+pctToday)+'%';
+  if(cumulEl)  cumulEl.textContent = live;
+  if(lblEl)    lblEl.textContent   = todayVal>0 ? '+오늘 '+todayVal : '';
+}
+function onStudyH(sid) {
+  let tot=0;
+  for(const s of SUBJECTS) tot+=parseFloat(document.getElementById('s-'+s.id)?.value)||0;
+  const st=document.getElementById('studyTotal');
+  if(st) st.innerHTML=tot.toFixed(1)+'<span style="font-size:11px;color:var(--muted);font-weight:400">h</span>';
+  // 주간 35h 기준 달성률 (주간 누적 기준)
+  updateStudyPct(tot);
+  autoSave();
+}
+function updateStudyPct(todayTot) {
+  // 이번주 전체 공부시간 합산
+  let wTot = todayTot;
+  const dates = getWeekDates(wkOffset);
+  for(const d of dates) {
+    if(d === curDate) continue;
+    const r = weekData['d:'+d]||{};
+    wTot += (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+  }
+  const pct = Math.round((wTot/35)*100);
+  const el = document.getElementById('studyPct');
+  if(el) { el.textContent=pct+'%'; el.style.color=pct>=100?'var(--green)':'var(--teal)'; }
+}
+
+/* ════ INCOME ════ */
+function onIncome() {
+  const inc=parseFloat(document.getElementById('todayIncome')?.value)||0;
+  const exp=parseFloat(document.getElementById('todayExpense')?.value)||0;
+  const net=inc-exp;
+  const tgt=dynTarget;
+  const pct=Math.min(100,Math.round((net/Math.max(tgt,1))*100));
+  const mTgt=monthlyTarget();
+  const mInc=monthlyIncomeSoFar()+inc;
+  const mGap=mInc-mTgt;
+  document.getElementById('tEarned').textContent=krw(net);
+  document.getElementById('tDynamic').textContent=krw(tgt);
+  const tgEl=document.getElementById('tGap'), tgLbl=document.getElementById('tGapLbl');
+  if(mGap>=0){if(tgEl)tgEl.textContent='+'+krw(mGap);if(tgEl)tgEl.style.color='var(--green)';if(tgLbl)tgLbl.textContent='이번달 초과';}
+  else{if(tgEl)tgEl.textContent='-'+krw(Math.abs(mGap));if(tgEl)tgEl.style.color='var(--red)';if(tgLbl)tgLbl.textContent='이번달 부족';}
+  document.getElementById('achPct').textContent=pct+'%';
+  document.getElementById('achBar').style.width=pct+'%';
+  document.getElementById('achBar').style.background=net>=tgt?'var(--green)':'var(--gold)';
+  document.getElementById('exceedNote').classList.toggle('show',net>tgt);
+  autoSave();
+}
+
+/* ════ EXERCISE ════ */
+function calcSwim(){const l=parseFloat(document.getElementById('swimLaps')?.value)||0,m=parseFloat(document.getElementById('swimMin')?.value)||0;document.getElementById('swimMetric').textContent=(l>0&&m>0)?secToMS((m/l)*60)+'/lap':'—';}
+function calcRun(){const k=parseFloat(document.getElementById('runKm')?.value)||0,m=parseFloat(document.getElementById('runMin')?.value)||0;document.getElementById('runMetric').textContent=(k>0&&m>0)?secToMS((m/k)*60)+'/km':'—';}
+function calcBike(){const k=parseFloat(document.getElementById('bikeKm')?.value)||0,m=parseFloat(document.getElementById('bikeMin')?.value)||0;document.getElementById('bikeMetric').textContent=(k>0&&m>0)?(k/(m/60)).toFixed(1)+' km/h':'—';}
+function toggleEx(t){exOn[t]=!exOn[t];refreshExBtns();autoSave();}
+function refreshExBtns(){['swim','run','bike'].forEach(t=>{document.getElementById('ex'+t.charAt(0).toUpperCase()+t.slice(1)).className='ex-btn'+(exOn[t]?' on-'+t:'');document.getElementById('det-'+t).classList.toggle('show',exOn[t]);});}
+
+/* ════ MOOD ════ */
+function setMood(n){mood=n;refreshMoodBtns();autoSave();}
+function refreshMoodBtns(){for(let i=1;i<=5;i++)document.getElementById('mood'+i).classList.toggle('on',i===mood);}
+
+/* ════ HOBBY ════ */
+let hobbyOpen=false;
+function toggleHobby(){hobbyOpen=!hobbyOpen;document.getElementById('hobbyPanel').classList.toggle('open',hobbyOpen);document.getElementById('hobbyArrow').style.transform=hobbyOpen?'rotate(90deg)':'';}
+function updateHobbyDisplay(){
+  document.getElementById('hobbyCumul').textContent=hobbyCumul.toFixed(1)+'h';
+  const panel=document.getElementById('hobbyPanel'); panel.innerHTML='';
+  const entries=Object.entries(hobbyBreakdown).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){panel.innerHTML='<div style="color:var(--muted);font-size:11px">아직 기록 없음</div>';return;}
+  const maxH=Math.max(...entries.map(e=>e[1]));
+  for(const [name,hrs] of entries){
+    const row=document.createElement('div');row.className='hb-row';
+    row.innerHTML=`<div class="hb-name" title="${name}">${name}</div>
+      <div class="hb-track"><div class="hb-fill" style="width:${Math.max(5,Math.round((hrs/maxH)*100))}%"></div></div>
+      <div class="hb-hrs">${hrs.toFixed(1)}h</div>`;
+    panel.appendChild(row);
+  }
+}
+
+/* ════ MOBILE TABS ════ */
+const TAB_MAP = { cal:'sec-cal', ex:'sec-ex', study:'sec-study', work:'sec-work', etc:'sec-etc' };
+function switchTab(name) {
+  // update tab buttons
+  Object.keys(TAB_MAP).forEach(k => {
+    const el = document.getElementById('mtab-'+k);
+    if(el) el.classList.toggle('on', k===name);
+  });
+  // show/hide sections
+  Object.values(TAB_MAP).forEach(secId => {
+    const el = document.getElementById(secId);
+    if(el) el.classList.toggle('on', secId===TAB_MAP[name]);
+  });
+}
+
+/* ════ AUTO SAVE ════ */
+function autoSave(){clearTimeout(asTimer);asTimer=setTimeout(()=>{if(curDate)saveRecord(true);},1800);}
+
+/* ════ SAVE ════ */
+async function saveRecord(silent=false){
+  if(!curDate) return;
+  const projProgress={};
+  for(const subj of SUBJECTS) for(const p of (subjectProjects[subj.id]||[])){const inp=document.getElementById('pp-'+p.id);if(inp)projProgress[p.id]=parseFloat(inp.value)||0;}
+  const rec={
+    _type:'day',date:curDate,exOn:{...exOn},
+    swimLaps:getN('swimLaps'),swimMin:getN('swimMin'),
+    runKm:getN('runKm'),runMin:getN('runMin'),
+    bikeKm:getN('bikeKm'),bikeMin:getN('bikeMin'),
+    sleepHours:getN('sleepHours'),
+    fcSpicy:!!(document.getElementById('fcSpicy')?.checked),
+    fcOver:!!(document.getElementById('fcOver')?.checked),
+    fcCafe:!!(document.getElementById('fcCafe')?.checked),
+    fcSoda:!!(document.getElementById('fcSoda')?.checked),
+    hwClean:!!(document.getElementById('hwClean')?.checked),
+    hwDish:!!(document.getElementById('hwDish')?.checked),
+    hwTrash:!!(document.getElementById('hwTrash')?.checked),
+    sKor:getN('s-kor'),sMath:getN('s-math'),sEng:getN('s-eng'),sSoc:getN('s-soc'),
+    income:getN('todayIncome'),expense:getN('todayExpense'),workHours:getN('workHours'),
+    hobbyName:document.getElementById('hobbyName').value.trim(),
+    hobbyHours:getN('hobbyHours'),
+    mood,note:document.getElementById('noteText').value.trim(),
+    projProgress,updatedAt:new Date().toISOString()
+  };
+  const sts=['saveStatus'];
+  try{
+    await dbSet('d:'+curDate,rec);
+    weekData['d:'+curDate]=rec;
+    if(!silent){sts.forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='✓ 저장 완료';setTimeout(()=>el.textContent='',2000);}});}
+    else{sts.forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='자동저장';setTimeout(()=>el.textContent='',1500);}});}
+    await loadAllTime();
+    renderCalendar(getWeekDates(wkOffset));
+    renderWkChart(getWeekDates(wkOffset));
+    renderSubjectAccordion();
+    updateWellness();
+    let wInc=0,wStudy=0,wWork=0;
+    for(const d of getWeekDates(wkOffset)){const r=weekData['d:'+d];if(!r)continue;wInc+=(r.income||0);wWork+=(r.workHours||0);wStudy+=(r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);}
+    document.getElementById('ws-study').textContent=wStudy.toFixed(1)+'h';
+    document.getElementById('ws-income').textContent=krw(wInc);
+    document.getElementById('ws-achieve').textContent=Math.round((wInc/(dynTarget*7))*100)+'%';
+    document.getElementById('ws-work').textContent=wWork.toFixed(1)+'h';
+  }catch(e){sts.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='⚠ 저장 실패';});console.error(e);}
+}
+
+/* ════ HELPERS ════ */
+function getN(id){return parseFloat(document.getElementById(id)?.value)||0;}
+function setV(id,v){
+  const el=document.getElementById(id); if(!el) return;
+  if(el.tagName==='SELECT'){
+    // find closest option
+    const target = parseFloat(v)||0;
+    let best=null, bestDiff=Infinity;
+    for(const opt of el.options){ const diff=Math.abs(parseFloat(opt.value)-target); if(diff<bestDiff){bestDiff=diff;best=opt.value;} }
+    el.value = target===0?'0':(best||'0');
+  } else {
+    el.value=(v==null||v===0||v==='')?'':v;
+  }
+}
+
+/* 15분 단위 드롭다운 생성 (0~16h) */
+function buildHoursSelect(id, maxH=16) {
+  const sel = document.getElementById(id); if(!sel) return;
+  sel.innerHTML = '<option value="0">0분</option>';
+  for(let m=15; m<=maxH*60; m+=15){
+    const h=Math.floor(m/60), min=m%60;
+    const label = h>0 ? (min>0?`${h}시간 ${min}분`:`${h}시간`) : `${min}분`;
+    const val=(m/60).toFixed(2).replace(/\.?0+$/,'');
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=label;
+    sel.appendChild(opt);
+  }
+}
+
+/* 과목 시간 select 생성 (0~12h) */
+function buildStudySelect(id) {
+  const sel = document.getElementById(id); if(!sel||sel.dataset.built) return;
+  sel.dataset.built='1';
+  sel.innerHTML='<option value="0">0분</option>';
+  for(let m=15; m<=720; m+=15){
+    const h=Math.floor(m/60), min=m%60;
+    const label = h>0?(min>0?`${h}시간 ${min}분`:`${h}시간`):`${min}분`;
+    const val=(m/60).toFixed(4).replace(/0+$/,'').replace(/\.$/, '');
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=label;
+    sel.appendChild(opt);
+  }
+}
+
+/* 수면 드롭다운: 5h~12h, 30분 간격 */
+function buildSleepSelect(id) {
+  const sel = document.getElementById(id); if(!sel) return;
+  sel.innerHTML = '<option value="0">기록 안함</option>';
+  for(let m=300; m<=720; m+=30){
+    const h=Math.floor(m/60), min=m%60;
+    const label = min>0 ? `${h}시간 ${min}분` : `${h}시간`;
+    const val=(m/60).toFixed(1).replace(/\.0$/,'');
+    const opt=document.createElement('option'); opt.value=val; opt.textContent=label;
+    sel.appendChild(opt);
+  }
+}
+/* ════ WELLNESS ════ */
+
+// 건강지수 계산 (0~100)
+function calcHealthIndex(r) {
+  let score = 50; // 기본
+  // 수면 (최대 +25)
+  const sl = parseFloat(r.sleepHours||0);
+  if      (sl >= 8)  score += 25;
+  else if (sl >= 7)  score += 20;
+  else if (sl >= 6)  score += 10;
+  else if (sl >= 4)  score += 0;
+  else if (sl > 0)   score -= 10;
+  else               score -= 5; // 미기록
+  // 운동 (최대 +20)
+  const exCnt = [r.exOn?.swim, r.exOn?.run, r.exOn?.bike].filter(Boolean).length;
+  score += exCnt * 7;
+  // 식습관 (최대 +15)
+  if (r.fcSpicy) score += 4;
+  if (r.fcOver)  score += 4;
+  if (r.fcCafe)  score += 4;
+  if (r.fcSoda)  score += 3;
+  // 업무 (균형: 2~6h 적정, 없으면 -5, 너무 많으면 -10)
+  const wh = parseFloat(r.workHours||0);
+  if      (wh >= 2 && wh <= 6)  score += 10;
+  else if (wh > 6 && wh <= 10)  score += 5;
+  else if (wh > 10)              score -= 10;
+  else                           score -= 5;
+  // 기분 (+0~5)
+  if (r.mood >= 4) score += 5;
+  else if (r.mood === 3) score += 2;
+  else if (r.mood <= 2 && r.mood > 0) score -= 3;
+  return Math.max(0, Math.min(100, score));
+}
+
+const HEART_LEVELS = [
+  { min:80, heart:'💙', label:'최상', color:'#4a9eff' },
+  { min:65, heart:'💚', label:'양호', color:'#3ecf6e' },
+  { min:50, heart:'💛', label:'보통', color:'#f0a500' },
+  { min:35, heart:'🧡', label:'주의', color:'#f97316' },
+  { min:0,  heart:'❤️', label:'위험', color:'#e05454' },
+];
+function getHeartLevel(score) {
+  return HEART_LEVELS.find(l => score >= l.min) || HEART_LEVELS[4];
+}
+
+// 주간 종합점수 (0~100)
+function calcWeekScore(dates, data) {
+  let total = 0, cnt = 0;
+  for (const d of dates) {
+    const r = data['d:'+d]; if (!r) continue;
+    total += calcHealthIndex(r);
+    // 공부 보너스
+    const studyH = (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+    total += Math.min(10, studyH * 2);
+    // 수입 보너스
+    if ((r.income||0) >= dynTarget) total += 5;
+    cnt++;
+  }
+  return cnt > 0 ? Math.round(total / cnt) : 0;
+}
+
+// 레이더 차트 그리기
+function drawRadar(dates, data) {
+  const canvas = document.getElementById('radarChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const cx = W/2, cy = H/2 + 5, R = Math.min(W,H)*0.36;
+
+  const axes = ['운동', '수면', '공부', '수입', '식습관', '업무균형'];
+  const N = axes.length;
+  const vals = [0,0,0,0,0,0]; // 0~1
+  let cnt = 0;
+  for (const d of dates) {
+    const r = data['d:'+d]; if(!r) continue; cnt++;
+    // 운동 (0~1: 운동종류수/3)
+    vals[0] += [r.exOn?.swim,r.exOn?.run,r.exOn?.bike].filter(Boolean).length / 3;
+    // 수면
+    const sl = parseFloat(r.sleepHours||0);
+    vals[1] += sl >= 8 ? 1 : sl >= 7 ? 0.85 : sl >= 6 ? 0.65 : sl >= 4 ? 0.4 : 0.1;
+    // 공부
+    const sh = (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+    vals[2] += Math.min(1, sh / 5);
+    // 수입
+    vals[3] += dynTarget > 0 ? Math.min(1, (r.income||0) / dynTarget) : 0;
+    // 식습관
+    vals[4] += ([r.fcSpicy,r.fcOver,r.fcCafe,r.fcSoda].filter(Boolean).length) / 4;
+    // 업무균형 (2~6h = 1.0)
+    const wh = parseFloat(r.workHours||0);
+    vals[5] += wh>=2&&wh<=6 ? 1 : wh>0&&wh<=10 ? 0.6 : wh>10 ? 0.3 : 0.2;
+  }
+  if (cnt > 0) for (let i=0;i<N;i++) vals[i] /= cnt;
+
+  // 배경 격자
+  for (let lv=1; lv<=4; lv++) {
+    const r = R * lv/4;
+    ctx.beginPath();
+    for (let i=0; i<N; i++) {
+      const a = (i/N)*Math.PI*2 - Math.PI/2;
+      i===0 ? ctx.moveTo(cx+r*Math.cos(a), cy+r*Math.sin(a))
+             : ctx.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a));
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // 축 선
+  for (let i=0; i<N; i++) {
+    const a = (i/N)*Math.PI*2 - Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx+R*Math.cos(a), cy+R*Math.sin(a));
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.stroke();
+    // 레이블
+    const lx = cx+(R+14)*Math.cos(a), ly = cy+(R+14)*Math.sin(a);
+    ctx.fillStyle = 'rgba(180,180,180,0.8)'; ctx.font='9px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(axes[i], lx, ly);
+  }
+  // 데이터 폴리곤
+  ctx.beginPath();
+  for (let i=0; i<N; i++) {
+    const a = (i/N)*Math.PI*2 - Math.PI/2;
+    const r = R * vals[i];
+    i===0 ? ctx.moveTo(cx+r*Math.cos(a), cy+r*Math.sin(a))
+           : ctx.lineTo(cx+r*Math.cos(a), cy+r*Math.sin(a));
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(62,207,190,0.2)';
+  ctx.fill();
+  ctx.strokeStyle = 'var(--teal)'; ctx.lineWidth = 2; ctx.stroke();
+  // 포인트
+  for (let i=0; i<N; i++) {
+    const a = (i/N)*Math.PI*2 - Math.PI/2;
+    const r = R * vals[i];
+    ctx.beginPath(); ctx.arc(cx+r*Math.cos(a), cy+r*Math.sin(a), 3, 0, Math.PI*2);
+    ctx.fillStyle = 'var(--teal)'; ctx.fill();
+  }
+}
+
+// 상황별 동기 메시지
+function getMotivMsg(r, weekScore) {
+  const msgs = [];
+  const sl = parseFloat(r.sleepHours||0);
+  const exCnt = [r.exOn?.swim,r.exOn?.run,r.exOn?.bike].filter(Boolean).length;
+  const wh = parseFloat(r.workHours||0);
+  const studyH = (r.sKor||0)+(r.sMath||0)+(r.sEng||0)+(r.sSoc||0);
+  const income = r.income||0;
+
+  if (sl > 0 && sl < 6)  msgs.push('😴 수면이 많이 부족해요. 오늘은 일찍 누워보는 건 어떨까요?');
+  if (sl >= 8)           msgs.push('😊 수면이 충분해요! 오늘 컨디션이 좋을 거예요.');
+  if (exCnt === 0)       msgs.push('🏃 오늘 몸을 움직여보는 건 어떨까요? 10분 산책도 좋아요.');
+  if (exCnt >= 2)        msgs.push('💪 운동 열심히 하셨네요! 근육이 고마워하고 있어요.');
+  if (wh > 10)           msgs.push('⚠️ 업무시간이 너무 길어요. 번아웃 전에 쉬어가세요.');
+  if (wh > 0 && wh <= 4) msgs.push('✅ 적절한 업무 시간이에요. 일과 삶의 균형이 좋아요!');
+  if (studyH >= 3)       msgs.push('📚 오늘 공부 정말 열심히 했네요. 꾸준함이 실력이 됩니다!');
+  if (studyH === 0)      msgs.push('📖 오늘 공부 시간을 기록해보세요. 조금씩이라도 괜찮아요.');
+  if (income >= dynTarget) msgs.push('🎯 오늘 목표 수입을 달성했어요! 대단해요!');
+  if (weekScore >= 80)   msgs.push('🌟 이번 주 정말 건강하게 잘 지내고 있어요!');
+  if (weekScore < 40)    msgs.push('🌱 힘든 한 주였군요. 작은 것 하나부터 다시 시작해봐요.');
+  if (!r.fcSpicy && !r.fcOver && !r.fcCafe && !r.fcSoda && (r.fcSpicy!==undefined))
+    msgs.push('🥗 식습관 관리가 잘 되고 있어요!');
+
+  // 기본 메시지
+  if (msgs.length === 0) msgs.push('💫 오늘 하루도 기록해줘서 고마워요. 꾸준함이 최고예요!');
+
+  // 랜덤 1~2개 선택
+  const shuffled = msgs.sort(()=>Math.random()-0.5);
+  return shuffled.slice(0,2).join('<br>');
+}
+
+function updateWellness() {
+  const dates = getWeekDates(wkOffset);
+  const r = weekData['d:'+(curDate||'')] || {};
+
+  // 건강지수
+  const hi = calcHealthIndex(r);
+  const hl = getHeartLevel(hi);
+  const heartEl = document.getElementById('healthHeart');
+  const lblEl   = document.getElementById('healthLabel');
+  if (heartEl) heartEl.textContent = hl.heart;
+  if (lblEl)   { lblEl.textContent = hl.label+' '+hi+'점'; lblEl.style.color = hl.color; }
+
+  // 주간 점수 + 지난주 비교
+  const thisScore = calcWeekScore(dates, weekData);
+  const lastDates = getWeekDates(wkOffset - 1);
+  // 지난주 데이터는 _allRec에서 읽음
+  const lastData  = {};
+  for (const d of lastDates) { if(_allRec['d:'+d]) lastData['d:'+d] = _allRec['d:'+d]; }
+  const lastScore = calcWeekScore(lastDates, lastData);
+  const scoreEl = document.getElementById('weekScore');
+  const diffEl  = document.getElementById('weekScoreDiff');
+  if (scoreEl) { scoreEl.textContent = thisScore; scoreEl.style.color = thisScore>=70?'var(--teal)':thisScore>=50?'var(--gold)':'#e05454'; }
+  if (diffEl) {
+    if (lastScore === 0) { diffEl.textContent = '지난주 데이터 없음'; diffEl.style.color='var(--muted)'; }
+    else {
+      const diff = thisScore - lastScore;
+      diffEl.textContent = (diff>0?'▲ +':'▼ ')+diff+'점 (지난주 '+lastScore+')';
+      diffEl.style.color = diff>0?'var(--teal)':diff<0?'#e05454':'var(--muted)';
+    }
+  }
+
+  // 레이더 차트
+  drawRadar(dates, weekData);
+
+  // 동기 메시지
+  const msgEl = document.getElementById('motivMsg');
+  if (msgEl) {
+    const hasData = curDate && weekData['d:'+curDate];
+    msgEl.innerHTML = hasData ? getMotivMsg(r, thisScore) : '💡 날짜를 선택하면 맞춤 메시지가 표시돼요.';
+    const borderColors = ['var(--teal)','var(--gold)','#4a9eff','#3ecf6e'];
+    msgEl.style.borderLeftColor = borderColors[Math.floor(Math.random()*borderColors.length)];
+  }
+}
+
+async function init(){
+  try {
+    initFB();
+    buildHoursSelect('workHours');
+    buildSleepSelect('sleepHours');
+    await loadSubjectProjects();
+    await renderWeek();
+    const td=today();
+    if(getWeekDates(0).includes(td)) await selectDay(td);
+  } catch(e) {
+    console.error('init error:', e);
+  }
+  const l=document.getElementById('loader');
+  l.style.opacity='0'; setTimeout(()=>l.style.display='none',400);
+}
+init();
+</script>
+</body>
+</html>
 
