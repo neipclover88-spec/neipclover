@@ -932,15 +932,21 @@ function delGoal(s, gi) {
   save(); renderStudy(); renderCal();
 }
 
+let _workTimer = null;
 function updWork(fld, val) {
   dayData(sel).work[fld] = Number(val)||0;
-  save(); renderWork(); renderCal();
+  save(); renderCal();
+  clearTimeout(_workTimer);
+  _workTimer = setTimeout(() => renderWork(), 600);
 }
 
+let _healthTimer = null;
 function updH(cat, fld, val) {
   const numFlds = ['laps','swimM','km','runH','runM','cycH','cycM','sleepH','sleepM'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
-  save(); renderHealth(); renderCal();
+  save(); renderCal();
+  clearTimeout(_healthTimer);
+  _healthTimer = setTimeout(() => renderHealth(), 600);
 }
 
 function toggleShoe() {
