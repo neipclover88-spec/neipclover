@@ -297,6 +297,7 @@ let db    = {};
 let openS    = {};
 let openShoe = false;
 let fbApp    = null;
+let deductRate = 10; // 기본 공제율 10%
 
 // ─── DATE UTILS (timezone-safe) ───
 function todayStr() {
@@ -375,12 +376,20 @@ function totalStudyMins(dk) {
   const d = db[dk]; if(!d?.study) return 0;
   return SUBJS.reduce((t,s)=>t+hmToMins(d.study[s]?.studyH,d.study[s]?.studyM),0);
 }
+function netIncome(gross) {
+  return Math.round((Number(gross)||0) * (1 - deductRate/100));
+}
 function totalIncome() {
   return Object.values(db).reduce((t,d)=>t+(Number(d.work?.incomeAmount)||0),0);
 }
+function totalNetIncome() {
+  return Object.values(db).reduce((t,d)=>t+netIncome(d.work?.incomeAmount),0);
+}
 function weekStats(dates) {
+  const gross = dates.reduce((t,k)=>t+(Number(db[k]?.work?.incomeAmount)||0),0);
   return {
-    income:     dates.reduce((t,k)=>t+(Number(db[k]?.work?.incomeAmount)||0),0),
+    income:     gross,
+    net:        Math.round(gross*(1-deductRate/100)),
     deliveries: dates.reduce((t,k)=>t+(Number(db[k]?.work?.deliveries)||0),0),
     workMins:   dates.reduce((t,k)=>t+hmToMins(db[k]?.work?.workH,db[k]?.work?.workM),0),
   };
@@ -407,13 +416,18 @@ function weeklySubjProgress(dates, subj) {
 
 // ─── PERSIST ───
 function save() {
-  try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db})); } catch(e){}
+  try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
   fbSave();
 }
 function load() {
   try {
     const raw = localStorage.getItem("bdh3v3");
-    if(raw) { const p=JSON.parse(raw); db=p.db||{}; sel=p.sel||todayStr(); }
+    if(raw) {
+      const p=JSON.parse(raw);
+      db=p.db||{};
+      sel=p.sel||todayStr();
+      if(p.deductRate!==undefined) deductRate=p.deductRate;
+    }
   } catch(e){}
 }
 
@@ -434,7 +448,8 @@ function initFirebase() {
       if(remoteStr === JSON.stringify(db)) { setSyncDot('ok'); return; }
       db = remote.db;
       if(remote.sel) sel = remote.sel;
-      try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db})); } catch(e){}
+      if(remote.deductRate!==undefined) deductRate = remote.deductRate;
+      try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
       setSyncDot('ok');
       renderAll();
     }, () => setSyncDot('err'));
@@ -444,7 +459,7 @@ function fbSave() {
   if(!fbApp||!FIREBASE_CONFIG.databaseURL) return;
   setSyncDot('busy');
   const id = ++fbWriteId;
-  firebase.database().ref(FB_PATH).set({sel,db})
+  firebase.database().ref(FB_PATH).set({sel,db,deductRate})
     .then(()=>{ if(id===fbWriteId) setSyncDot('ok'); })
     .catch(()=>setSyncDot('err'));
 }
@@ -480,7 +495,8 @@ function renderCal() {
 
     // work
     const inc = Number(db[dk]?.work?.incomeAmount)||0;
-    const incStr = inc>0 ? '₩'+inc.toLocaleString('ko-KR') : null;
+    const net = netIncome(inc);
+    const incStr = inc>0 ? '₩'+inc.toLocaleString('ko-KR')+'→'+Math.round(net/10000*10)/10+'만' : null;
 
     // health
     const hd = db[dk]?.health||{};
@@ -618,10 +634,13 @@ function renderWork() {
   const dd    = dayData(sel);
   const dates = weekDates(sel);
   const ws    = weekStats(dates);
-  const paid  = totalIncome();
+  const paid  = totalNetIncome(); // 빚 상환은 실수령 기준
   const rem   = Math.max(0, DEBT_TOTAL - paid);
   const pct   = Math.min(100, Math.round(paid/DEBT_TOTAL*100));
   const {h:wh,m:wm} = minsToHM(ws.workMins);
+
+  const todayGross = Number(dd.work.incomeAmount)||0;
+  const todayNet   = netIncome(todayGross);
 
   const remFmt = rem>=10000
     ? (rem/10000%1===0?rem/10000:(rem/10000).toFixed(1))+'만'
@@ -630,7 +649,7 @@ function renderWork() {
   let h=`<div class="phdr" style="cursor:pointer" onclick="openModal('work')">
     <div class="pdot" style="background:#f5a623"></div>
     <span class="ptitle">일</span>
-    <span class="ptotal" style="color:#f5a623">${dd.work.incomeAmount>0?fmtMoney(dd.work.incomeAmount):''}</span>
+    <span class="ptotal" style="color:#f5a623">${todayGross>0?'₩'+todayNet.toLocaleString():''}</span>
     <span style="font-size:9px;color:var(--m);margin-left:4px">↗</span>
   </div>
 
@@ -639,7 +658,7 @@ function renderWork() {
     <div><span class="debt-num">${remFmt}</span><span class="debt-unit">원</span></div>
     <div class="debt-meta">
       <div class="dm-item"><span class="dm-lbl">원금+이자(10%)</span><span class="dm-val">1,650만</span></div>
-      <div class="dm-item"><span class="dm-lbl">총 상환액</span><span class="dm-val">${paid>=10000?(paid/10000).toFixed(1)+'만':'₩'+paid.toLocaleString()}</span></div>
+      <div class="dm-item"><span class="dm-lbl">총 실수령 누적</span><span class="dm-val">${paid>=10000?(paid/10000).toFixed(1)+'만':'₩'+paid.toLocaleString()}</span></div>
       <div class="dm-item"><span class="dm-lbl">완료율</span><span class="dm-val">${pct}%</span></div>
     </div>
     <div class="debt-bar-wrap">
@@ -649,13 +668,27 @@ function renderWork() {
   </div>
 
   <div class="winputs">
-    <div class="wsec-lbl">오늘 기록</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <span class="wsec-lbl">오늘 기록</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:8px;color:var(--m)">공제율</span>
+        <input type="number" min="0" max="50" value="${deductRate}"
+          style="background:var(--s2);border:1px solid var(--b);border-radius:4px;color:#f5a623;font-family:var(--mono);font-size:11px;font-weight:700;width:36px;text-align:center;padding:2px 4px;outline:none"
+          onchange="updDeductRate(this.value)">
+        <span style="font-size:8px;color:var(--m)">%</span>
+      </div>
+    </div>
     <div class="wrow">
-      <span class="wlbl">수입</span>
-      <input class="winp" type="number" value="${dd.work.incomeAmount||''}" placeholder="0"
+      <span class="wlbl">총수입</span>
+      <input class="winp" type="number" value="${todayGross||''}" placeholder="0"
         onchange="updWork('incomeAmount',this.value)">
       <span class="wunit">원</span>
     </div>
+    ${todayGross>0?`<div class="wrow" style="opacity:.7">
+      <span class="wlbl" style="color:#ffd060">실수령</span>
+      <span class="winp" style="display:flex;align-items:center;color:#ffd060;background:rgba(245,166,35,.07);border-color:rgba(245,166,35,.2)">₩${todayNet.toLocaleString()}</span>
+      <span class="wunit" style="color:#ffd060">(-${deductRate}%)</span>
+    </div>`:''}
     <div class="wrow">
       <span class="wlbl">건수</span>
       <input class="winp" type="number" value="${dd.work.deliveries||''}" placeholder="0"
@@ -677,11 +710,12 @@ function renderWork() {
 
   <div class="wstats">
     <div class="wsec-lbl">주간 합산</div>
-    <div class="wstat-row"><span class="wslbl">총 수입</span><span class="wsval">${ws.income>0?'₩'+ws.income.toLocaleString():'–'}</span></div>
+    <div class="wstat-row"><span class="wslbl">총 수입 (공제 전)</span><span class="wsval">${ws.income>0?'₩'+ws.income.toLocaleString():'–'}</span></div>
+    <div class="wstat-row"><span class="wslbl">실수령 합계</span><span class="wsval" style="color:#ffd060">${ws.net>0?'₩'+ws.net.toLocaleString():'–'}</span></div>
     <div class="wstat-row"><span class="wslbl">배달 건수</span><span class="wsval">${ws.deliveries||0}건</span></div>
     <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wh,wm)||'–'}</span></div>
     ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
-    ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (주간)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.income/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
+    ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (실수령)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.net/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
   </div>`;
 
   document.getElementById('pWork').innerHTML = h;
@@ -930,6 +964,11 @@ function delGoal(s, gi) {
   dayData(sel).study[s].goals.splice(gi,1);
   openS[s] = true;
   save(); renderStudy(); renderCal();
+}
+
+function updDeductRate(val) {
+  deductRate = Math.min(50, Math.max(0, Number(val)||0));
+  save(); renderWork(); renderCal();
 }
 
 let _workTimer = null;
