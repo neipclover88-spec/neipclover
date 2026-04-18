@@ -653,20 +653,6 @@ function renderWork() {
     <span style="font-size:9px;color:var(--m);margin-left:4px">↗</span>
   </div>
 
-  <div class="debt-box">
-    <div class="debt-tag">잔여 채무</div>
-    <div><span class="debt-num">${remFmt}</span><span class="debt-unit">원</span></div>
-    <div class="debt-meta">
-      <div class="dm-item"><span class="dm-lbl">원금+이자(10%)</span><span class="dm-val">1,650만</span></div>
-      <div class="dm-item"><span class="dm-lbl">총 실수령 누적</span><span class="dm-val">${paid>=10000?(paid/10000).toFixed(1)+'만':'₩'+paid.toLocaleString()}</span></div>
-      <div class="dm-item"><span class="dm-lbl">완료율</span><span class="dm-val">${pct}%</span></div>
-    </div>
-    <div class="debt-bar-wrap">
-      <div class="bw" style="height:5px"><div class="bf" style="width:${pct}%;background:linear-gradient(90deg,#f5a623,#ffd060)"></div></div>
-    </div>
-    <div class="debt-pct-lbl">${pct}% 완료 · 잔여 ${remFmt}원</div>
-  </div>
-
   <div class="winputs">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <span class="wsec-lbl">오늘 기록</span>
@@ -716,6 +702,20 @@ function renderWork() {
     <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wh,wm)||'–'}</span></div>
     ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
     ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (실수령)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.net/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
+  </div>
+
+  <div class="debt-box">
+    <div class="debt-tag">잔여 채무</div>
+    <div><span class="debt-num">${remFmt}</span><span class="debt-unit">원</span></div>
+    <div class="debt-meta">
+      <div class="dm-item"><span class="dm-lbl">원금+이자(10%)</span><span class="dm-val">1,650만</span></div>
+      <div class="dm-item"><span class="dm-lbl">총 실수령 누적</span><span class="dm-val">${paid>=10000?(paid/10000).toFixed(1)+'만':'₩'+paid.toLocaleString()}</span></div>
+      <div class="dm-item"><span class="dm-lbl">완료율</span><span class="dm-val">${pct}%</span></div>
+    </div>
+    <div class="debt-bar-wrap">
+      <div class="bw" style="height:5px"><div class="bf" style="width:${pct}%;background:linear-gradient(90deg,#f5a623,#ffd060)"></div></div>
+    </div>
+    <div class="debt-pct-lbl">${pct}% 완료 · 잔여 ${remFmt}원</div>
   </div>`;
 
   document.getElementById('pWork').innerHTML = h;
