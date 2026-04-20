@@ -520,8 +520,7 @@ function renderCal() {
 
     // work
     const inc = Number(db[dk]?.work?.incomeAmount)||0;
-    const net = netIncome(inc);
-    const incStr = inc>0 ? '₩'+inc.toLocaleString('ko-KR')+'→'+Math.round(net/10000*10)/10+'만' : null;
+    const incStr = inc>0 ? '₩'+inc.toLocaleString('ko-KR') : null;
 
     // health
     const hd = db[dk]?.health||{};
