@@ -1310,11 +1310,12 @@ function renderModalHealth() {
   const maxKm  = Math.max(1,...Object.values(ss));
   const [,m0,d0]=dates[0].split('-'), [,m1,d1]=dates[6].split('-');
 
-  let totalSwimLaps=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0;
+  let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0;
   const dailySleep=[],dailyRun=[],dailyCyc=[];
   for(const dk of dates) {
     const h=db[dk]?.health||{};
     totalSwimLaps += Number(h.swimming?.laps)||0;
+    totalSwimMins += Number(h.swimming?.swimM)||0;
     totalRunKm    += Number(h.running?.km)||0;
     totalRunMins  += hmToMins(h.running?.runH,h.running?.runM);
     totalCycKm    += Number(h.cycling?.km)||0;
@@ -1343,7 +1344,7 @@ function renderModalHealth() {
   // ① KPI 카드
   const {h:rh,m:rm}=minsToHM(totalRunMins);
   const {h:ch,m:cm}=minsToHM(totalCycMins);
-  const totalExMins = totalRunMins + totalCycMins + totalSwimM;
+  const totalExMins = totalRunMins + totalCycMins + totalSwimMins;
   const {h:exH,m:exM} = minsToHM(totalExMins);
 
   b += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
