@@ -1093,29 +1093,29 @@ function renderModalStudy() {
   </div>`;
 
   // ② 요일별 막대 차트
-  b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+  b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 공부시간</div>
-    <div style="display:flex;align-items:flex-end;gap:5px;height:70px">`;
+    <div style="display:flex;align-items:flex-end;gap:4px;height:90px">`;
   dailyMins.forEach((m,i)=>{
     const pct = Math.round(m/maxDay*100);
     const {h,m:mn}=minsToHM(m);
     const str=m>0?(mn?h+'h'+mn+'m':h+'h'):'';
     const isT=dates[i]===todayStr();
     const isSun=i===0,isSat=i===6;
-    const clr=isT?'#4f8ef7':isSun?'#e74c3c44':isSat?'#7fa8f744':'#4f8ef755';
-    const txClr=isT?'#4f8ef7':isSun?'#e74c3c88':isSat?'#7fa8f788':'#5577aa';
+    const clr=isT?'#4f8ef7':isSun?'#e74c3c':isSat?'#7fa8f7':'#4477dd';
+    const txClr=isT?'#4f8ef7':isSun?'#e74c3c':isSat?'#7fa8f7':'#6688cc';
     b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:7px;color:${txClr};font-weight:700">${str}</div>
+      <div style="font-family:var(--mono);font-size:7px;color:${txClr};font-weight:700;white-space:nowrap">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%">
-        <div style="width:100%;height:${pct||2}%;background:${clr};border-radius:3px 3px 0 0;min-height:2px;${isT?'box-shadow:0 0 8px #4f8ef755':''}"></div>
+        <div style="width:100%;height:${pct||3}%;background:${clr};border-radius:4px 4px 0 0;min-height:3px;${m>0?'opacity:1':'opacity:0.15'};${isT?'box-shadow:0 0 14px '+clr+'cc':''}"></div>
       </div>
-      <div style="font-size:8px;color:${isT?'#4f8ef7':isSun?'#e74c3c88':isSat?'#7fa8f788':'var(--m)'};font-weight:${isT?700:400}">${DS[i]}</div>
+      <div style="font-size:9px;color:${isT?'#4f8ef7':isSun?'#e74c3c':isSat?'#7fa8f7':'#8899bb'};font-weight:${isT?700:500}">${DS[i]}</div>
     </div>`;
   });
   b += `</div></div>`;
 
   // ③ 과목별 가로 바 차트
-  b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+  b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">과목별 공부시간</div>
     <div style="display:flex;flex-direction:column;gap:8px">`;
   subjData.forEach(({s,clr,mins,wp})=>{
@@ -1127,8 +1127,8 @@ function renderModalStudy() {
         <span style="font-size:11px;font-weight:700;color:${clr}">${s}</span>
         <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${mins>0?clr:'var(--m2)'}">${timeStr}</span>
       </div>
-      <div style="height:8px;background:var(--b);border-radius:4px;overflow:hidden;position:relative">
-        <div style="height:100%;width:${barW}%;background:${clr};border-radius:4px;transition:width .4s;opacity:.85"></div>
+      <div style="height:11px;background:#1a1f2e;border-radius:6px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${barW}%;background:${clr};border-radius:6px;box-shadow:0 0 10px ${clr}77"></div>
         ${wp?('<div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:7px;font-weight:700;color:#fff">'+wp.pct+'%</div>'):''}
       </div>
       ${wp?('<div style="display:flex;justify-content:flex-end;margin-top:2px"><span style="font-size:8px;color:'+clr+'88">목표 '+wp.pct+'% 달성</span></div>'):''}
@@ -1251,7 +1251,7 @@ function renderModalWork() {
   </div>`;
 
   // ③ 요일별 수입 바 차트
-  b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+  b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 수입</div>
     <div style="display:flex;align-items:flex-end;gap:5px;height:70px">`;
   dailyInc.forEach((inc,i)=>{
@@ -1282,7 +1282,7 @@ function renderModalWork() {
   // ④ 요일별 건수 미니 도트차트
   const hasDel = dailyDel.some(v=>v>0);
   if(hasDel) {
-    b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
       <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">요일별 배달 건수</div>
       <div style="display:flex;align-items:flex-end;gap:5px;height:50px">`;
     dailyDel.forEach((del,i)=>{
@@ -1368,12 +1368,12 @@ function renderModalHealth() {
   </div>`;
 
   // ② 수면 바 차트
-  b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+  b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
       <span style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase">요일별 수면시간</span>
       <span style="font-size:8px;color:#a855f7aa">권장 7–9h</span>
     </div>
-    <div style="display:flex;align-items:flex-end;gap:5px;height:70px;position:relative">
+    <div style="display:flex;align-items:flex-end;gap:5px;height:90px;position:relative">
       <div style="position:absolute;bottom:${Math.round(7*60/maxSleep*100)}%;left:0;right:0;border-top:1px dashed rgba(168,85,247,.3);pointer-events:none"></div>`;
   dailySleep.forEach((m,i)=>{
     const pct=Math.round(m/maxSleep*100);
@@ -1400,7 +1400,7 @@ function renderModalHealth() {
   // ③ 러닝 바 차트 (데이터 있을 때)
   if(totalRunKm>0) {
     const pace=totalRunMins>0&&totalRunKm>0?`${Math.floor(totalRunMins/totalRunKm)}'${String(Math.round((totalRunMins/totalRunKm%1)*60)).padStart(2,'0')}''/km`:'';
-    b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
         <span style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase">🏃 요일별 러닝</span>
         ${pace?('<span style="font-size:8px;color:#27c96eaa">평균 '+pace+'</span>'):''}
@@ -1421,7 +1421,7 @@ function renderModalHealth() {
   }
 
   // ④ 신발별 누적 가로 바
-  b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
+  b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">👟 신발별 누적 거리</div>
     <div style="display:flex;flex-direction:column;gap:8px">`;
   for(const sn of SHOES) {
@@ -1433,9 +1433,9 @@ function renderModalHealth() {
         <span style="font-size:11px;font-weight:600;color:var(--t)">${sn}</span>
         <span style="font-family:var(--bebas);font-size:16px;color:#27c96e;letter-spacing:.3px">${km>0?(km%1===0?km:km.toFixed(1)):'0'}km</span>
       </div>
-      <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden;position:relative">
+      <div style="height:11px;background:#1a1f2e;border-radius:6px;overflow:hidden;position:relative">
         ${isBase?`<div style="position:absolute;left:0;top:0;height:100%;width:${Math.round(SHOE_BASE[sn]/maxKm*100)}%;background:rgba(39,201,110,.2);border-right:1px dashed #27c96e55"></div>`:''}
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,rgba(39,201,110,.5),#27c96e);border-radius:4px"></div>
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#1faa5a,#27c96e);border-radius:6px;box-shadow:0 0 8px #27c96e66"></div>
       </div>
       ${isBase?`<div style="text-align:right;margin-top:2px;font-size:7px;color:var(--m2)">기초 ${SHOE_BASE[sn]}km 포함</div>`:''}
     </div>`;
