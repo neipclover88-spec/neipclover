@@ -1105,7 +1105,7 @@ function renderModalStudy() {
     const clr=isT?'#4f8ef7':isSun?'#e74c3c':isSat?'#7fa8f7':'#4477dd';
     const txClr=isT?'#4f8ef7':isSun?'#e74c3c':isSat?'#7fa8f7':'#6688cc';
     b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:7px;color:${txClr};font-weight:700;white-space:nowrap">${str}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:${txClr};font-weight:700;white-space:nowrap">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%">
         <div style="width:100%;height:${pct||3}%;background:${clr};border-radius:4px 4px 0 0;min-height:3px;${m>0?'opacity:1':'opacity:0.15'};${isT?'box-shadow:0 0 14px '+clr+'cc':''}"></div>
       </div>
@@ -1263,7 +1263,7 @@ function renderModalWork() {
     const str=inc>0?(inc>=10000?(inc/10000).toFixed(0)+'만':'₩'+inc.toLocaleString()):'';
     const txClr=isT?'#f5a623':isSun?'#e74c3c88':isSat?'#7fa8f788':'#aa7722';
     b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:7px;color:${txClr};font-weight:700;text-align:center">${str}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:${txClr};font-weight:700;text-align:center">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%;position:relative">
         <div style="width:100%;height:${pct||3}%;background:#c45a00;border-radius:4px 4px 0 0;min-height:3px;position:relative">
           <div style="position:absolute;bottom:0;left:0;right:0;height:${netPct?Math.round(netPct/pct*100):0}%;background:${isT?'#f5a623':'#e07820'};border-radius:4px 4px 0 0;${isT?'box-shadow:0 0 14px #f5a623cc':''}"></div>
@@ -1289,7 +1289,7 @@ function renderModalWork() {
       const pct=Math.round(del/maxDel*100);
       const isT=dates[i]===todayStr();
       b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-        <div style="font-family:var(--mono);font-size:7px;color:${isT?'#f5a623':'#d07820'};font-weight:700">${del||''}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:${isT?'#f5a623':'#d07820'};font-weight:700">${del||''}</div>
         <div style="flex:1;display:flex;align-items:flex-end;width:100%">
           <div style="width:100%;height:${pct||3}%;background:${isT?'#f5a623':'#c06010'};border-radius:4px 4px 0 0;min-height:${del?3:0}px;${isT?'box-shadow:0 0 14px #f5a623cc':''}"></div>
         </div>
@@ -1382,7 +1382,7 @@ function renderModalHealth() {
     const clr=m>=7*60?'#a855f7':m>=6*60?'#f5a623':m>0?'#e74c3c':'var(--b)';
     const isT=dates[i]===todayStr();
     b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:6px;color:${clr};font-weight:700">${str}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:${clr};font-weight:700">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%">
         <div style="width:100%;height:${pct||2}%;background:${clr};border-radius:3px 3px 0 0;opacity:${isT?1:.7};min-height:2px;${isT?'box-shadow:0 0 6px '+clr+'88':''}"></div>
       </div>
@@ -1410,7 +1410,7 @@ function renderModalHealth() {
       const pct=Math.round(km/maxRun*100);
       const isT=dates[i]===todayStr();
       b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-        <div style="font-family:var(--mono);font-size:7px;color:${km>0?'#27c96e':'transparent'};font-weight:700">${km>0?km+'k':''}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:${km>0?'#27c96e':'transparent'};font-weight:700">${km>0?km+'k':''}</div>
         <div style="flex:1;display:flex;align-items:flex-end;width:100%">
           <div style="width:100%;height:${pct||2}%;background:${isT?'#27c96e':'rgba(39,201,110,.45)'};border-radius:3px 3px 0 0;min-height:${km?2:0}px"></div>
         </div>
