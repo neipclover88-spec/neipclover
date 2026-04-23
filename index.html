@@ -1253,7 +1253,7 @@ function renderModalWork() {
   // ③ 요일별 수입 바 차트
   b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 수입</div>
-    <div style="display:flex;align-items:flex-end;gap:5px;height:70px">`;
+    <div style="display:flex;align-items:flex-end;gap:4px;height:90px">`;
   dailyInc.forEach((inc,i)=>{
     const net=dailyNet[i];
     const pct=Math.round(inc/maxInc*100);
@@ -1263,10 +1263,10 @@ function renderModalWork() {
     const str=inc>0?(inc>=10000?(inc/10000).toFixed(0)+'만':'₩'+inc.toLocaleString()):'';
     const txClr=isT?'#f5a623':isSun?'#e74c3c88':isSat?'#7fa8f788':'#aa7722';
     b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:6px;color:${txClr};font-weight:700;text-align:center">${str}</div>
+      <div style="font-family:var(--mono);font-size:7px;color:${txClr};font-weight:700;text-align:center">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%;position:relative">
-        <div style="width:100%;height:${pct||2}%;background:rgba(245,166,35,.25);border-radius:3px 3px 0 0;min-height:2px;position:relative">
-          <div style="position:absolute;bottom:0;left:0;right:0;height:${netPct?Math.round(netPct/pct*100):0}%;background:${isT?'#f5a623':'rgba(245,166,35,.7)'};border-radius:3px 3px 0 0;${isT?'box-shadow:0 0 8px #f5a62355':''}"></div>
+        <div style="width:100%;height:${pct||3}%;background:#c45a00;border-radius:4px 4px 0 0;min-height:3px;position:relative">
+          <div style="position:absolute;bottom:0;left:0;right:0;height:${netPct?Math.round(netPct/pct*100):0}%;background:${isT?'#f5a623':'#e07820'};border-radius:4px 4px 0 0;${isT?'box-shadow:0 0 14px #f5a623cc':''}"></div>
         </div>
       </div>
       <div style="font-size:8px;color:${isT?'#f5a623':isSun?'#e74c3c88':isSat?'#7fa8f788':'var(--m)'};font-weight:${isT?700:400}">${DS[i]}</div>
@@ -1284,14 +1284,14 @@ function renderModalWork() {
   if(hasDel) {
     b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
       <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">요일별 배달 건수</div>
-      <div style="display:flex;align-items:flex-end;gap:5px;height:50px">`;
+      <div style="display:flex;align-items:flex-end;gap:4px;height:70px">`;
     dailyDel.forEach((del,i)=>{
       const pct=Math.round(del/maxDel*100);
       const isT=dates[i]===todayStr();
       b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-        <div style="font-family:var(--mono);font-size:7px;color:${isT?'#f5a623':'#aa7722'};font-weight:700">${del||''}</div>
+        <div style="font-family:var(--mono);font-size:7px;color:${isT?'#f5a623':'#d07820'};font-weight:700">${del||''}</div>
         <div style="flex:1;display:flex;align-items:flex-end;width:100%">
-          <div style="width:100%;height:${pct||2}%;background:${isT?'#f5a623':'rgba(245,166,35,.4)'};border-radius:2px 2px 0 0;min-height:${del?2:0}px"></div>
+          <div style="width:100%;height:${pct||3}%;background:${isT?'#f5a623':'#c06010'};border-radius:4px 4px 0 0;min-height:${del?3:0}px;${isT?'box-shadow:0 0 14px #f5a623cc':''}"></div>
         </div>
         <div style="font-size:8px;color:${isT?'#f5a623':'var(--m)'}">${DS[i]}</div>
       </div>`;
