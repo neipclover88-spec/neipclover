@@ -658,10 +658,9 @@ function renderWork() {
   const dd    = dayData(sel);
   const dates = weekDates(sel);
   const ws    = weekStats(dates);
-  const repaid  = totalDebtRepaid();
+  const repaid  = db._debtRepaid || 0;
   const rem   = Math.max(0, DEBT_TOTAL - repaid);
   const debtPct = Math.min(100, Math.round(repaid/DEBT_TOTAL*100));
-  const cms   = currentMonthStats();
   const {h:wh,m:wm} = minsToHM(ws.workMins);
 
   const todayGross = Number(dd.work.incomeAmount)||0;
@@ -730,17 +729,6 @@ function renderWork() {
   </div>
 
   <div class="debt-box">
-    <div class="debt-tag">이번 달 생활비</div>
-    <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px">
-      <span style="font-family:var(--bebas);font-size:18px;color:${cms.livingPct>=100?'#27c96e':'#f5a623'}">${(cms.living/10000).toFixed(1)}만</span>
-      <span style="font-size:9px;color:var(--m)">/ 200만원</span>
-      <span style="font-family:var(--bebas);font-size:14px;color:${cms.livingPct>=100?'#27c96e':'#f5a623'};margin-left:auto">${cms.livingPct}%</span>
-    </div>
-    <div class="bw" style="height:6px;margin-bottom:${cms.repaid>0?6:0}px">
-      <div class="bf" style="width:${cms.livingPct}%;background:${cms.livingPct>=100?'#27c96e':'linear-gradient(90deg,#f5a623,#ffd060)'}"></div>
-    </div>
-    ${cms.repaid>0?`<div style="font-size:8px;color:#27c96e;text-align:right">이번 달 빚 차감: ₩${cms.repaid.toLocaleString()}</div>`:''}
-    <div style="height:1px;background:var(--b);margin:8px 0"></div>
     <div class="debt-tag">잔여 채무</div>
     <div><span class="debt-num">${remFmt}</span><span class="debt-unit">원</span></div>
     <div class="debt-meta">
@@ -752,6 +740,13 @@ function renderWork() {
       <div class="bw" style="height:5px"><div class="bf" style="width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060)"></div></div>
     </div>
     <div class="debt-pct-lbl">${debtPct}% 완료 · 잔여 ${remFmt}원</div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:6px">
+      <span style="font-size:9px;color:var(--m);white-space:nowrap">상환 입력</span>
+      <input type="number" placeholder="0" value="${repaid||''}"
+        style="flex:1;background:var(--s2);border:1px solid rgba(245,166,35,.4);border-radius:5px;color:#ffd060;font-family:var(--bebas);font-size:16px;letter-spacing:.5px;padding:4px 8px;outline:none;min-width:0"
+        onchange="updDebtRepaid(this.value)">
+      <span style="font-size:9px;color:var(--m)">원</span>
+    </div>
   </div>`;
 
   document.getElementById('pWork').innerHTML = h;
@@ -1007,6 +1002,11 @@ function updDeductRate(val) {
   save(); renderWork(); renderCal();
 }
 
+function updDebtRepaid(val) {
+  db._debtRepaid = Number(val)||0;
+  save(); renderWork();
+}
+
 let _workTimer = null;
 function updWork(fld, val) {
   dayData(sel).work[fld] = Number(val)||0;
@@ -1181,7 +1181,7 @@ function renderModalStudy() {
 function renderModalWork() {
   const dates = weekDates(sel);
   const ws    = weekStats(dates);
-  const repaid  = totalDebtRepaid();
+  const repaid  = db._debtRepaid || 0;
   const rem   = Math.max(0, DEBT_TOTAL - repaid);
   const debtPct = Math.min(100, Math.round(repaid/DEBT_TOTAL*100));
   const cms   = currentMonthStats();
@@ -1227,22 +1227,12 @@ function renderModalWork() {
 
   // ② 채무 진행바 (슬림)
   b += `<div style="background:var(--s2);border:1px solid rgba(245,166,35,.2);border-radius:12px;padding:14px">
-    <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">이번 달 생활비 현황</div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-      <span style="font-size:10px;color:${cms.livingPct>=100?'#27c96e':'#f5a623'}">${(cms.living/10000).toFixed(1)}만 / 200만원</span>
-      <span style="font-family:var(--bebas);font-size:18px;color:${cms.livingPct>=100?'#27c96e':'#f5a623'}">${cms.livingPct}%</span>
-    </div>
-    <div style="height:8px;background:var(--b);border-radius:4px;overflow:hidden;margin-bottom:${cms.repaid>0?6:0}px">
-      <div style="height:100%;width:${cms.livingPct}%;background:${cms.livingPct>=100?'#27c96e':'linear-gradient(90deg,#f5a623,#ffd060)'};border-radius:4px"></div>
-    </div>
-    ${cms.repaid>0?('<div style="font-size:9px;color:#27c96e;text-align:right;margin-bottom:8px">→ 이번 달 빚 차감: ₩'+cms.repaid.toLocaleString()+'</div>'):''}
-    <div style="height:1px;background:var(--b);margin:10px 0"></div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
       <span style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase">채무 상환 현황</span>
       <span style="font-family:var(--bebas);font-size:20px;color:#f5a623">${debtPct}%</span>
     </div>
-    <div style="height:10px;background:var(--b);border-radius:5px;overflow:hidden">
-      <div style="height:100%;width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:5px"></div>
+    <div style="height:10px;background:#090d1a;border-radius:5px;overflow:hidden">
+      <div style="height:100%;width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:5px;box-shadow:0 0 10px #f5a62366"></div>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:6px">
       <span style="font-size:9px;color:var(--m)">잔여 <span style="color:#f5a623;font-weight:700">${remFmt}원</span></span>
