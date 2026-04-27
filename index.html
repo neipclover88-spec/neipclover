@@ -295,6 +295,7 @@ const DEBT_TOTAL = 16_500_000; // 15,000,000 × 1.1
 let sel   = todayStr();
 let db    = {};
 let openS    = {};
+let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, hobby:false};
 let openShoe = false;
 let fbApp    = null;
 let deductRate = 10; // 기본 공제율 10%
@@ -367,6 +368,8 @@ function dayData(k) {
   if(!h.swimming) h.swimming = {laps:0,swimM:0};
   if(!h.running)  h.running  = {km:0,runH:0,runM:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
+  if(!h.pushup)   h.pushup   = {reps:0};
+  if(!h.pullup)   h.pullup   = {reps:0};
   if(h.hobby===undefined) h.hobby = "";
   return d;
 }
@@ -525,9 +528,11 @@ function renderCal() {
     // health
     const hd = db[dk]?.health||{};
     const hp = [];
-    if(hd.swimming?.laps>0) hp.push('🏊'+hd.swimming.laps);
+    if(hd.swimming?.laps>0) hp.push('🏊'+hd.swimming.laps+'바');
     if(hd.running?.km>0)    hp.push('🏃'+hd.running.km+'k');
     if(hd.cycling?.km>0)    hp.push('🚴'+hd.cycling.km+'k');
+    if(hd.pushup?.reps>0)   hp.push('💪'+hd.pushup.reps);
+    if(hd.pullup?.reps>0)   hp.push('🏋️'+hd.pullup.reps);
     const hlStr = hp.join(' ');
 
     h+=`<div class="${cls}" onclick="clickDay('${dk}')">
@@ -798,7 +803,25 @@ function renderHealth() {
     <span style="font-size:9px;color:var(--m);margin-left:auto">↗</span>
   </div>`;
 
-  // 1. SLEEP (top)
+  const pushReps = Number(h.pushup?.reps)||0;
+  const pullReps = Number(h.pullup?.reps)||0;
+
+  function hItem(key, ico, name, valStr, bodyHtml) {
+    const isOpen = !!openH[key];
+    return `<div class="hact">
+      <div class="hact-hdr" style="cursor:pointer" onclick="toggleH('${key}')">
+        <span class="hico">${ico}</span>
+        <span class="hact-name">${name}</span>
+        <span class="hact-val">${valStr}</span>
+        <span style="font-size:9px;color:var(--m);margin-left:4px;transition:transform .2s;display:inline-block;transform:rotate(${isOpen?180:0}deg)" id="hchev-${key}">▼</span>
+      </div>
+      <div class="hact-body" id="hbody-${key}" style="display:${isOpen?'flex':'none'}">
+        ${bodyHtml}
+      </div>
+    </div>`;
+  }
+
+  // 1. SLEEP (always open)
   out+=`<div class="hact">
     <div class="hact-hdr">
       <span class="hico">😴</span>
@@ -821,15 +844,9 @@ function renderHealth() {
     </div>
   </div>`;
 
-  // 2. SWIMMING
-  out+=`<div class="hact">
-    <div class="hact-hdr">
-      <span class="hico">🏊</span>
-      <span class="hact-name">수영</span>
-      <span class="hact-val">${swimStr}</span>
-    </div>
-    <div class="hact-body">
-      <div class="hrow">
+  // 2. SWIMMING (collapsible)
+  out += hItem('swim','🏊','수영', swimStr,
+    `<div class="hrow">
         <span class="hlbl">바퀴</span>
         <input class="hinp" type="number" min="0" value="${swimLaps||''}" placeholder="0"
           onchange="updH('swimming','laps',this.value)">
@@ -841,19 +858,12 @@ function renderHealth() {
           onchange="updH('swimming','swimM',this.value)">
         <span class="hunit">분</span>
       </div>
-      ${swimLaps>0?`<div class="hcalc" style="color:#27c96e">= ${swimLaps*50}m · ${(swimLaps*50/1000).toFixed(2)}km</div>`:''}
-    </div>
-  </div>`;
+      ${swimLaps>0?`<div class="hcalc" style="color:#27c96e">= ${swimLaps*50}m · ${(swimLaps*50/1000).toFixed(2)}km</div>`:''}`
+  );
 
-  // 3. RUNNING
-  out+=`<div class="hact">
-    <div class="hact-hdr">
-      <span class="hico">🏃</span>
-      <span class="hact-name">러닝</span>
-      <span class="hact-val">${runStr}</span>
-    </div>
-    <div class="hact-body">
-      <div class="hrow">
+  // 3. RUNNING (collapsible)
+  out += hItem('run','🏃','러닝', runStr,
+    `<div class="hrow">
         <span class="hlbl">거리</span>
         <input class="hinp" type="number" step="0.1" min="0" value="${runKm||''}" placeholder="0"
           onchange="updH('running','km',this.value)">
@@ -889,19 +899,12 @@ function renderHealth() {
             <span class="shoe-km">${ss[sn]>0?(ss[sn]%1===0?ss[sn]:(ss[sn]).toFixed(1)):'0'}km</span>
           </div>`).join('')}
         </div>
-      </div>
-    </div>
-  </div>`;
+      </div>`
+  );
 
-  // 4. CYCLING
-  out+=`<div class="hact">
-    <div class="hact-hdr">
-      <span class="hico">🚴</span>
-      <span class="hact-name">자전거</span>
-      <span class="hact-val">${cycStr}</span>
-    </div>
-    <div class="hact-body">
-      <div class="hrow">
+  // 4. CYCLING (collapsible)
+  out += hItem('cyc','🚴','자전거', cycStr,
+    `<div class="hrow">
         <span class="hlbl">거리</span>
         <input class="hinp" type="number" step="0.1" min="0" value="${cycKm||''}" placeholder="0"
           onchange="updH('cycling','km',this.value)">
@@ -918,21 +921,34 @@ function renderHealth() {
           <span class="tu" style="color:#27c96eaa">분</span>
         </div>
       </div>
-      ${avgSpd?`<div class="hcalc" style="color:#27c96e">⚡ 평균 ${avgSpd} km/h</div>`:''}
-    </div>
-  </div>`;
+      ${avgSpd?`<div class="hcalc" style="color:#27c96e">⚡ 평균 ${avgSpd} km/h</div>`:''}`
+  );
 
-  // 5. HOBBY
-  out+=`<div class="hact">
-    <div class="hact-hdr">
-      <span class="hico">🎮</span>
-      <span class="hact-name">취미</span>
-    </div>
-    <div class="hact-body">
-      <input class="hinp" type="text" value="${esc(h.hobby||'')}" placeholder="오늘의 취미 활동"
-        onchange="updHTxt('hobby',this.value)">
-    </div>
-  </div>`;
+  // 5. PUSHUP (collapsible)
+  out += hItem('push','💪','푸시업', pushReps>0?pushReps+'회':'',
+    `<div class="hrow">
+        <span class="hlbl">횟수</span>
+        <input class="hinp" type="number" min="0" value="${pushReps||''}" placeholder="0"
+          onchange="updH('pushup','reps',this.value)">
+        <span class="hunit">회</span>
+      </div>`
+  );
+
+  // 6. PULLUP (collapsible)
+  out += hItem('pull','🏋️','풀업', pullReps>0?pullReps+'회':'',
+    `<div class="hrow">
+        <span class="hlbl">횟수</span>
+        <input class="hinp" type="number" min="0" value="${pullReps||''}" placeholder="0"
+          onchange="updH('pullup','reps',this.value)">
+        <span class="hunit">회</span>
+      </div>`
+  );
+
+  // 7. HOBBY (collapsible)
+  out += hItem('hobby','🎮','취미', h.hobby?h.hobby.slice(0,8):'',
+    `<input class="hinp" type="text" value="${esc(h.hobby||'')}" placeholder="오늘의 취미 활동"
+        onchange="updHTxt('hobby',this.value)">`
+  );
 
   document.getElementById('pHealth').innerHTML = out;
 }
@@ -1017,11 +1033,19 @@ function updWork(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runH','runM','cycH','cycM','sleepH','sleepM'];
+  const numFlds = ['laps','swimM','km','runH','runM','cycH','cycM','sleepH','sleepM','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
   _healthTimer = setTimeout(() => renderHealth(), 600);
+}
+
+function toggleH(key) {
+  openH[key] = !openH[key];
+  const body = document.getElementById(`hbody-${key}`);
+  const chev = document.getElementById(`hchev-${key}`);
+  if(body) body.style.display = openH[key] ? 'flex' : 'none';
+  if(chev) chev.style.transform = `rotate(${openH[key]?180:0}deg)`;
 }
 
 function toggleShoe() {
