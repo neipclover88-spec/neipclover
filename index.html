@@ -295,7 +295,7 @@ const DEBT_TOTAL = 16_500_000; // 15,000,000 × 1.1
 let sel   = todayStr();
 let db    = {};
 let openS    = {};
-let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, hobby:false};
+let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, leg:false, hobby:false};
 let openShoe = false;
 let fbApp    = null;
 let deductRate = 10; // 기본 공제율 10%
@@ -370,6 +370,7 @@ function dayData(k) {
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
   if(!h.pushup)   h.pushup   = {reps:0};
   if(!h.pullup)   h.pullup   = {reps:0};
+  if(!h.legraise) h.legraise = {reps:0};
   if(h.hobby===undefined) h.hobby = "";
   return d;
 }
@@ -531,8 +532,9 @@ function renderCal() {
     if(hd.swimming?.laps>0) hp.push('🏊'+hd.swimming.laps+'바');
     if(hd.running?.km>0)    hp.push('🏃'+hd.running.km+'k');
     if(hd.cycling?.km>0)    hp.push('🚴'+hd.cycling.km+'k');
-    if(hd.pushup?.reps>0)   hp.push('💪'+hd.pushup.reps);
-    if(hd.pullup?.reps>0)   hp.push('🏋️'+hd.pullup.reps);
+    if(hd.pushup?.reps>0)    hp.push('💪'+hd.pushup.reps);
+    if(hd.pullup?.reps>0)    hp.push('🏋️'+hd.pullup.reps);
+    if(hd.legraise?.reps>0)  hp.push('🦵'+hd.legraise.reps);
     const hlStr = hp.join(' ');
 
     h+=`<div class="${cls}" onclick="clickDay('${dk}')">
@@ -944,7 +946,19 @@ function renderHealth() {
       </div>`
   );
 
-  // 7. HOBBY (collapsible)
+  const legReps = Number(h.legraise?.reps)||0;
+
+  // 7. LEGRAISE (collapsible)
+  out += hItem('leg','🦵','레그레이즈', legReps>0?legReps+'회':'',
+    `<div class="hrow">
+        <span class="hlbl">횟수</span>
+        <input class="hinp" type="number" min="0" value="${legReps||''}" placeholder="0"
+          onchange="updH('legraise','reps',this.value)">
+        <span class="hunit">회</span>
+      </div>`
+  );
+
+  // 8. HOBBY (collapsible)
   out += hItem('hobby','🎮','취미', h.hobby?h.hobby.slice(0,8):'',
     `<input class="hinp" type="text" value="${esc(h.hobby||'')}" placeholder="오늘의 취미 활동"
         onchange="updHTxt('hobby',this.value)">`
