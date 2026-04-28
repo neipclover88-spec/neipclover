@@ -63,17 +63,16 @@ input:focus,select:focus{outline:none}
 .cday.dsun .dname,.cday.dsun .dnum{color:var(--sun)}
 .cday.dsat .dname,.cday.dsat .dnum{color:var(--sat)}
 
-.dhdr{padding:3px 4px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:3px;min-height:24px}
-.dhdr-top{display:flex;align-items:center;gap:3px}
-.dname{font-size:8px;color:var(--m);line-height:1}
-.dnum{font-family:var(--bebas);font-size:16px;line-height:1;letter-spacing:.3px}
+.dhdr{padding:3px 4px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:2px;min-height:22px}
+.dname{font-size:8px;color:var(--m);line-height:1;flex-shrink:0}
+.dnum{font-family:var(--bebas);font-size:15px;line-height:1;letter-spacing:.3px}
 .dsleep-tag{font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:700;color:#a855f7;white-space:nowrap;line-height:1;margin-left:auto}
 
-.dbody{padding:2px 3px 3px;display:flex;flex-direction:column;gap:2px;min-height:40px}
-.drow{display:flex;align-items:center;gap:2px;min-height:11px}
-.ddot{width:4px;height:4px;border-radius:50%;flex-shrink:0;margin-top:1px}
-.dval{font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b0b0d8;max-width:calc(100% - 8px)}
-.dval.nil{color:var(--m2);opacity:.4;font-weight:400}
+.dbody{padding:2px 2px 2px;display:flex;flex-direction:column;gap:2px;min-height:42px}
+.drow{display:flex;align-items:center;gap:0;min-height:12px;border-radius:3px;overflow:hidden}
+.dbar-fill{height:100%;min-height:12px;border-radius:3px;display:flex;align-items:center;padding:0 3px;position:relative;min-width:3px}
+.dval{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;line-height:1}
+.dval.nil{color:var(--m2);opacity:.3;font-weight:400;padding:0 3px;font-size:8px}
 
 /* ── PANELS ── */
 .panels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;flex:1;overflow:hidden;min-height:0}
@@ -537,6 +536,11 @@ function renderCal() {
     if(hd.legraise?.reps>0)  hp.push('🦵'+hd.legraise.reps);
     const hlStr = hp.join(' ');
 
+    // study bar width (max 100%)
+    const stPct = stMin>0 ? Math.min(100, Math.round(stMin/360*100)) : 0; // 6h = 100%
+    // income bar width
+    const incPct = inc>0 ? Math.min(100, Math.round(inc/200000*100)) : 0; // 20만 = 100%
+
     h+=`<div class="${cls}" onclick="clickDay('${dk}')">
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
@@ -544,9 +548,24 @@ function renderCal() {
         ${slpStr?('<span class="dsleep-tag">💤'+slpStr.replace(' ','')+'</span>'):''}
       </div>
       <div class="dbody">
-        <div class="drow"><div class="ddot" style="background:#4f8ef7"></div><span class="dval${!stStr?' nil':''}">${stStr||'–'}</span></div>
-        <div class="drow"><div class="ddot" style="background:#f5a623"></div><span class="dval${!incStr?' nil':''}">${incStr||'–'}</span></div>
-        <div class="drow"><div class="ddot" style="background:#27c96e"></div><span class="dval${!hlStr?' nil':''}">${hlStr||'–'}</span></div>
+        <div class="drow" style="background:rgba(79,142,247,.1)">
+          ${stStr
+            ? `<div class="dbar-fill" style="width:${stPct}%;background:rgba(79,142,247,.75)"><span class="dval">${stStr}</span></div>`
+            : `<span class="dval nil">–</span>`
+          }
+        </div>
+        <div class="drow" style="background:rgba(245,166,35,.1)">
+          ${incStr
+            ? `<div class="dbar-fill" style="width:${incPct}%;background:rgba(245,166,35,.8)"><span class="dval">${incStr}</span></div>`
+            : `<span class="dval nil">–</span>`
+          }
+        </div>
+        <div class="drow" style="background:rgba(39,201,110,.07);min-height:13px">
+          ${hlStr
+            ? `<span style="font-size:8px;padding:1px 3px;color:#7de8b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2">${hlStr}</span>`
+            : `<span class="dval nil">–</span>`
+          }
+        </div>
       </div>
     </div>`;
   });
@@ -1263,22 +1282,7 @@ function renderModalWork() {
     </div>
   </div>`;
 
-  // ② 채무 진행바 (슬림)
-  b += `<div style="background:var(--s2);border:1px solid rgba(245,166,35,.2);border-radius:12px;padding:14px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-      <span style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase">채무 상환 현황</span>
-      <span style="font-family:var(--bebas);font-size:20px;color:#f5a623">${debtPct}%</span>
-    </div>
-    <div style="height:10px;background:#090d1a;border-radius:5px;overflow:hidden">
-      <div style="height:100%;width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:5px;box-shadow:0 0 10px #f5a62366"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:6px">
-      <span style="font-size:9px;color:var(--m)">잔여 <span style="color:#f5a623;font-weight:700">${remFmt}원</span></span>
-      <span style="font-size:9px;color:var(--m)">상환 <span style="color:#ffd060;font-weight:700">${repaid>=10000?(repaid/10000).toFixed(1)+'만':'₩'+repaid.toLocaleString()}원</span></span>
-    </div>
-  </div>`;
-
-  // ③ 요일별 수입 바 차트
+  // ② 요일별 수입 바 차트
   b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 수입</div>
     <div style="display:flex;align-items:flex-end;gap:4px;height:90px">`;
@@ -1351,10 +1355,23 @@ function renderModalWork() {
     b += `</div></div>`;
   }
 
+  // 마지막 채무 상환 현황
+  b += `<div style="background:var(--s2);border:1px solid rgba(245,166,35,.2);border-radius:12px;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <span style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase">채무 상환 현황</span>
+      <span style="font-family:var(--bebas);font-size:20px;color:#f5a623">${debtPct}%</span>
+    </div>
+    <div style="height:10px;background:#090d1a;border-radius:5px;overflow:hidden">
+      <div style="height:100%;width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:5px;box-shadow:0 0 10px #f5a62366"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px">
+      <span style="font-size:9px;color:var(--m)">잔여 <span style="color:#f5a623;font-weight:700">${remFmt}원</span></span>
+      <span style="font-size:9px;color:var(--m)">상환 <span style="color:#ffd060;font-weight:700">${repaid>=10000?(repaid/10000).toFixed(1)+'만':'₩'+repaid.toLocaleString()}원</span></span>
+    </div>
+  </div>`;
+
   document.getElementById('modalBody').innerHTML = b;
 }
-
-// ── HEALTH MODAL ──
 function renderModalHealth() {
   const dates  = weekDates(sel);
   const DS = ['일','월','화','수','목','금','토'];
@@ -1363,20 +1380,27 @@ function renderModalHealth() {
   const [,m0,d0]=dates[0].split('-'), [,m1,d1]=dates[6].split('-');
 
   let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0;
-  const dailySleep=[],dailyRun=[],dailyCyc=[];
+  let totalPushup=0, totalPullup=0, totalLegraise=0;
+  const dailySleep=[],dailyRun=[],dailyCyc=[],dailyPush=[],dailyPull=[],dailyLeg=[];
   for(const dk of dates) {
     const h=db[dk]?.health||{};
-    totalSwimLaps += Number(h.swimming?.laps)||0;
-    totalSwimMins += Number(h.swimming?.swimM)||0;
-    totalRunKm    += Number(h.running?.km)||0;
-    totalRunMins  += hmToMins(h.running?.runH,h.running?.runM);
-    totalCycKm    += Number(h.cycling?.km)||0;
-    totalCycMins  += hmToMins(h.cycling?.cycH,h.cycling?.cycM);
+    totalSwimLaps  += Number(h.swimming?.laps)||0;
+    totalSwimMins  += Number(h.swimming?.swimM)||0;
+    totalRunKm     += Number(h.running?.km)||0;
+    totalRunMins   += hmToMins(h.running?.runH,h.running?.runM);
+    totalCycKm     += Number(h.cycling?.km)||0;
+    totalCycMins   += hmToMins(h.cycling?.cycH,h.cycling?.cycM);
+    totalPushup    += Number(h.pushup?.reps)||0;
+    totalPullup    += Number(h.pullup?.reps)||0;
+    totalLegraise  += Number(h.legraise?.reps)||0;
     const slp=hmToMins(h.sleep?.sleepH,h.sleep?.sleepM);
     totalSleepMins+=slp;
     dailySleep.push(slp);
     dailyRun.push(Number(h.running?.km)||0);
     dailyCyc.push(Number(h.cycling?.km)||0);
+    dailyPush.push(Number(h.pushup?.reps)||0);
+    dailyPull.push(Number(h.pullup?.reps)||0);
+    dailyLeg.push(Number(h.legraise?.reps)||0);
   }
   const avgSleepMins=Math.round(totalSleepMins/7);
   const {h:asH,m:asM}=minsToHM(avgSleepMins);
@@ -1399,24 +1423,27 @@ function renderModalHealth() {
   const totalExMins = totalRunMins + totalCycMins + totalSwimMins;
   const {h:exH,m:exM} = minsToHM(totalExMins);
 
-  b += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:7px;color:#27c96eaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">평균 수면</div>
-      <div style="font-family:var(--bebas);font-size:28px;color:${slpClr};line-height:1.1">${fmtHM(asH,asM)||'–'}</div>
-      <div style="font-size:8px;color:#27c96e88;margin-top:4px">${avgSleepMins>=7*60?'✓ 충분':avgSleepMins>=6*60?'⚡ 부족':'⚠ 매우 부족'}</div>
+  b += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px">
+    <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">평균 수면</div>
+      <div style="font-family:var(--bebas);font-size:20px;color:${slpClr};line-height:1.1">${fmtHM(asH,asM)||'–'}</div>
+      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${avgSleepMins>=7*60?'✓충분':avgSleepMins>=6*60?'⚡부족':'⚠매우부족'}</div>
     </div>
-    <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:7px;color:#27c96eaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">총 운동시간</div>
-      <div style="font-family:var(--bebas);font-size:28px;color:#27c96e;line-height:1.1">${totalExMins>0?fmtHM(exH,exM):'–'}</div>
-      <div style="font-size:8px;color:#27c96e88;margin-top:4px">${totalExMins>0?(totalRunKm>0?'🏃'+totalRunKm+'km ':'')+(totalSwimLaps>0?'🏊'+totalSwimLaps+'바퀴 ':'')+(totalCycKm>0?'🚴'+totalCycKm+'km':''):'기록 없음'}</div>
+    <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">총 운동</div>
+      <div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">${totalExMins>0?fmtHM(exH,exM):'–'}</div>
+      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${totalExMins>0?'이번 주':'기록 없음'}</div>
     </div>
-    <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:7px;color:#27c96eaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">주간 러닝</div>
-      <div style="font-family:var(--bebas);font-size:28px;color:#27c96e;line-height:1.1">${totalRunKm>0?totalRunKm+'km':'–'}</div>
-      <div style="font-size:8px;color:#27c96e88;margin-top:4px">${totalRunMins>0?fmtHM(rh,rm):'기록 없음'}</div>
+    <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🏃 러닝</div>
+      <div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">${totalRunKm>0?totalRunKm+'km':'–'}</div>
+      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${totalRunMins>0?fmtHM(rh,rm):'기록 없음'}</div>
     </div>
-    ${totalSwimLaps>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:10px;padding:12px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">주간 수영</div><div style="font-family:var(--bebas);font-size:28px;color:#27c96e;line-height:1.1">'+totalSwimLaps+'바퀴</div><div style="font-size:8px;color:#27c96e88;margin-top:4px">'+(totalSwimLaps*50)+'m</div></div>'):''}
-    ${totalCycKm>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:10px;padding:12px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">주간 자전거</div><div style="font-family:var(--bebas);font-size:28px;color:#27c96e;line-height:1.1">'+totalCycKm+'km</div><div style="font-size:8px;color:#27c96e88;margin-top:4px">'+(totalCycMins>0?fmtHM(ch,cm):'')+'</div></div>'):''}
+    ${totalSwimLaps>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🏊 수영</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalSwimLaps+'바퀴</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">'+(totalSwimLaps*50)+'m</div></div>'):''}
+    ${totalCycKm>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🚴 자전거</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalCycKm+'km</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">'+(totalCycMins>0?fmtHM(ch,cm):'')+'</div></div>'):''}
+    ${totalPushup>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">💪 푸시업</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalPushup+'회</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">주간 누적</div></div>'):''}
+    ${totalPullup>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🏋️ 풀업</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalPullup+'회</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">주간 누적</div></div>'):''}
+    ${totalLegraise>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🦵 레그레이즈</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalLegraise+'회</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">주간 누적</div></div>'):''}
   </div>`;
 
   // ② 수면 바 차트
@@ -1472,7 +1499,35 @@ function renderModalHealth() {
     b += `</div></div>`;
   }
 
-  // ④ 신발별 누적 가로 바
+  // 맨몸운동 요일별 바 차트
+  const hasBodywork = dailyPush.some(v=>v>0)||dailyPull.some(v=>v>0)||dailyLeg.some(v=>v>0);
+  if(hasBodywork) {
+    const maxBody = Math.max(1,...dailyPush,...dailyPull,...dailyLeg);
+    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
+      <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 맨몸운동 (회)</div>
+      <div style="display:flex;flex-direction:column;gap:8px">`;
+    [{label:'💪 푸시업', data:dailyPush}, {label:'🏋️ 풀업', data:dailyPull}, {label:'🦵 레그레이즈', data:dailyLeg}].forEach(({label, data})=>{
+      if(!data.some(v=>v>0)) return;
+      b += `<div>
+        <div style="font-size:9px;color:#27c96e;margin-bottom:5px">${label}</div>
+        <div style="display:flex;align-items:flex-end;gap:4px;height:50px">`;
+      data.forEach((v,i)=>{
+        const pct=Math.round(v/maxBody*100);
+        const isT=dates[i]===todayStr();
+        b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%">
+          <div style="font-family:var(--mono);font-size:9px;color:${isT?'#27c96e':'#4aaa77'};font-weight:700">${v||''}</div>
+          <div style="flex:1;display:flex;align-items:flex-end;width:100%">
+            <div style="width:100%;height:${pct||2}%;background:${isT?'#27c96e':'#1a7a40'};border-radius:3px 3px 0 0;min-height:${v?2:0}px;${isT?'box-shadow:0 0 10px #27c96eaa':''}"></div>
+          </div>
+          <div style="font-size:8px;color:${isT?'#27c96e':'var(--m)'}">${DS[i]}</div>
+        </div>`;
+      });
+      b += `</div></div>`;
+    });
+    b += `</div></div>`;
+  }
+
+  // 신발별 누적 가로 바
   b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">👟 신발별 누적 거리</div>
     <div style="display:flex;flex-direction:column;gap:8px">`;
