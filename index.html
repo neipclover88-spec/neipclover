@@ -1327,6 +1327,30 @@ function renderModalWork() {
     b += `</div></div>`;
   }
 
+  // ⑤ 요일별 근무시간
+  const dailyWorkMins = dates.map(dk=>hmToMins(db[dk]?.work?.workH, db[dk]?.work?.workM));
+  const maxWorkMins = Math.max(1,...dailyWorkMins);
+  const hasWork = dailyWorkMins.some(v=>v>0);
+  if(hasWork) {
+    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
+      <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">요일별 근무시간</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:70px">`;
+    dailyWorkMins.forEach((mins,i)=>{
+      const pct=Math.round(mins/maxWorkMins*100);
+      const {h:wh,m:wm}=minsToHM(mins);
+      const str=mins>0?(wm?wh+'h'+wm+'m':wh+'h'):'';
+      const isT=dates[i]===todayStr();
+      b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
+        <div style="font-family:var(--mono);font-size:10px;color:${isT?'#f5a623':'#d07820'};font-weight:700;white-space:nowrap">${str}</div>
+        <div style="flex:1;display:flex;align-items:flex-end;width:100%">
+          <div style="width:100%;height:${pct||3}%;background:${isT?'#ffd060':'#c06010'};border-radius:4px 4px 0 0;min-height:${mins?3:0}px;${isT?'box-shadow:0 0 14px #ffd060cc':''}"></div>
+        </div>
+        <div style="font-size:8px;color:${isT?'#ffd060':'var(--m)'}">${DS[i]}</div>
+      </div>`;
+    });
+    b += `</div></div>`;
+  }
+
   document.getElementById('modalBody').innerHTML = b;
 }
 
