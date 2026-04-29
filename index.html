@@ -548,15 +548,17 @@ function renderCal() {
         ${slpStr?('<span class="dsleep-tag">💤'+slpStr.replace(' ','')+'</span>'):''}
       </div>
       <div class="dbody">
-        <div class="drow" style="background:rgba(79,142,247,.1)">
+        <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
           ${stStr
-            ? `<div class="dbar-fill" style="width:${stPct}%;background:rgba(79,142,247,.75)"><span class="dval">${stStr}</span></div>`
+            ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${stPct}%;background:rgba(79,142,247,.75);border-radius:3px"></div>
+               <span class="dval" style="position:relative;padding:1px 3px;z-index:1">${stStr}</span>`
             : `<span class="dval nil">–</span>`
           }
         </div>
-        <div class="drow" style="background:rgba(245,166,35,.1)">
+        <div class="drow" style="background:rgba(245,166,35,.1);position:relative">
           ${incStr
-            ? `<div class="dbar-fill" style="width:${incPct}%;background:rgba(245,166,35,.8)"><span class="dval">${incStr}</span></div>`
+            ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${incPct}%;background:rgba(245,166,35,.8);border-radius:3px"></div>
+               <span class="dval" style="position:relative;padding:1px 3px;z-index:1">${incStr}</span>`
             : `<span class="dval nil">–</span>`
           }
         </div>
