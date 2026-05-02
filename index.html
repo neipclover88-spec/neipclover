@@ -1186,15 +1186,13 @@ function renderModalStudy() {
     const {h:sh,m:sm}=minsToHM(mins);
     const timeStr=mins>0?(sm?sh+'h'+sm+'m':sh+'h'):'–';
     b+=`<div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-        <span style="font-size:11px;font-weight:700;color:${clr}">${s}</span>
-        <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:${mins>0?clr:'var(--m2)'}">${timeStr}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:12px;font-weight:700;color:${clr}">${s}</span>
+        <span style="font-family:var(--bebas);font-size:24px;letter-spacing:.5px;color:${mins>0?clr:'var(--m2)'}">${timeStr}</span>
       </div>
-      <div style="height:11px;background:#1a1f2e;border-radius:6px;overflow:hidden;position:relative">
+      <div style="height:11px;background:#1a1f2e;border-radius:6px;overflow:hidden">
         <div style="height:100%;width:${barW}%;background:${clr};border-radius:6px;box-shadow:0 0 10px ${clr}77"></div>
-        ${wp?('<div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:7px;font-weight:700;color:#fff">'+wp.pct+'%</div>'):''}
       </div>
-      ${wp?('<div style="display:flex;justify-content:flex-end;margin-top:2px"><span style="font-size:8px;color:'+clr+'88">목표 '+wp.pct+'% 달성</span></div>'):''}
     </div>`;
   });
   b += `</div></div>`;
