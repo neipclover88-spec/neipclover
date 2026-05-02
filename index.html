@@ -354,12 +354,14 @@ function dayData(k) {
   if(!d.study) d.study = {};
   if(!d.work)  d.work  = {incomeAmount:0,deliveries:0,workH:0,workM:0};
   if(!d.health) d.health = {};
+  // goals are global (not per-day)
+  if(!db._goals) db._goals = {};
   for(const s of SUBJS) {
-    if(!d.study[s]) d.study[s] = {studyH:0,studyM:0,goals:[]};
+    if(!db._goals[s]) db._goals[s] = [];
+    if(!d.study[s]) d.study[s] = {studyH:0,studyM:0};
     else {
       if(d.study[s].studyH===undefined) d.study[s].studyH=0;
       if(d.study[s].studyM===undefined) d.study[s].studyM=0;
-      if(!d.study[s].goals) d.study[s].goals=[];
     }
   }
   const h = d.health;
@@ -431,13 +433,10 @@ function shoeStats() {
   return s;
 }
 function weeklySubjProgress(dates, subj) {
-  let tot=0, comp=0;
-  for(const dk of dates) {
-    for(const g of (db[dk]?.study?.[subj]?.goals||[])) {
-      tot  += Number(g.targetVal)||0;
-      comp += Number(g.completedVal)||0;
-    }
-  }
+  const goals = db._goals?.[subj] || [];
+  if(!goals.length) return null;
+  const tot  = goals.reduce((t,g)=>t+(Number(g.targetVal)||0),0);
+  const comp = goals.reduce((t,g)=>t+(Number(g.completedVal)||0),0);
   if(!tot) return null;
   return {pct:Math.min(100,Math.round(comp/tot*100)), comp, tot};
 }
@@ -631,6 +630,7 @@ function renderStudy() {
 
       <div class="scard-body${isOpen?' op':''}" id="sbody-${s}">`;
 
+    sd.goals = db._goals[s] || [];
     sd.goals.forEach((g,gi)=>{
       const pct = g.targetVal>0 ? Math.min(100,Math.round(g.completedVal/g.targetVal*100)) : 0;
       h+=`<div class="goal-item">
@@ -1031,19 +1031,23 @@ function addGoal(s) {
   if(!nm) return;
   const tv = Number(document.getElementById(`gv-${s}`)?.value)||0;
   const tu = document.getElementById(`gu-${s}`)?.value.trim()||'';
-  dayData(sel).study[s].goals.push({name:nm,targetVal:tv,targetUnit:tu,completedVal:0});
+  if(!db._goals) db._goals = {};
+  if(!db._goals[s]) db._goals[s] = [];
+  db._goals[s].push({name:nm,targetVal:tv,targetUnit:tu,completedVal:0});
   openS[s] = true;
   save(); renderStudy(); renderCal();
 }
 
 function updGoal(s, gi, fld, val) {
-  dayData(sel).study[s].goals[gi][fld] = Number(val)||0;
+  if(!db._goals?.[s]) return;
+  db._goals[s][gi][fld] = Number(val)||0;
   openS[s] = true;
   save(); renderStudy(); renderCal();
 }
 
 function delGoal(s, gi) {
-  dayData(sel).study[s].goals.splice(gi,1);
+  if(!db._goals?.[s]) return;
+  db._goals[s].splice(gi,1);
   openS[s] = true;
   save(); renderStudy(); renderCal();
 }
@@ -1196,36 +1200,29 @@ function renderModalStudy() {
   b += `</div></div>`;
 
   // ④ 목표 상세 (있을 때만)
-  const hasGoals = SUBJS.some(s=>dates.some(dk=>(db[dk]?.study?.[s]?.goals||[]).length>0));
+  const hasGoals = SUBJS.some(s=>(db._goals?.[s]||[]).length>0);
   if(hasGoals) {
     b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:14px">
       <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">목표 달성 현황</div>
       <div style="display:flex;flex-direction:column;gap:10px">`;
     for(const s of SUBJS) {
       const clr = SCLR[s];
-      const allGoals = {};
-      for(const dk of dates) {
-        for(const g of (db[dk]?.study?.[s]?.goals||[])) {
-          if(!allGoals[g.name]) allGoals[g.name]={tv:0,cv:0,unit:g.targetUnit||''};
-          allGoals[g.name].tv += Number(g.targetVal)||0;
-          allGoals[g.name].cv += Number(g.completedVal)||0;
-        }
-      }
-      if(!Object.keys(allGoals).length) continue;
+      const goals = db._goals?.[s] || [];
+      if(!goals.length) continue;
       b += `<div style="border-left:3px solid ${clr};padding-left:10px">
         <div style="font-size:10px;font-weight:700;color:${clr};margin-bottom:6px">${s}</div>`;
-      for(const [nm,g] of Object.entries(allGoals)) {
-        const pct=g.tv>0?Math.min(100,Math.round(g.cv/g.tv*100)):0;
+      for(const g of goals) {
+        const pct=g.targetVal>0?Math.min(100,Math.round(g.completedVal/g.targetVal*100)):0;
         const pctClr=pct>=100?'#27c96e':pct>=70?clr:'#e74c3c';
         b+=`<div style="margin-bottom:6px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-            <span style="font-size:10px;color:var(--t)">${esc(nm)}</span>
+            <span style="font-size:10px;color:var(--t)">${esc(g.name)}</span>
             <span style="font-family:var(--bebas);font-size:18px;color:${pctClr};letter-spacing:.5px">${pct}%</span>
           </div>
           <div style="height:6px;background:var(--b);border-radius:3px;overflow:hidden">
             <div style="height:100%;width:${pct}%;background:${pctClr};border-radius:3px"></div>
           </div>
-          <div style="text-align:right;margin-top:2px;font-size:8px;color:var(--m)">${g.cv} / ${g.tv} ${esc(g.unit)}</div>
+          <div style="text-align:right;margin-top:2px;font-size:8px;color:var(--m)">${g.completedVal} / ${g.targetVal} ${esc(g.targetUnit||'')}</div>
         </div>`;
       }
       b += `</div>`;
