@@ -1480,21 +1480,18 @@ function renderModalHealth() {
     // 각 날의 운동 종류와 수치를 통합 (하루 하나씩)
     const dailyExercise = dates.map((dk,i) => {
       const h = db[dk]?.health||{};
-      const swim = Number(h.swimming?.laps)||0;
-      const run  = Number(h.running?.km)||0;
-      const cyc  = Number(h.cycling?.km)||0;
-      if(swim>0) return {type:'swim', val:swim, label:swim+'바퀴', meter:swim*50};
-      if(run>0)  return {type:'run',  val:run,  label:run+'km'};
-      if(cyc>0)  return {type:'cyc',  val:cyc,  label:cyc+'km'};
+      const swimLaps = Number(h.swimming?.laps)||0;
+      const swimMins = Number(h.swimming?.swimM)||0;
+      const runKm    = Number(h.running?.km)||0;
+      const runMins  = hmToMins(h.running?.runH, h.running?.runM);
+      const cycKm    = Number(h.cycling?.km)||0;
+      const cycMins  = hmToMins(h.cycling?.cycH, h.cycling?.cycM);
+      if(swimLaps>0) return {type:'swim', mins:swimMins||swimLaps*2, label:swimLaps+'바퀴'+(swimMins?' '+swimMins+'분':'')};
+      if(runKm>0)    return {type:'run',  mins:runMins||Math.round(runKm*6), label:runKm+'km'+(runMins?' '+fmtHM(...Object.values(minsToHM(runMins))):'')};
+      if(cycKm>0)    return {type:'cyc',  mins:cycMins||Math.round(cycKm*3), label:cycKm+'km'+(cycMins?' '+fmtHM(...Object.values(minsToHM(cycMins))):'')};
       return null;
     });
-    // 비교용 공통 단위: 수영은 m로, 러닝/자전거는 km로 → 최대값 계산
-    const normVals = dailyExercise.map(e => {
-      if(!e) return 0;
-      if(e.type==='swim') return e.meter/1000; // m → km로 환산
-      return e.val;
-    });
-    const maxNorm = Math.max(1,...normVals);
+    const maxNorm = Math.max(1,...dailyExercise.map(e=>e?e.mins:0));
     const typeClr = {swim:'#4f8ef7', run:'#27c96e', cyc:'#f5a623'};
     const typeIco  = {swim:'🏊', run:'🏃', cyc:'🚴'};
 
@@ -1502,8 +1499,7 @@ function renderModalHealth() {
       <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 유산소 운동</div>
       <div style="display:flex;align-items:flex-end;gap:4px;height:70px">`;
     dailyExercise.forEach((e,i)=>{
-      const norm = normVals[i];
-      const pct  = Math.round(norm/maxNorm*100);
+      const pct  = Math.round((e?e.mins:0)/maxNorm*100);
       const isT  = dates[i]===todayStr();
       const clr  = e ? typeClr[e.type] : '#333';
       const ico  = e ? typeIco[e.type] : '';
