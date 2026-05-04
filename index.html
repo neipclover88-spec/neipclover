@@ -392,7 +392,7 @@ function totalStudyMins(dk) {
   return SUBJS.reduce((t,s)=>t+hmToMins(d.study[s]?.studyH,d.study[s]?.studyM),0);
 }
 const LIVING_BUDGET = 2_000_000;
-const EXP_CATS = ['식비','교통','생활','의료','기타','외식','커피','쇼핑'];
+const EXP_CATS = ['식비','쇼핑','업무','구독'];
 
 function dayTotalExp(dk) {
   return (db[dk]?.work?.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0);
