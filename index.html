@@ -906,7 +906,7 @@ function renderWork() {
             <div style="flex:1;height:3px;background:var(--b);border-radius:2px;overflow:hidden">
               <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:2px;opacity:.75"></div>
             </div>
-            <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c;width:36px;text-align:right;flex-shrink:0">${v>=10000?(v/10000).toFixed(1)+'만':'₩'+v.toLocaleString()}</span>
+            <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c;width:36px;text-align:right;flex-shrink:0">${'₩'+v.toLocaleString()}</span>
           </div>`;
         }).join('')}`;
     })()}
@@ -1520,7 +1520,7 @@ function renderModalWork() {
           <span style="font-size:11px;color:var(--t)">${c}</span>
           <div style="display:flex;align-items:baseline;gap:5px">
             <span style="font-size:9px;color:var(--m)">${pct}%</span>
-            <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${v>=10000?(v/10000).toFixed(1)+'만':'₩'+v.toLocaleString()}</span>
+            <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${'₩'+v.toLocaleString()}</span>
           </div>
         </div>
         <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden">
