@@ -892,23 +892,34 @@ function renderWork() {
     <div style="height:1px;background:rgba(231,76,60,.2);margin:5px 0"></div>
     <div class="wsec-lbl" style="color:#e74c3caa">월간 지출 합계</div>
     ${(()=>{
+      const EXP_BUDGET = 2_000_000;
       const ym = todayStr().slice(0,7);
       const mExp = monthTotalExp(ym);
+      const budgetPct = Math.min(100, Math.round(mExp/EXP_BUDGET*100));
+      const barClr = budgetPct>=90?'#e74c3c':budgetPct>=70?'#f5a623':'#27c96e';
       const cats = monthCatTotals(ym);
       const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,3);
       const totalCatExp = Object.values(cats).reduce((t,v)=>t+v,0);
-      if(!mExp) return `<div class="wstat-row"><span class="wslbl">이번 달 지출</span><span class="wsval" style="color:var(--m2)">–</span></div>`;
-      return `<div class="wstat-row"><span class="wslbl">이번 달 총 지출</span><span class="wsval" style="color:#e74c3c">₩${mExp.toLocaleString()}</span></div>
-        ${topCats.map(([c,v])=>{
-          const pct=Math.round(v/totalCatExp*100);
-          return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0">
-            <span style="font-size:8px;color:var(--m);width:28px;flex-shrink:0">${c}</span>
-            <div style="flex:1;height:3px;background:var(--b);border-radius:2px;overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:2px;opacity:.75"></div>
-            </div>
-            <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c;width:36px;text-align:right;flex-shrink:0">${'₩'+v.toLocaleString()}</span>
-          </div>`;
-        }).join('')}`;
+      return `<div style="margin-bottom:5px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+          <span style="font-family:var(--bebas);font-size:18px;color:${barClr}">₩${mExp.toLocaleString()}</span>
+          <span style="font-size:8px;color:var(--m)">한도 200만 · <span style="color:${barClr};font-weight:700">${budgetPct}%</span></span>
+        </div>
+        <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden;margin-bottom:3px">
+          <div style="height:100%;width:${budgetPct}%;background:${barClr};border-radius:4px;transition:width .4s;${budgetPct>=90?'box-shadow:0 0 6px '+barClr+'88':''}"></div>
+        </div>
+        <div style="font-size:8px;color:var(--m);text-align:right">잔여 ₩${Math.max(0,EXP_BUDGET-mExp).toLocaleString()}</div>
+      </div>
+      ${mExp>0?topCats.map(([c,v])=>{
+        const pct=Math.round(v/totalCatExp*100);
+        return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0">
+          <span style="font-size:8px;color:var(--m);width:28px;flex-shrink:0">${c}</span>
+          <div style="flex:1;height:3px;background:var(--b);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:2px;opacity:.75"></div>
+          </div>
+          <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c;width:36px;text-align:right;flex-shrink:0">${(v/10000).toFixed(1)+'만'}</span>
+        </div>`;
+      }).join(''):'<div style="font-size:9px;color:var(--m2);padding:2px 0">이번 달 지출 없음</div>'}`;
     })()}
   </div>
 
@@ -1520,7 +1531,7 @@ function renderModalWork() {
           <span style="font-size:11px;color:var(--t)">${c}</span>
           <div style="display:flex;align-items:baseline;gap:5px">
             <span style="font-size:9px;color:var(--m)">${pct}%</span>
-            <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${'₩'+v.toLocaleString()}</span>
+            <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${(v/10000).toFixed(1)+'만'}</span>
           </div>
         </div>
         <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden">
