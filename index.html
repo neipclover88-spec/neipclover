@@ -288,7 +288,16 @@ const SHOES    = ["젤카야노","글라이드","슈블2","엔스5","인빈서�
 // 슈블2: 80km, 엔스5: 60km, 인빈서블: 30km 기초 적재
 const SHOE_BASE = {젤카야노:0, 글라이드:0, 슈블2:80, 엔스5:60, 인빈서블:30};
 const DAYS_KR  = ["일","월","화","수","목","금","토"];
-const DEBT_TOTAL = 16_500_000; // 15,000,000 × 1.1
+const LOANS = [
+  {name:"현대카드론",   principal:3_000_000, rate:14.6,  type:'card'},
+  {name:"신한카드",     principal:2_000_000, rate:13.9,  type:'card'},
+  {name:"KB카드론",     principal:3_000_000, rate:12.5,  type:'card'},
+  {name:"광주은행",     principal:2_200_000, rate:10.67, type:'matong'},
+  {name:"광주은행마통", principal:3_000_000, rate:8.45,  type:'matong'},
+  {name:"신한은행",     principal:5_000_000, rate:7.0,   type:'matong'},
+  {name:"KB은행마통",   principal:2_000_000, rate:5.6,   type:'matong'},
+];
+const TOTAL_PRINCIPAL = LOANS.reduce((t,l)=>t+l.principal,0); // 20,200,000
 
 // ─── STATE ───
 let sel   = todayStr();
@@ -297,7 +306,8 @@ let openS    = {};
 let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, leg:false, hobby:false};
 let openShoe = false;
 let fbApp    = null;
-let deductRate = 10; // 기본 공제율 10%
+let deductRate = 10;
+let selMonth = todayStr().slice(0,7); // YYYY-MM
 
 // ─── DATE UTILS (timezone-safe) ───
 function todayStr() {
@@ -353,6 +363,7 @@ function dayData(k) {
   const d = db[k];
   if(!d.study) d.study = {};
   if(!d.work)  d.work  = {incomeAmount:0,deliveries:0,workH:0,workM:0};
+  if(!d.work.expenses) d.work.expenses = [];
   if(!d.health) d.health = {};
   // goals are global (not per-day)
   if(!db._goals) db._goals = {};
@@ -380,7 +391,31 @@ function totalStudyMins(dk) {
   const d = db[dk]; if(!d?.study) return 0;
   return SUBJS.reduce((t,s)=>t+hmToMins(d.study[s]?.studyH,d.study[s]?.studyM),0);
 }
-const LIVING_BUDGET = 2_000_000; // 월 생활비 한도
+const LIVING_BUDGET = 2_000_000;
+const EXP_CATS = ['식비','교통','생활','의료','기타','외식','커피','쇼핑'];
+
+function dayTotalExp(dk) {
+  return (db[dk]?.work?.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0);
+}
+function weekTotalExp(dates) {
+  return dates.reduce((t,dk)=>t+dayTotalExp(dk),0);
+}
+function dayCatTotals(dk) {
+  const map = {};
+  for(const e of (db[dk]?.work?.expenses||[])) {
+    map[e.cat] = (map[e.cat]||0) + (Number(e.amount)||0);
+  }
+  return map;
+}
+function weekCatTotals(dates) {
+  const map = {};
+  for(const dk of dates) {
+    for(const e of (db[dk]?.work?.expenses||[])) {
+      map[e.cat] = (map[e.cat]||0) + (Number(e.amount)||0);
+    }
+  }
+  return map;
+}
 
 function netIncome(gross) {
   return Math.round((Number(gross)||0) * (1 - deductRate/100));
@@ -389,37 +424,101 @@ function totalIncome() {
   return Object.values(db).reduce((t,d)=>t+(Number(d.work?.incomeAmount)||0),0);
 }
 
-// 월별로 실수령 집계 → 생활비 200만 초과분만 빚 차감
-function monthlyNetMap() {
-  const map = {}; // "YYYY-MM" → 실수령 합계
-  Object.entries(db).forEach(([dk, d]) => {
-    const ym = dk.slice(0,7);
-    if(!map[ym]) map[ym] = 0;
-    map[ym] += netIncome(d.work?.incomeAmount);
-  });
-  return map;
+// 원금 균등 상환: 매월 동일 원금 + 감소하는 이자
+function calcEqualPrincipalBalance(principal, annualRate, totalMonths, paidMonths) {
+  if(!totalMonths) return principal;
+  const monthlyPrincipal = Math.round(principal / totalMonths);
+  const paid = Math.min(paidMonths, totalMonths);
+  return Math.max(0, principal - monthlyPrincipal * paid);
 }
-function totalDebtRepaid() {
-  // 각 월의 실수령 중 200만 초과분 합산
-  return Object.values(monthlyNetMap()).reduce((t, monthNet) => {
-    return t + Math.max(0, monthNet - LIVING_BUDGET);
-  }, 0);
+function calcMonthlyPayment(principal, annualRate, totalMonths, paidMonths) {
+  if(!totalMonths) return 0;
+  const monthlyPrincipal = Math.round(principal / totalMonths);
+  const remaining = calcEqualPrincipalBalance(principal, annualRate, totalMonths, paidMonths);
+  const monthlyInterest = Math.round(remaining * annualRate / 100 / 12);
+  return monthlyPrincipal + monthlyInterest;
 }
-function currentMonthStats() {
-  const ym = todayStr().slice(0,7);
-  const map = monthlyNetMap();
-  const monthNet = map[ym] || 0;
-  const living = Math.min(monthNet, LIVING_BUDGET);
-  const repaid = Math.max(0, monthNet - LIVING_BUDGET);
-  const livingPct = Math.min(100, Math.round(living / LIVING_BUDGET * 100));
-  return { monthNet, living, repaid, livingPct };
+function getLoanData(idx) {
+  const d = db._loanData?.[idx]||{};
+  return {
+    repaid:        Number(d.repaid)||0,       // 누적 상환 원금
+    monthlyTarget: Number(d.monthlyTarget)||0, // 월 납부 목표액 (카드론)
+    lastAutoMonth: d.lastAutoMonth||'',        // 마지막 자동 차감 월
+  };
+}
+function loanRemaining(idx) {
+  const l = LOANS[idx];
+  const d = getLoanData(idx);
+  return Math.max(0, l.principal - d.repaid);
+}
+function loanMonthlyInterest(idx) {
+  return Math.round(loanRemaining(idx) * LOANS[idx].rate / 100 / 12);
 }
 
+// 천 단위 콤마 포맷
+function fmtComma(el) {
+  const raw = el.value.replace(/[^0-9]/g,'');
+  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+}
+function unComma(v) {
+  return Number(String(v).replace(/,/g,''))||0;
+}
+
+// 자동 차감 (월납부목표 제거로 단순화 - 더 이상 자동 차감 없음)
+function autoDeductCardLoans() {
+  // monthlyTarget 제거로 자동 차감 기능 비활성화
+}
+function totalRemaining() {
+  return LOANS.reduce((t,_,i)=>t+loanRemaining(i), 0);
+}
+function totalRepaid() {
+  return Math.max(0, TOTAL_PRINCIPAL - totalRemaining());
+}
+function totalDebtPct() {
+  return Math.min(100, Math.round(totalRepaid()/TOTAL_PRINCIPAL*100));
+}
+
+function monthKeys(ym) {
+  return Object.keys(db).filter(k=>k.slice(0,7)===ym && k.length===10);
+}
+function monthTotalIncome(ym) {
+  return monthKeys(ym).reduce((t,k)=>t+(Number(db[k]?.work?.incomeAmount)||0),0);
+}
+function monthTotalNet(ym) {
+  return monthKeys(ym).reduce((t,k)=>t+netIncome(db[k]?.work?.incomeAmount),0);
+}
+function monthTotalExp(ym) {
+  return monthKeys(ym).reduce((t,k)=>t+dayTotalExp(k),0);
+}
+function monthCatTotals(ym) {
+  const map = {};
+  for(const k of monthKeys(ym)) {
+    for(const e of (db[k]?.work?.expenses||[])) {
+      map[e.cat] = (map[e.cat]||0) + (Number(e.amount)||0);
+    }
+  }
+  return map;
+}
+function prevMonth(ym) {
+  const [y,m] = ym.split('-').map(Number);
+  return m===1 ? `${y-1}-12` : `${y}-${String(m-1).padStart(2,'0')}`;
+}
+function nextMonth(ym) {
+  const [y,m] = ym.split('-').map(Number);
+  return m===12 ? `${y+1}-01` : `${y}-${String(m+1).padStart(2,'0')}`;
+}
+function fmtMonth(ym) {
+  const [y,m] = ym.split('-');
+  return `${y}년 ${Number(m)}월`;
+}
 function weekStats(dates) {
   const gross = dates.reduce((t,k)=>t+(Number(db[k]?.work?.incomeAmount)||0),0);
+  const exp   = weekTotalExp(dates);
   return {
     income:     gross,
     net:        Math.round(gross*(1-deductRate/100)),
+    expense:    exp,
+    balance:    Math.round(gross*(1-deductRate/100)) - exp,
     deliveries: dates.reduce((t,k)=>t+(Number(db[k]?.work?.deliveries)||0),0),
     workMins:   dates.reduce((t,k)=>t+hmToMins(db[k]?.work?.workH,db[k]?.work?.workM),0),
   };
@@ -686,13 +785,14 @@ function renderWork() {
   const dd    = dayData(sel);
   const dates = weekDates(sel);
   const ws    = weekStats(dates);
-  const repaid  = db._debtRepaid || 0;
-  const rem   = Math.max(0, DEBT_TOTAL - repaid);
-  const debtPct = Math.min(100, Math.round(repaid/DEBT_TOTAL*100));
+  const rem     = totalRemaining();
+  const repaid  = totalRepaid();
+  const debtPct = totalDebtPct();
   const {h:wh,m:wm} = minsToHM(ws.workMins);
 
-  const todayGross = Number(dd.work.incomeAmount)||0;
-  const todayNet   = netIncome(todayGross);
+  const todayGross    = Number(dd.work.incomeAmount)||0;
+  const todayNet      = netIncome(todayGross);
+  const todayTotalExp = dayTotalExp(sel);
 
   const remFmt = rem>=10000
     ? (rem/10000%1===0?rem/10000:(rem/10000).toFixed(1))+'만'
@@ -746,6 +846,41 @@ function renderWork() {
     </div>
   </div>
 
+  <div class="winputs" style="border-top:1px solid var(--b)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span class="wsec-lbl" style="color:#e74c3c">오늘 지출</span>
+      ${todayTotalExp>0?`<span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">₩${todayTotalExp.toLocaleString()}</span>`:''}
+    </div>
+
+    <div style="display:flex;gap:3px;margin-bottom:5px">
+      <input id="expCatSel" type="text" placeholder="카테고리" list="expCatList"
+        style="flex:0 0 auto;width:68px;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 5px;outline:none">
+      <datalist id="expCatList">
+        ${EXP_CATS.map(c=>`<option value="${c}">`).join('')}
+      </datalist>
+      <input id="expAmtInp" type="number" placeholder="금액" style="flex:1;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--bebas);font-size:14px;padding:4px 6px;outline:none;min-width:0">
+      <input id="expMemoInp" type="text" placeholder="메모" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 5px;outline:none;min-width:0">
+      <button onclick="addExpEntry()" style="background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#e74c3c;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0">+</button>
+    </div>
+
+    ${(dd.work.expenses||[]).length>0?`
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;margin-bottom:4px">
+      ${(dd.work.expenses||[]).map((e,i)=>`
+      <div style="display:flex;align-items:center;gap:4px;background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.15);border-radius:5px;padding:4px 6px">
+        <span style="font-size:8px;color:#e74c3caa;background:rgba(231,76,60,.15);border-radius:3px;padding:1px 4px;flex-shrink:0">${e.cat}</span>
+        ${e.memo?`<span style="font-size:9px;color:var(--m);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.memo)}</span>`:'<span style="flex:1"></span>'}
+        <span style="font-family:var(--bebas);font-size:13px;color:#e74c3c;flex-shrink:0">₩${Number(e.amount).toLocaleString()}</span>
+        <button onclick="delExpEntry(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:10px;padding:0;line-height:1;flex-shrink:0">✕</button>
+      </div>`).join('')}
+    </div>
+    ${todayNet>0?`
+    <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid rgba(231,76,60,.2)">
+      <span style="font-size:9px;color:var(--m)">잔액 (실수령 - 지출)</span>
+      <span style="font-family:var(--bebas);font-size:15px;color:${todayNet-todayTotalExp>=0?'#27c96e':'#e74c3c'}">₩${(todayNet-todayTotalExp).toLocaleString()}</span>
+    </div>`:''}
+    `:''}
+  </div>
+
   <div class="wstats">
     <div class="wsec-lbl">주간 합산</div>
     <div class="wstat-row"><span class="wslbl">총 수입 (공제 전)</span><span class="wsval">${ws.income>0?'₩'+ws.income.toLocaleString():'–'}</span></div>
@@ -754,26 +889,83 @@ function renderWork() {
     <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wh,wm)||'–'}</span></div>
     ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
     ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (실수령)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.net/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
+    <div style="height:1px;background:rgba(231,76,60,.2);margin:5px 0"></div>
+    <div class="wsec-lbl" style="color:#e74c3caa">월간 지출 합계</div>
+    ${(()=>{
+      const ym = todayStr().slice(0,7);
+      const mExp = monthTotalExp(ym);
+      const cats = monthCatTotals(ym);
+      const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,3);
+      const totalCatExp = Object.values(cats).reduce((t,v)=>t+v,0);
+      if(!mExp) return `<div class="wstat-row"><span class="wslbl">이번 달 지출</span><span class="wsval" style="color:var(--m2)">–</span></div>`;
+      return `<div class="wstat-row"><span class="wslbl">이번 달 총 지출</span><span class="wsval" style="color:#e74c3c">₩${mExp.toLocaleString()}</span></div>
+        ${topCats.map(([c,v])=>{
+          const pct=Math.round(v/totalCatExp*100);
+          return `<div style="display:flex;align-items:center;gap:5px;padding:2px 0">
+            <span style="font-size:8px;color:var(--m);width:28px;flex-shrink:0">${c}</span>
+            <div style="flex:1;height:3px;background:var(--b);border-radius:2px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:2px;opacity:.75"></div>
+            </div>
+            <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c;width:36px;text-align:right;flex-shrink:0">${v>=10000?(v/10000).toFixed(1)+'만':'₩'+v.toLocaleString()}</span>
+          </div>`;
+        }).join('')}`;
+    })()}
   </div>
 
   <div class="debt-box">
     <div class="debt-tag">잔여 채무</div>
-    <div><span class="debt-num">${remFmt}</span><span class="debt-unit">원</span></div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div><span class="debt-num">${remFmt}</span><span class="debt-unit">원</span></div>
+      <div style="text-align:right">
+        <div style="font-size:7px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">이번 달 이자</div>
+        <div style="font-family:var(--bebas);font-size:16px;color:#e74c3c">₩${LOANS.reduce((s,l,i)=>s+loanMonthlyInterest(i),0).toLocaleString()}</div>
+      </div>
+    </div>
     <div class="debt-meta">
-      <div class="dm-item"><span class="dm-lbl">원금+이자(10%)</span><span class="dm-val">1,650만</span></div>
-      <div class="dm-item"><span class="dm-lbl">총 상환액</span><span class="dm-val">${repaid>=10000?(repaid/10000).toFixed(1)+'만':'₩'+repaid.toLocaleString()}</span></div>
+      <div class="dm-item"><span class="dm-lbl">총 원금</span><span class="dm-val">${(TOTAL_PRINCIPAL/10000).toFixed(0)}만</span></div>
+      <div class="dm-item"><span class="dm-lbl">상환액</span><span class="dm-val">${repaid>=10000?(repaid/10000).toFixed(1)+'만':'₩'+repaid.toLocaleString()}</span></div>
       <div class="dm-item"><span class="dm-lbl">완료율</span><span class="dm-val">${debtPct}%</span></div>
     </div>
     <div class="debt-bar-wrap">
       <div class="bw" style="height:5px"><div class="bf" style="width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060)"></div></div>
     </div>
     <div class="debt-pct-lbl">${debtPct}% 완료 · 잔여 ${remFmt}원</div>
-    <div style="margin-top:10px;display:flex;align-items:center;gap:6px">
-      <span style="font-size:9px;color:var(--m);white-space:nowrap">상환 입력</span>
-      <input type="number" placeholder="0" value="${repaid||''}"
-        style="flex:1;background:var(--s2);border:1px solid rgba(245,166,35,.4);border-radius:5px;color:#ffd060;font-family:var(--bebas);font-size:16px;letter-spacing:.5px;padding:4px 8px;outline:none;min-width:0"
-        onchange="updDebtRepaid(this.value)">
-      <span style="font-size:9px;color:var(--m)">원</span>
+    <div style="margin-top:8px">
+      <button onclick="toggleDebtDetail()" style="background:none;border:none;color:#f5a62388;font-size:9px;cursor:pointer;padding:0;letter-spacing:.5px;text-transform:uppercase">▼ 대출 상세 내역</button>
+      <div id="debtDetail" style="display:none;flex-direction:column;gap:5px;margin-top:7px">
+        ${LOANS.map((l,i)=>{
+          const d        = getLoanData(i);
+          const lr       = loanRemaining(i);
+          const interest = loanMonthlyInterest(i);
+          const paidAmt  = l.principal - lr;
+          const pct      = Math.min(100,Math.round(paidAmt/l.principal*100));
+          const clr      = pct>=100?'#27c96e':'#ffd060';
+          const isCard   = l.type==='card';
+          const thisMonthPrincipal = isCard && d.monthlyTarget ? Math.max(0, d.monthlyTarget - interest) : 0;
+
+          return `<div style="background:rgba(245,166,35,.05);border:1px solid rgba(245,166,35,.15);border-radius:6px;padding:6px 8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <span style="font-size:10px;font-weight:700;color:var(--t)">${l.name}</span>
+              <span style="font-size:8px;color:#f5a62388">${l.rate}%${isCard?' 카드론':' 마통'}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:8px;color:var(--m)">잔여</span>
+              <span style="font-family:var(--bebas);font-size:15px;color:${clr}">${lr>=10000?(lr/10000).toFixed(1)+'만':'₩'+lr.toLocaleString()}</span>
+            </div>
+            <div style="height:3px;background:var(--b);border-radius:2px;overflow:hidden;margin-bottom:5px">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:2px"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+              <span style="font-size:8px;color:var(--m);flex-shrink:0">상환</span>
+              <input type="text" inputmode="numeric" value="${d.repaid?d.repaid.toLocaleString('ko-KR'):''}" placeholder="0"
+                style="flex:1;background:var(--s2);border:1px solid rgba(245,166,35,.3);border-radius:4px;color:#ffd060;font-family:var(--bebas);font-size:12px;padding:2px 5px;outline:none;min-width:0"
+                oninput="fmtComma(this)" onchange="updLoanData(${i},'repaid',unComma(this.value))">
+              <span style="font-size:8px;color:var(--m)">원</span>
+            </div>
+            <div style="font-size:8px;color:var(--m);text-align:right">월 이자 <span style="color:#f5a623;font-family:var(--bebas);font-size:12px">₩${interest.toLocaleString()}</span></div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
   </div>`;
 
@@ -1057,9 +1249,40 @@ function updDeductRate(val) {
   save(); renderWork(); renderCal();
 }
 
-function updDebtRepaid(val) {
-  db._debtRepaid = Number(val)||0;
+function updLoanData(idx, field, val) {
+  if(!db._loanData) db._loanData = {};
+  if(!db._loanData[idx]) db._loanData[idx] = {};
+  db._loanData[idx][field] = Number(val)||0;
   save(); renderWork();
+}
+
+function shiftMonth(dir) {
+  selMonth = dir<0 ? prevMonth(selMonth) : nextMonth(selMonth);
+  renderModalWork();
+}
+
+function toggleDebtDetail() {
+  const el = document.getElementById('debtDetail');
+  if(!el) return;
+  el.style.display = el.style.display==='none'?'flex':'none';
+  const btn = el.previousElementSibling;
+  if(btn) btn.textContent = el.style.display==='none'?'▼ 대출 상세 내역':'▲ 대출 상세 내역';
+}
+
+function addExpEntry() {
+  const cat = (document.getElementById('expCatSel')?.value||'').trim();
+  const amt = Number(document.getElementById('expAmtInp')?.value)||0;
+  const memo= document.getElementById('expMemoInp')?.value.trim()||'';
+  if(!cat || !amt) return;
+  const d = dayData(sel);
+  if(!d.work.expenses) d.work.expenses = [];
+  d.work.expenses.push({cat, amount:amt, memo});
+  save(); renderWork(); renderCal();
+}
+function delExpEntry(idx) {
+  const d = dayData(sel);
+  if(d.work.expenses) d.work.expenses.splice(idx,1);
+  save(); renderWork(); renderCal();
 }
 
 let _workTimer = null;
@@ -1233,137 +1456,164 @@ function renderModalStudy() {
 
 // ── WORK MODAL ──
 function renderModalWork() {
+  const ym    = selMonth;
+  const mKeys = monthKeys(ym);
+  const mInc  = monthTotalIncome(ym);
+  const mNet  = monthTotalNet(ym);
+  const mExp  = monthTotalExp(ym);
+  const mBal  = mNet - mExp;
+  const cats  = monthCatTotals(ym);
+  const totalCatExp = Object.values(cats).reduce((t,v)=>t+v,0);
+
+  // 주간 KPI (현재 주 — 비교용)
   const dates = weekDates(sel);
   const ws    = weekStats(dates);
-  const repaid  = db._debtRepaid || 0;
-  const rem   = Math.max(0, DEBT_TOTAL - repaid);
-  const debtPct = Math.min(100, Math.round(repaid/DEBT_TOTAL*100));
-  const cms   = currentMonthStats();
-  const DS = ['일','월','화','수','목','금','토'];
+  const rem   = totalRemaining();
+  const repaid= totalRepaid();
+  const debtPct=totalDebtPct();
   const {h:wH,m:wM} = minsToHM(ws.workMins);
-  const [,m0,d0]=dates[0].split('-'), [,m1,d1]=dates[6].split('-');
 
-  const dailyInc = dates.map(dk=>Number(db[dk]?.work?.incomeAmount)||0);
-  const dailyNet = dailyInc.map(v=>netIncome(v));
-  const dailyDel = dates.map(dk=>Number(db[dk]?.work?.deliveries)||0);
-  const maxInc = Math.max(1,...dailyInc);
-  const maxDel = Math.max(1,...dailyDel);
+  const hourly = ws.workMins>0?Math.round(ws.net/(ws.workMins/60)):0;
+  const perDel = ws.deliveries>0?Math.round(ws.income/ws.deliveries):0;
   const remFmt = rem>=10000?(rem/10000%1===0?rem/10000:(rem/10000).toFixed(1))+'만':rem.toLocaleString();
 
   document.getElementById('modalHdr').innerHTML = `
     <div class="modal-dot" style="background:#f5a623"></div>
-    <span class="modal-title">일 주간 리포트</span>
-    <span class="modal-sub">${m0}/${d0}–${m1}/${d1}</span>
-    <button class="modal-close" onclick="closeModalBtn()">✕</button>`;
+    <span class="modal-title">일 월간 리포트</span>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+      <button onclick="shiftMonth(-1)" style="background:var(--s2);border:1px solid var(--b);color:var(--t);border-radius:4px;width:20px;height:20px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">‹</button>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--m);white-space:nowrap">${fmtMonth(ym)}</span>
+      <button onclick="shiftMonth(1)" ${ym>=todayStr().slice(0,7)?'disabled style="opacity:.3"':''} style="background:var(--s2);border:1px solid var(--b);color:var(--t);border-radius:4px;width:20px;height:20px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">›</button>
+    </div>
+    <button class="modal-close" onclick="closeModalBtn()" style="margin-left:8px">✕</button>`;
 
   let b = '';
 
-  // ① 핵심 KPI 3분할
-  const hourly = ws.workMins>0?Math.round(ws.net/(ws.workMins/60)):0;
-  const perDel = ws.deliveries>0?Math.round(ws.income/ws.deliveries):0;
-  b += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-    <div style="background:linear-gradient(160deg,#1e1600,#0d0a00);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:10px 8px;text-align:center">
-      <div style="font-size:7px;color:#f5a623aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">주간 실수령</div>
-      <div style="font-family:var(--bebas);font-size:22px;color:#ffd060;line-height:1.1">${ws.net>=10000?(ws.net/10000).toFixed(1)+'만':ws.net>0?'₩'+ws.net.toLocaleString():'–'}</div>
-      <div style="font-size:7px;color:#f5a62366;margin-top:4px">총 ₩${ws.income>0?ws.income.toLocaleString():'–'}</div>
+  // ① 월간 3분할 KPI
+  b += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px">
+    <div style="background:linear-gradient(160deg,#1e1600,#0d0a00);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:7px;color:#f5a623aa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">월 실수령</div>
+      <div style="font-family:var(--bebas);font-size:20px;color:#ffd060;line-height:1.1">${mNet>=10000?(mNet/10000).toFixed(1)+'만':mNet>0?'₩'+mNet.toLocaleString():'–'}</div>
+      <div style="font-size:7px;color:#f5a62366;margin-top:2px">총 ₩${mInc>0?mInc.toLocaleString():'–'}</div>
     </div>
-    <div style="background:linear-gradient(160deg,#1e1600,#0d0a00);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:10px 8px;text-align:center">
-      <div style="font-size:7px;color:#f5a623aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">시급(실수령)</div>
-      <div style="font-family:var(--bebas);font-size:22px;color:#ffd060;line-height:1.1">${hourly>0?'₩'+(hourly>=10000?(hourly/10000).toFixed(1)+'만':hourly.toLocaleString()):'–'}</div>
-      <div style="font-size:7px;color:#f5a62366;margin-top:4px">${fmtHM(wH,wM)||'–'} 근무</div>
+    <div style="background:linear-gradient(160deg,#1e0000,#0d0000);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:7px;color:#e74c3caa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">월 지출</div>
+      <div style="font-family:var(--bebas);font-size:20px;color:#e74c3c;line-height:1.1">${mExp>=10000?(mExp/10000).toFixed(1)+'만':mExp>0?'₩'+mExp.toLocaleString():'–'}</div>
+      <div style="font-size:7px;color:#e74c3c66;margin-top:2px">${totalCatExp>0?Object.keys(cats).length+'개 항목':''}</div>
     </div>
-    <div style="background:linear-gradient(160deg,#1e1600,#0d0a00);border:1px solid rgba(245,166,35,.3);border-radius:10px;padding:10px 8px;text-align:center">
-      <div style="font-size:7px;color:#f5a623aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">건당 단가</div>
-      <div style="font-family:var(--bebas);font-size:22px;color:#ffd060;line-height:1.1">${perDel>0?'₩'+(perDel>=10000?(perDel/10000).toFixed(1)+'만':perDel.toLocaleString()):'–'}</div>
-      <div style="font-size:7px;color:#f5a62366;margin-top:4px">${ws.deliveries||0}건</div>
+    <div style="background:linear-gradient(160deg,#001e00,#000d00);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
+      <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">월 잔액</div>
+      <div style="font-family:var(--bebas);font-size:20px;color:${mBal>=0?'#27c96e':'#e74c3c'};line-height:1.1">${Math.abs(mBal)>=10000?(mBal<0?'-':'')+(Math.abs(mBal)/10000).toFixed(1)+'만':mBal!==0?'₩'+mBal.toLocaleString():'–'}</div>
+      <div style="font-size:7px;color:#27c96e66;margin-top:2px">${mBal>=0?'흑자':'적자'}</div>
     </div>
   </div>`;
 
-  // ② 요일별 수입 바 차트
-  b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
-    <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">요일별 수입</div>
-    <div style="display:flex;align-items:flex-end;gap:4px;height:90px">`;
-  dailyInc.forEach((inc,i)=>{
-    const net=dailyNet[i];
-    const pct=Math.round(inc/maxInc*100);
-    const netPct=Math.round(net/maxInc*100);
-    const isT=dates[i]===todayStr();
-    const isSun=i===0,isSat=i===6;
-    const str=inc>0?(inc>=10000?(inc/10000).toFixed(0)+'만':'₩'+inc.toLocaleString()):'';
-    const txClr=isT?'#f5a623':isSun?'#e74c3c88':isSat?'#7fa8f788':'#aa7722';
-    b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:10px;color:${txClr};font-weight:700;text-align:center">${str}</div>
-      <div style="flex:1;display:flex;align-items:flex-end;width:100%;position:relative">
-        <div style="width:100%;height:${pct||3}%;background:#c45a00;border-radius:4px 4px 0 0;min-height:3px;position:relative">
-          <div style="position:absolute;bottom:0;left:0;right:0;height:${netPct?Math.round(netPct/pct*100):0}%;background:${isT?'#f5a623':'#e07820'};border-radius:4px 4px 0 0;${isT?'box-shadow:0 0 14px #f5a623cc':''}"></div>
+  // ② 지출 카테고리 바
+  if(totalCatExp>0) {
+    b += `<div style="background:#090d1a;border:1px solid rgba(231,76,60,.25);border-radius:12px;padding:14px">
+      <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">카테고리별 지출</div>
+      <div style="display:flex;flex-direction:column;gap:6px">`;
+    Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([c,v])=>{
+      const pct=Math.round(v/totalCatExp*100);
+      b+=`<div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:11px;color:var(--t)">${c}</span>
+          <div style="display:flex;align-items:baseline;gap:5px">
+            <span style="font-size:9px;color:var(--m)">${pct}%</span>
+            <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${v>=10000?(v/10000).toFixed(1)+'만':'₩'+v.toLocaleString()}</span>
+          </div>
         </div>
+        <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:4px;opacity:.85"></div>
+        </div>
+      </div>`;
+    });
+    b += `</div></div>`;
+  }
+
+  // ③ 날짜별 수입/지출 바 차트
+  if(mKeys.length>0) {
+    const sorted = [...mKeys].sort();
+    const maxDayAmt = Math.max(1,...sorted.map(k=>Math.max(netIncome(db[k]?.work?.incomeAmount)||0,dayTotalExp(k)||0)));
+    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
+      <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">일별 수입 vs 지출</div>
+      <div style="display:flex;align-items:flex-end;gap:2px;height:80px;overflow-x:auto">`;
+    sorted.forEach(dk=>{
+      const inc=netIncome(db[dk]?.work?.incomeAmount)||0;
+      const exp=dayTotalExp(dk)||0;
+      if(!inc && !exp) return;
+      const incH=Math.round(inc/maxDayAmt*100);
+      const expH=Math.round(exp/maxDayAmt*100);
+      const dd=Number(dk.slice(8));
+      const isT=dk===todayStr();
+      b+=`<div style="flex:1;min-width:12px;display:flex;flex-direction:column;align-items:center;gap:1px;height:100%">
+        <div style="flex:1;display:flex;align-items:flex-end;width:100%;gap:1px">
+          ${inc>0?`<div style="flex:1;height:${incH}%;background:${isT?'#f5a623':'rgba(245,166,35,.6)'};border-radius:2px 2px 0 0;min-height:2px"></div>`:'<div style="flex:1"></div>'}
+          ${exp>0?`<div style="flex:1;height:${expH}%;background:${isT?'#e74c3c':'rgba(231,76,60,.55)'};border-radius:2px 2px 0 0;min-height:2px"></div>`:'<div style="flex:1"></div>'}
+        </div>
+        <div style="font-size:7px;color:${isT?'#f5a623':'var(--m)'};white-space:nowrap">${dd}</div>
+      </div>`;
+    });
+    b += `</div>
+      <div style="display:flex;gap:10px;margin-top:6px;font-size:8px;color:var(--m)">
+        <div style="display:flex;align-items:center;gap:3px"><div style="width:8px;height:8px;background:#f5a623;border-radius:2px"></div>실수령</div>
+        <div style="display:flex;align-items:center;gap:3px"><div style="width:8px;height:8px;background:#e74c3c;border-radius:2px"></div>지출</div>
       </div>
-      <div style="font-size:8px;color:${isT?'#f5a623':isSun?'#e74c3c88':isSat?'#7fa8f788':'var(--m)'};font-weight:${isT?700:400}">${DS[i]}</div>
     </div>`;
-  });
-  b += `</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:8px;color:var(--m)">
-      <div style="display:flex;align-items:center;gap:3px"><div style="width:8px;height:8px;background:rgba(245,166,35,.25);border-radius:2px"></div>총수입</div>
-      <div style="display:flex;align-items:center;gap:3px"><div style="width:8px;height:8px;background:#f5a623;border-radius:2px"></div>실수령</div>
+  }
+
+  // ④ 이번 주 KPI (작은 사이즈로)
+  b += `<div style="background:var(--s2);border:1px solid var(--b);border-radius:12px;padding:12px">
+    <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">이번 주 배달</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+      <div style="text-align:center"><div style="font-size:7px;color:var(--m);margin-bottom:2px">실수령</div><div style="font-family:var(--bebas);font-size:15px;color:#ffd060">${ws.net>=10000?(ws.net/10000).toFixed(1)+'만':ws.net>0?'₩'+ws.net.toLocaleString():'–'}</div></div>
+      <div style="text-align:center"><div style="font-size:7px;color:var(--m);margin-bottom:2px">시급</div><div style="font-family:var(--bebas);font-size:15px;color:#ffd060">${hourly>0?'₩'+(hourly>=10000?(hourly/10000).toFixed(0)+'만':hourly.toLocaleString()):'–'}</div></div>
+      <div style="text-align:center"><div style="font-size:7px;color:var(--m);margin-bottom:2px">건수</div><div style="font-family:var(--bebas);font-size:15px;color:#f5a623">${ws.deliveries||0}건</div></div>
+      <div style="text-align:center"><div style="font-size:7px;color:var(--m);margin-bottom:2px">건단가</div><div style="font-family:var(--bebas);font-size:15px;color:#f5a623">${perDel>0?'₩'+(perDel>=10000?(perDel/10000).toFixed(0)+'만':perDel.toLocaleString()):'–'}</div></div>
     </div>
   </div>`;
 
-  // ④ 요일별 건수 미니 도트차트
-  const hasDel = dailyDel.some(v=>v>0);
-  if(hasDel) {
-    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
-      <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">요일별 배달 건수</div>
-      <div style="display:flex;align-items:flex-end;gap:4px;height:70px">`;
-    dailyDel.forEach((del,i)=>{
-      const pct=Math.round(del/maxDel*100);
-      const isT=dates[i]===todayStr();
-      b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-        <div style="font-family:var(--mono);font-size:10px;color:${isT?'#f5a623':'#d07820'};font-weight:700">${del||''}</div>
-        <div style="flex:1;display:flex;align-items:flex-end;width:100%">
-          <div style="width:100%;height:${pct||3}%;background:${isT?'#f5a623':'#c06010'};border-radius:4px 4px 0 0;min-height:${del?3:0}px;${isT?'box-shadow:0 0 14px #f5a623cc':''}"></div>
-        </div>
-        <div style="font-size:8px;color:${isT?'#f5a623':'var(--m)'}">${DS[i]}</div>
-      </div>`;
-    });
-    b += `</div></div>`;
-  }
-
-  // ⑤ 요일별 근무시간
-  const dailyWorkMins = dates.map(dk=>hmToMins(db[dk]?.work?.workH, db[dk]?.work?.workM));
-  const maxWorkMins = Math.max(1,...dailyWorkMins);
-  const hasWork = dailyWorkMins.some(v=>v>0);
-  if(hasWork) {
-    b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
-      <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">요일별 근무시간</div>
-      <div style="display:flex;align-items:flex-end;gap:4px;height:70px">`;
-    dailyWorkMins.forEach((mins,i)=>{
-      const pct=Math.round(mins/maxWorkMins*100);
-      const {h:wh,m:wm}=minsToHM(mins);
-      const str=mins>0?(wm?wh+'h'+wm+'m':wh+'h'):'';
-      const isT=dates[i]===todayStr();
-      b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-        <div style="font-family:var(--mono);font-size:10px;color:${isT?'#f5a623':'#d07820'};font-weight:700;white-space:nowrap">${str}</div>
-        <div style="flex:1;display:flex;align-items:flex-end;width:100%">
-          <div style="width:100%;height:${pct||3}%;background:${isT?'#ffd060':'#c06010'};border-radius:4px 4px 0 0;min-height:${mins?3:0}px;${isT?'box-shadow:0 0 14px #ffd060cc':''}"></div>
-        </div>
-        <div style="font-size:8px;color:${isT?'#ffd060':'var(--m)'}">${DS[i]}</div>
-      </div>`;
-    });
-    b += `</div></div>`;
-  }
-
-  // 마지막 채무 상환 현황
+  // ⑤ 채무 상환 현황
   b += `<div style="background:var(--s2);border:1px solid rgba(245,166,35,.2);border-radius:12px;padding:14px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
       <span style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase">채무 상환 현황</span>
       <span style="font-family:var(--bebas);font-size:20px;color:#f5a623">${debtPct}%</span>
     </div>
-    <div style="height:10px;background:#090d1a;border-radius:5px;overflow:hidden">
-      <div style="height:100%;width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:5px;box-shadow:0 0 10px #f5a62366"></div>
+    <div style="height:8px;background:#090d1a;border-radius:4px;overflow:hidden;margin-bottom:6px">
+      <div style="height:100%;width:${debtPct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:4px;box-shadow:0 0 10px #f5a62366"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:6px">
-      <span style="font-size:9px;color:var(--m)">잔여 <span style="color:#f5a623;font-weight:700">${remFmt}원</span></span>
-      <span style="font-size:9px;color:var(--m)">상환 <span style="color:#ffd060;font-weight:700">${repaid>=10000?(repaid/10000).toFixed(1)+'만':'₩'+repaid.toLocaleString()}원</span></span>
+    <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:9px;color:var(--m)">총 원금 <span style="color:#f5a623;font-weight:700">${(TOTAL_PRINCIPAL/10000).toFixed(0)}만</span></span>
+      <span style="font-size:9px;color:var(--m)">잔여 <span style="color:#f5a623;font-weight:700">${rem>=10000?(rem/10000).toFixed(1)+'만':'₩'+rem.toLocaleString()}원</span></span>
+    </div>
+    <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">대출별 상세</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${LOANS.map((l,i)=>{
+        const d        = getLoanData(i);
+        const lr       = loanRemaining(i);
+        const interest = loanMonthlyInterest(i);
+        const paidAmt  = l.principal - lr;
+        const pct=Math.min(100,Math.round(paidAmt/l.principal*100));
+        const clr=pct>=100?'#27c96e':'#ffd060';
+        const isCard=l.type==='card';
+        const monthlyInfo = isCard && d.monthlyTarget
+          ? `목표 ₩${d.monthlyTarget.toLocaleString()} (이자 ₩${interest.toLocaleString()} + 원금 ₩${Math.max(0,d.monthlyTarget-interest).toLocaleString()})`
+          : `월 이자 ₩${interest.toLocaleString()}`;
+        return `<div style="background:rgba(245,166,35,.05);border:1px solid rgba(245,166,35,.18);border-radius:8px;padding:8px 10px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+            <span style="font-size:11px;font-weight:700;color:var(--t)">${l.name}</span>
+            <span style="font-size:8px;color:#f5a62388">${l.rate}% · ${(l.principal/10000)}만원 ${isCard?'카드론':'마통'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:9px;color:var(--m)">잔여 원금</span>
+            <span style="font-family:var(--bebas);font-size:17px;color:${clr}">${lr>=10000?(lr/10000).toFixed(1)+'만':'₩'+lr.toLocaleString()}</span>
+          </div>
+          <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-bottom:4px">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#f5a623,#ffd060);border-radius:3px"></div>
+          </div>
+          <div style="font-size:8px;color:var(--m);text-align:right">${monthlyInfo}</div>
+        </div>`;
+      }).join('')}
     </div>
   </div>`;
 
@@ -1597,6 +1847,7 @@ document.getElementById('todayBtn').onclick = () => {
 
 // ─── INIT ───
 load();
+autoDeductCardLoans();
 renderAll();
 initFirebase();
 </script>
