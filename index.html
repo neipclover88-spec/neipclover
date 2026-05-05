@@ -378,7 +378,7 @@ function dayData(k) {
   const h = d.health;
   if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0};
   if(!h.swimming) h.swimming = {laps:0,swimM:0};
-  if(!h.running)  h.running  = {km:0,runH:0,runM:0,shoe:"젤카야노"};
+  if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
   if(!h.pushup)   h.pushup   = {reps:0};
   if(!h.pullup)   h.pullup   = {reps:0};
@@ -1005,14 +1005,17 @@ function renderHealth() {
   const swimStr  = swimLaps>0 ? swimLaps+'바퀴'+(swimM?' '+swimM+'분':'') : '';
 
   const runKm  = Number(h.running.km)||0;
-  const runH   = Number(h.running.runH)||0;
   const runM   = Number(h.running.runM)||0;
-  const runTotalMins = runH*60+runM;
-  const runStr = runKm>0 ? runKm+'km'+(runTotalMins?' '+fmtHM(runH,runM):'') : '';
+  const runS   = Number(h.running.runS)||0;
+  const runTotalSecs = runM*60+runS;
+  const runTotalMins = runTotalSecs/60;
+  const runTimeStr = runM>0||runS>0 ? runM+'분'+(runS?runS+'초':'') : '';
+  const runStr = runKm>0 ? runKm+'km'+(runTimeStr?' '+runTimeStr:'') : '';
   let pace='';
-  if(runKm>0 && runTotalMins>0) {
-    const pm=Math.floor(runTotalMins/runKm);
-    const ps=Math.round((runTotalMins/runKm%1)*60);
+  if(runKm>0 && runTotalSecs>0) {
+    const secPerKm = runTotalSecs/runKm;
+    const pm=Math.floor(secPerKm/60);
+    const ps=Math.round(secPerKm%60);
     pace=`${pm}'${String(ps).padStart(2,'0')}''/km`;
   }
 
@@ -1098,12 +1101,12 @@ function renderHealth() {
       <div class="hrow">
         <span class="hlbl">시간</span>
         <div class="tpair">
-          <input type="number" class="ti" min="0" value="${runH||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('running','runH',this.value)">
-          <span class="tu" style="color:#27c96eaa">시간</span>
-          <input type="number" class="ti" min="0" max="59" value="${runM||''}" placeholder="0"
+          <input type="number" class="ti" min="0" value="${runM||''}" placeholder="0"
             style="border-color:#27c96e40" onchange="updH('running','runM',this.value)">
           <span class="tu" style="color:#27c96eaa">분</span>
+          <input type="number" class="ti" min="0" max="59" value="${runS||''}" placeholder="0"
+            style="border-color:#27c96e40" onchange="updH('running','runS',this.value)">
+          <span class="tu" style="color:#27c96eaa">초</span>
         </div>
       </div>
       <div class="hrow">
@@ -1306,7 +1309,7 @@ function updWork(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runH','runM','cycH','cycM','sleepH','sleepM','reps'];
+  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1645,7 +1648,7 @@ function renderModalHealth() {
     totalSwimLaps  += Number(h.swimming?.laps)||0;
     totalSwimMins  += Number(h.swimming?.swimM)||0;
     totalRunKm     += Number(h.running?.km)||0;
-    totalRunMins   += hmToMins(h.running?.runH,h.running?.runM);
+    totalRunMins   += ((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60;
     totalCycKm     += Number(h.cycling?.km)||0;
     totalCycMins   += hmToMins(h.cycling?.cycH,h.cycling?.cycM);
     totalPushup    += Number(h.pushup?.reps)||0;
@@ -1744,7 +1747,7 @@ function renderModalHealth() {
       const swimLaps = Number(h.swimming?.laps)||0;
       const swimMins = Number(h.swimming?.swimM)||0;
       const runKm    = Number(h.running?.km)||0;
-      const runMins  = hmToMins(h.running?.runH, h.running?.runM);
+      const runMins  = ((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60;
       const cycKm    = Number(h.cycling?.km)||0;
       const cycMins  = hmToMins(h.cycling?.cycH, h.cycling?.cycM);
       if(swimLaps>0) return {type:'swim', mins:swimMins||swimLaps*2, label:swimLaps+'바퀴'+(swimMins?' '+swimMins+'분':'')};
