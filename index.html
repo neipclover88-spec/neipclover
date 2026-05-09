@@ -339,7 +339,7 @@ function weekDates(anchor) {
 
 // ─── MATH UTILS ───
 function hmToMins(h, m) { return (Number(h)||0)*60 + (Number(m)||0); }
-function minsToHM(t)    { return {h:Math.floor(t/60), m:t%60}; }
+function minsToHM(t)    { t=Math.round(t); return {h:Math.floor(t/60), m:t%60}; }
 function fmtHM(h, m) {
   h=Number(h)||0; m=Number(m)||0;
   if(!h && !m) return null;
@@ -1648,7 +1648,7 @@ function renderModalHealth() {
     totalSwimLaps  += Number(h.swimming?.laps)||0;
     totalSwimMins  += Number(h.swimming?.swimM)||0;
     totalRunKm     += Number(h.running?.km)||0;
-    totalRunMins   += ((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60;
+    totalRunMins   += Math.round(((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60*100)/100;
     totalCycKm     += Number(h.cycling?.km)||0;
     totalCycMins   += hmToMins(h.cycling?.cycH,h.cycling?.cycM);
     totalPushup    += Number(h.pushup?.reps)||0;
@@ -1747,7 +1747,7 @@ function renderModalHealth() {
       const swimLaps = Number(h.swimming?.laps)||0;
       const swimMins = Number(h.swimming?.swimM)||0;
       const runKm    = Number(h.running?.km)||0;
-      const runMins  = ((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60;
+      const runMins  = Math.round(((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60*100)/100;
       const cycKm    = Number(h.cycling?.km)||0;
       const cycMins  = hmToMins(h.cycling?.cycH, h.cycling?.cycM);
       if(swimLaps>0) return {type:'swim', mins:swimMins||swimLaps*2, label:swimLaps+'바퀴'+(swimMins?' '+swimMins+'분':'')};
