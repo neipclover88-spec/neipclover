@@ -218,7 +218,7 @@ input:focus,select:focus{outline:none}
 .hact-hdr{display:flex;align-items:center;gap:5px;padding:6px 8px 4px}
 .hico{font-size:13px}
 .hact-name{font-size:12px;font-weight:700;flex:1;letter-spacing:-.2px}
-.hact-val{font-family:var(--bebas);font-size:13px;color:var(--health);letter-spacing:.3px;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hact-val{font-family:var(--bebas);font-size:15px;color:#a0d8ff;letter-spacing:.3px;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hact-body{padding:0 8px 8px;display:flex;flex-direction:column;gap:4px}
 .hrow{display:flex;align-items:center;gap:4px}
 .hlbl{font-size:9px;color:var(--m);width:24px;flex-shrink:0}
@@ -1055,7 +1055,7 @@ function renderHealth() {
     <div class="hact-hdr">
       <span class="hico">😴</span>
       <span class="hact-name">수면</span>
-      <span class="hact-val">${slpStr}</span>
+      <span class="hact-val" style="color:${slpClr};font-size:16px">${slpStr}</span>
     </div>
     <div class="hact-body">
       <div class="hrow">
