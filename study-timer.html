@@ -482,6 +482,31 @@ body {
   position: absolute; left: -3px; top: -3px;
   width: 6px; height: 6px; border-radius: 50%; background: var(--red);
 }
+.goal-subj-row { margin-bottom:14px; }
+.goal-subj-row:last-child { margin-bottom:0; }
+.goal-subj-hd { display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+.goal-subj-name { font-size:12px; font-weight:700; flex:1; }
+.goal-subj-total { font-size:10px; color:var(--text2); font-family:'JetBrains Mono',monospace; }
+.goal-item-row {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 0; border-bottom:1px solid var(--border);
+}
+.goal-item-row:last-child { border-bottom:none; }
+.goal-item-info { flex:1; min-width:0; }
+.goal-item-name { font-size:12px; font-weight:500; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.goal-bar-wrap2 { height:4px; background:var(--surface2); border-radius:2px; overflow:hidden; }
+.goal-bar-fill2 { height:100%; border-radius:2px; transition:width 0.4s ease; }
+.goal-item-pct { font-size:10px; color:var(--text2); font-family:'JetBrains Mono',monospace; margin-top:2px; }
+.goal-val-wrap { display:flex; align-items:center; gap:3px; flex-shrink:0; }
+.goal-val-inp {
+  width:44px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:6px; padding:4px 5px; color:var(--text);
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  text-align:center; outline:none;
+}
+.goal-val-inp:focus { border-color:var(--blue); }
+.goal-val-sep,.goal-val-target,.goal-val-unit { font-size:10px; color:var(--text2); font-family:'JetBrains Mono',monospace; }
+
 .modal-backdrop {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.65); z-index: 100;
@@ -667,15 +692,29 @@ body {
 
     <!-- ③ PLANNER -->
     <div class="screen" id="screen-planner">
-      <div class="plan-hd" id="planDateLbl"></div>
-      <div class="plan-prog" id="planProg"></div>
 
-      <div class="todo-add">
-        <input class="todo-input" id="todoIn" placeholder="할 일 추가..."
-          maxlength="60" onkeydown="if(event.key==='Enter') addTodo()">
-        <button class="btn-plus" onclick="addTodo()">+</button>
+      <!-- 주간 목표 -->
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;margin-bottom:14px;">
+          <div class="card-label" style="margin-bottom:0;">📚 주간 목표</div>
+          <button class="btn-add-record" onclick="refreshGoals()" style="margin-left:auto;">↻ 새로고침</button>
+        </div>
+        <div id="goalList"><div style="color:var(--text2);font-size:13px;">불러오는 중...</div></div>
       </div>
-      <div id="todoList"></div>
+
+      <!-- 오늘 할 일 -->
+      <div class="card">
+        <div style="display:flex;align-items:center;margin-bottom:12px;">
+          <div class="card-label" style="margin-bottom:0;">✅ 오늘 할 일</div>
+          <div class="plan-prog" id="planProg" style="margin-left:auto;font-size:11px;color:var(--text2);"></div>
+        </div>
+        <div class="todo-add">
+          <input class="todo-input" id="todoIn" placeholder="할 일 추가..."
+            maxlength="60" onkeydown="if(event.key==='Enter') addTodo()">
+          <button class="btn-plus" onclick="addTodo()">+</button>
+        </div>
+        <div id="todoList"></div>
+      </div>
     </div>
 
     <!-- ④ SETTINGS -->
@@ -896,6 +935,7 @@ async function boot() {
   updateGoalUI();
   loadRecent();
   loadTodos(todayStr());
+  loadGoals();
 }
 
 /* ── SETTINGS ── */
@@ -1254,6 +1294,108 @@ function changeDate(d) {
   loadStats(new Date(statsDate));
 }
 
+/* ── WEEKLY GOALS (대시보드 연동) ── */
+const SUBJS_KR  = ['국어','수학','영어','사회','과학'];
+const SUBJ_COLORS = {
+  '국어':'#4f8ef7','수학':'#27c96e','영어':'#f5a623',
+  '사회':'#e74c3c','과학':'#a855f7'
+};
+
+let cachedGoals = null; // { 국어:[...], 수학:[...], ... }
+
+async function loadGoals() {
+  if (!rtdb) {
+    $('goalList').innerHTML = '<div style="color:var(--text2);font-size:13px;">Firebase 연결 필요</div>';
+    return;
+  }
+  try {
+    const snap = await rtdb.ref(`${DASH_FB_PATH}/db/_goals`).get();
+    cachedGoals = snap.exists() ? snap.val() : {};
+    renderGoals();
+  } catch(e) {
+    $('goalList').innerHTML = '<div style="color:var(--text2);font-size:13px;">불러오기 실패</div>';
+  }
+}
+
+function renderGoals() {
+  const el = $('goalList');
+  if (!cachedGoals) return;
+  const hasAny = SUBJS_KR.some(s => (cachedGoals[s]||[]).length > 0);
+  if (!hasAny) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:13px;">대시보드에서 목표를 추가하면 여기에 표시됩니다</div>';
+    return;
+  }
+  el.innerHTML = SUBJS_KR.map(subj => {
+    const goals = cachedGoals[subj] || [];
+    if (!goals.length) return '';
+    const color = SUBJ_COLORS[subj] || '#5ba3e8';
+    const totTarget = goals.reduce((a,g)=>a+(Number(g.targetVal)||0), 0);
+    const totDone   = goals.reduce((a,g)=>a+(Number(g.completedVal)||0), 0);
+    const totPct    = totTarget > 0 ? Math.min(100, Math.round(totDone/totTarget*100)) : 0;
+
+    const itemsHtml = goals.map((g, gi) => {
+      const tv  = Number(g.targetVal)||0;
+      const cv  = Number(g.completedVal)||0;
+      const pct = tv > 0 ? Math.min(100, Math.round(cv/tv*100)) : 0;
+      return `<div class="goal-item-row">
+        <div class="goal-item-info">
+          <div class="goal-item-name">${g.name||'목표'}</div>
+          <div class="goal-bar-wrap2">
+            <div class="goal-bar-fill2" style="width:${pct}%;background:${color};"></div>
+          </div>
+          <div class="goal-item-pct">${cv} / ${tv} ${g.targetUnit||''} · ${pct}%</div>
+        </div>
+        <div class="goal-val-wrap">
+          <input class="goal-val-inp" type="number" min="0" max="${tv}"
+            value="${cv}" id="gv-${subj}-${gi}"
+            onchange="saveGoalVal('${subj}',${gi},this.value)"
+            onfocus="this.select()">
+          <span class="goal-val-unit">${g.targetUnit||''}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="goal-subj-row">
+      <div class="goal-subj-hd">
+        <div class="s-dot" style="background:${color};width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+        <div class="goal-subj-name" style="color:${color};">${subj}</div>
+        <div class="goal-subj-total">${totDone}/${totTarget} · ${totPct}%</div>
+      </div>
+      <div class="goal-bar-wrap2" style="margin-bottom:8px;">
+        <div class="goal-bar-fill2" style="width:${totPct}%;background:${color};"></div>
+      </div>
+      ${itemsHtml}
+    </div>`;
+  }).join('');
+}
+
+async function saveGoalVal(subj, gi, rawVal) {
+  const val = Math.max(0, Number(rawVal)||0);
+  if (!cachedGoals?.[subj]?.[gi]) return;
+  cachedGoals[subj][gi].completedVal = val;
+
+  // 대시보드와 동일한 방식으로 전체 bdh3 읽어서 _goals만 수정 후 저장
+  if (!rtdb) return;
+  try {
+    const snap = await rtdb.ref(DASH_FB_PATH).get();
+    if (!snap.exists()) return;
+    const full = snap.val();
+    if (!full.db) full.db = {};
+    if (!full.db._goals) full.db._goals = {};
+    if (!full.db._goals[subj]) full.db._goals[subj] = [];
+    full.db._goals[subj][gi] = {...(full.db._goals[subj][gi]||{}), completedVal: val};
+    await rtdb.ref(DASH_FB_PATH).set(full);
+    renderGoals();
+  } catch(e) {
+    console.warn('목표 저장 실패:', e);
+  }
+}
+
+async function refreshGoals() {
+  $('goalList').innerHTML = '<div style="color:var(--text2);font-size:13px;">불러오는 중...</div>';
+  await loadGoals();
+}
+
 /* ── TODOS ── */
 async function loadTodos(date) {
   todos[date] = todos[date] || [];
@@ -1561,6 +1703,7 @@ function goTab(tab) {
   }
   $('nav-'+tab).classList.add('active');
   if (tab === 'stats') loadStats(new Date(statsDate));
+  if (tab === 'planner') loadGoals();
 }
 
 /* ── PREVENT SCREEN SLEEP WHILE TIMING (if supported) ── */
