@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>열공 타이머</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #08080e;
+  --surface: #111118;
+  --surface2: #1c1c26;
+  --border: #2a2a38;
+  --text: #eeeef8;
+  --text2: #7777a0;
+  --blue: #5ba3e8;
+  --amber: #f4a843;
+  --green: #4ecb71;
+  --red: #e05a5a;
+  --radius: 14px;
+  --nav-h: 64px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100dvh;
+  max-width: 560px;
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
+#app { display: flex; flex-direction: column; height: 100dvh; }
+
+/* HEADER */
+.header {
+  padding: 14px 20px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.app-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 17px; font-weight: 700;
+  color: var(--blue); letter-spacing: -0.5px;
+}
+.header-date { font-size: 12px; color: var(--text2); }
+
+/* TAB CONTENT */
+.tab-content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.screen { display: none; padding: 18px 18px 24px; }
+.screen.active { display: block; }
+
+/* BOTTOM NAV */
+.bottom-nav {
+  height: var(--nav-h);
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  background: none; border: none; color: var(--text2);
+  cursor: pointer; font-size: 10px; font-family: 'Noto Sans KR', sans-serif;
+  padding: 6px 0; transition: color 0.2s;
+}
+.nav-btn.active { color: var(--blue); }
+.nav-btn svg { width: 20px; height: 20px; }
+
+/* CARDS */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+}
+.card-label {
+  font-size: 10px; font-weight: 700;
+  color: var(--text2); text-transform: uppercase;
+  letter-spacing: 1.2px; margin-bottom: 12px;
+}
+
+/* ─── TIMER SCREEN ─── */
+.subject-scroll {
+  display: flex; gap: 7px; overflow-x: auto;
+  padding-bottom: 2px; margin-bottom: 16px;
+  scrollbar-width: none;
+}
+.subject-scroll::-webkit-scrollbar { display: none; }
+
+.subject-pill {
+  flex-shrink: 0;
+  padding: 6px 15px;
+  border-radius: 100px;
+  border: 1.5px solid var(--border);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  background: var(--surface2); color: var(--text2);
+  font-family: 'Noto Sans KR', sans-serif;
+  user-select: none;
+}
+.subject-pill.sel {
+  border-color: var(--pill-c);
+  background: color-mix(in srgb, var(--pill-c) 18%, transparent);
+  color: var(--pill-c);
+}
+
+.timer-block {
+  text-align: center;
+  padding: 20px 0 16px;
+}
+.timer-digits {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 68px; font-weight: 700;
+  letter-spacing: -2px; line-height: 1;
+  color: var(--text); transition: color 0.3s;
+}
+.timer-digits.running { color: var(--blue); }
+.timer-badge {
+  display: none;
+  margin-top: 10px;
+  padding: 4px 14px;
+  border-radius: 100px;
+  font-size: 13px; font-weight: 500;
+}
+
+.controls {
+  display: flex; gap: 10px; justify-content: center;
+  margin-bottom: 20px;
+}
+.btn-main {
+  padding: 13px 36px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 100px;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  transition: opacity 0.15s, transform 0.1s;
+  min-width: 120px;
+}
+.btn-main:active { transform: scale(0.97); opacity: 0.85; }
+.btn-main.paused { background: var(--amber); }
+
+.btn-stop {
+  padding: 13px 22px;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  transition: all 0.15s;
+}
+.btn-stop:not(:disabled):active { transform: scale(0.97); }
+.btn-stop:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.today-box { text-align: center; margin-bottom: 16px; }
+.today-label { font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+.today-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 30px; font-weight: 700; color: var(--amber);
+}
+.goal-bar-wrap {
+  height: 5px; background: var(--surface2);
+  border-radius: 3px; margin-top: 8px; overflow: hidden;
+}
+.goal-bar-fill {
+  height: 100%; background: var(--amber);
+  border-radius: 3px; transition: width 0.6s ease;
+}
+.goal-info {
+  display: flex; justify-content: space-between;
+  margin-top: 4px; font-size: 10px; color: var(--text2);
+}
+
+.session-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.session-row:last-child { border-bottom: none; }
+.s-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.s-name { font-size: 13px; flex: 1; }
+.s-right { text-align: right; }
+.s-dur { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text2); }
+.s-time { font-size: 10px; color: var(--text2); }
+
+/* ─── STATS SCREEN ─── */
+.date-nav {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.dnav-btn {
+  width: 30px; height: 30px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.dnav-label { flex: 1; text-align: center; font-size: 13px; font-weight: 500; }
+
+.total-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 40px; font-weight: 700; color: var(--blue);
+}
+
+.sub-bar-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.sub-bar-name {
+  font-size: 12px; width: 64px; flex-shrink: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sub-bar-track {
+  flex: 1; height: 7px; background: var(--surface2);
+  border-radius: 4px; overflow: hidden;
+}
+.sub-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.sub-bar-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text2); width: 42px; text-align: right; flex-shrink: 0;
+}
+
+/* ─── PLANNER SCREEN ─── */
+.plan-hd { font-size: 19px; font-weight: 700; margin-bottom: 3px; }
+.plan-prog { font-size: 12px; color: var(--text2); margin-bottom: 14px; }
+
+.todo-add { display: flex; gap: 8px; margin-bottom: 14px; }
+.todo-input {
+  flex: 1; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 13px; color: var(--text); font-size: 14px;
+  font-family: 'Noto Sans KR', sans-serif; outline: none;
+}
+.todo-input:focus { border-color: var(--blue); }
+.todo-input::placeholder { color: var(--text2); }
+
+.btn-plus {
+  background: var(--blue); color: #fff;
+  border: none; border-radius: 10px;
+  padding: 0 15px; font-size: 22px; cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.todo-item { display: flex; align-items: center; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.todo-check {
+  width: 21px; height: 21px; border-radius: 6px;
+  border: 1.5px solid var(--border); cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.todo-check.done { background: var(--green); border-color: var(--green); }
+.todo-txt { flex: 1; font-size: 13px; line-height: 1.4; }
+.todo-txt.done { text-decoration: line-through; color: var(--text2); }
+.todo-del {
+  background: none; border: none; color: var(--text2);
+  cursor: pointer; font-size: 18px; padding: 0 3px;
+  opacity: 0.4; transition: opacity 0.15s;
+}
+.todo-del:hover { opacity: 1; color: var(--red); }
+
+/* ─── SETTINGS SCREEN ─── */
+.streak-card {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--amber) 12%, var(--surface)),
+    var(--surface));
+  border-color: color-mix(in srgb, var(--amber) 25%, var(--border));
+}
+.streak-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 54px; font-weight: 700; color: var(--amber); line-height: 1;
+}
+.streak-sub { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+.set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.set-row:last-child { border-bottom: none; }
+.set-lbl { font-size: 13px; }
+
+.num-input {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 9px;
+  color: var(--text); font-family: 'JetBrains Mono', monospace;
+  font-size: 15px; width: 58px; text-align: center; outline: none;
+}
+.num-input:focus { border-color: var(--blue); }
+
+.sub-manage-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.sub-manage-item:last-child { border-bottom: none; }
+.sm-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.sm-name { flex: 1; font-size: 13px; }
+.btn-sm-del {
+  background: none; border: none; color: var(--text2);
+  cursor: pointer; font-size: 16px; opacity: 0.45;
+  transition: opacity 0.15s; padding: 3px;
+}
+.btn-sm-del:hover { opacity: 1; color: var(--red); }
+
+.color-opts { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0 12px; }
+.color-opt {
+  width: 24px; height: 24px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s;
+}
+.color-opt.sel { border-color: #fff; }
+
+.add-sub-row { display: flex; gap: 8px; align-items: center; }
+.add-sub-row .todo-input { flex: 1; }
+
+.fb-status { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+.fb-dot.ok { background: var(--green); }
+
+@media (min-width: 400px) {
+  .timer-digits { font-size: 76px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="app-name">열공 타이머</div>
+    <div class="header-date" id="hDate"></div>
+  </div>
+
+  <!-- TAB CONTENT -->
+  <div class="tab-content">
+
+    <!-- ① TIMER -->
+    <div class="screen active" id="screen-timer">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;">과목 선택</div>
+      <div class="subject-scroll" id="subjectPills"></div>
+
+      <div class="timer-block">
+        <div class="timer-digits" id="timerDigits">00:00:00</div>
+        <div id="timerBadge" class="timer-badge"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-main" id="btnMain" onclick="handleMain()">시작</button>
+        <button class="btn-stop" id="btnStop" onclick="handleStop()" disabled>종료</button>
+      </div>
+
+      <div class="today-box">
+        <div class="today-label">오늘 총 공부시간</div>
+        <div class="today-value" id="todayVal">0:00</div>
+        <div style="padding: 0 30px;">
+          <div class="goal-bar-wrap">
+            <div class="goal-bar-fill" id="goalFill" style="width:0%"></div>
+          </div>
+          <div class="goal-info">
+            <span>목표 <span id="goalLbl">8시간</span></span>
+            <span><span id="goalPct">0</span>%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">오늘 기록</div>
+        <div id="recentList"><div style="color:var(--text2);font-size:13px;">기록이 없습니다</div></div>
+      </div>
+    </div>
+
+    <!-- ② STATS -->
+    <div class="screen" id="screen-stats">
+      <div class="date-nav">
+        <button class="dnav-btn" onclick="changeDate(-1)">‹</button>
+        <div class="dnav-label" id="statsDateLbl"></div>
+        <button class="dnav-btn" onclick="changeDate(1)">›</button>
+      </div>
+
+      <div class="card">
+        <div class="card-label">총 공부시간</div>
+        <div class="total-num" id="statsTot">0:00</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">과목별 시간</div>
+        <div id="subjectBars"><div style="color:var(--text2);font-size:13px;">기록 없음</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">최근 7일</div>
+        <canvas id="weekChart" height="160"></canvas>
+      </div>
+    </div>
+
+    <!-- ③ PLANNER -->
+    <div class="screen" id="screen-planner">
+      <div class="plan-hd" id="planDateLbl"></div>
+      <div class="plan-prog" id="planProg"></div>
+
+      <div class="todo-add">
+        <input class="todo-input" id="todoIn" placeholder="할 일 추가..."
+          maxlength="60" onkeydown="if(event.key==='Enter') addTodo()">
+        <button class="btn-plus" onclick="addTodo()">+</button>
+      </div>
+      <div id="todoList"></div>
+    </div>
+
+    <!-- ④ SETTINGS -->
+    <div class="screen" id="screen-settings">
+      <div class="card streak-card">
+        <div class="card-label">🔥 연속 공부일</div>
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-sub">일 연속</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">일일 목표시간</div>
+        <div class="set-row">
+          <div class="set-lbl">목표</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input class="num-input" type="number" id="goalIn" min="1" max="24" value="8" onchange="saveGoal()">
+            <span style="font-size:12px;color:var(--text2);">시간</span>
+          </div>
+        </div>
+      </div>
+
+        <div class="card">
+        <div class="card-label">과목 관리</div>
+        <div id="subManageList"></div>
+        <div style="margin-top:12px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">색상</div>
+          <div class="color-opts" id="colorOpts"></div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input class="todo-input" id="newSubIn" placeholder="과목명" maxlength="10"
+              style="flex:1;" onkeydown="if(event.key==='Enter') addSubject()">
+            <select id="newSubKey" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0 10px;color:var(--text2);font-size:12px;font-family:Noto Sans KR,sans-serif;outline:none;cursor:pointer;">
+              <option value="">연동 안함</option>
+              <option value="kor">국어 (kor)</option>
+              <option value="math">수학 (math)</option>
+              <option value="eng">영어 (eng)</option>
+              <option value="soc">사회 (soc)</option>
+              <option value="sci">과학 (sci)</option>
+            </select>
+          </div>
+          <button class="btn-main" style="width:100%;padding:11px;font-size:13px;" onclick="addSubject()">과목 추가</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Firebase 연결</div>
+        <div class="fb-status">
+          <div class="fb-dot" id="fbDot"></div>
+          <span id="fbTxt">확인 중...</span>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">대시보드 연동</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8;">
+            세션 종료 시 Realtime DB<br>
+            <code style="color:var(--blue);font-family:JetBrains Mono,monospace;">bdh3/db/날짜/study/과목명</code><br>
+            에 자동 누적됩니다.<br>
+            <span style="color:var(--text);margin-top:4px;display:inline-block;">
+              국어·수학·영어·사회·과학 → studyH / studyM
+            </span>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;">
+          <code style="color:var(--blue);font-family:JetBrains Mono,monospace;">FIREBASE_CONFIG</code>를 기존 프로젝트 값으로 교체하세요.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tab-content -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-timer" onclick="goTab('timer')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      타이머
+    </button>
+    <button class="nav-btn" id="nav-stats" onclick="goTab('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      통계
+    </button>
+    <button class="nav-btn" id="nav-planner" onclick="goTab('planner')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      플래너
+    </button>
+    <button class="nav-btn" id="nav-settings" onclick="goTab('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      설정
+    </button>
+  </nav>
+</div><!-- /app -->
+
+<script>
+/* ═══════════════════════════════════════════════
+   🔥 FIREBASE CONFIG — 대시보드와 동일한 프로젝트
+   ═══════════════════════════════════════════════ */
+const FIREBASE_CONFIG = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "neipclover88-3db3f.firebaseapp.com",
+  projectId:         "neipclover88-3db3f",
+  databaseURL:       "https://neipclover88-3db3f-default-rtdb.asia-southeast1.firebasedatabase.app",
+  storageBucket:     "neipclover88-3db3f.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+
+/* ── 대시보드 Realtime DB 경로 ── */
+const DASH_FB_PATH = "bdh3"; // 대시보드와 동일한 루트 경로
+
+/* ── COLOR PALETTE ── */
+const PALETTE = [
+  '#5ba3e8','#e05a5a','#4ecb71','#f4a843',
+  '#a78bfa','#f472b6','#06b6d4','#fb923c'
+];
+
+/* ── 대시보드 연동 매핑 ──
+   Realtime DB: bdh3/db/YYYY-MM-DD/study/{한글과목명}
+   → { studyH: int, studyM: int }
+─────────────────────────────── */
+const DASH_FIELD = {
+  kor:  '국어',
+  math: '수학',
+  eng:  '영어',
+  soc:  '사회',
+  sci:  '과학',
+};
+const DASH_KEY_LABELS = {
+  kor:'국어', math:'수학', eng:'영어', soc:'사회', sci:'과학', '':'연동 안함'
+};
+
+/* ── STATE ── */
+let db = null;    // Firestore (타이머 자체 데이터)
+let rtdb = null;  // Realtime Database (대시보드 연동)
+let selSub = null;
+let selColor = PALETTE[0];
+
+let timerSec = 0;
+let timerTick = null;
+let running = false;
+let paused  = false;
+let sessionStart = null;
+
+let todayMins = 0;
+let goalHours = 8;
+let streak    = 0;
+let todos     = {};
+
+let statsDate  = new Date();
+let weekChart  = null;
+
+/* ── HELPERS ── */
+const $ = id => document.getElementById(id);
+const ds = d => d.toISOString().split('T')[0];
+const todayStr = () => ds(new Date());
+
+function fmtMin(m) {
+  const h = Math.floor(m/60), mm = Math.floor(m%60);
+  if (h > 0) return `${h}:${String(mm).padStart(2,'0')}`;
+  return `0:${String(mm).padStart(2,'0')}`;
+}
+function fmtSec(s) {
+  const h = Math.floor(s/3600),
+        m = Math.floor((s%3600)/60),
+        ss = s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+function korDate(d) {
+  const days = ['일','월','화','수','목','금','토'];
+  return `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ── FIREBASE INIT ── */
+async function initFirebase() {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db   = firebase.firestore();
+    rtdb = firebase.database();
+    // 연결 테스트 (Firestore)
+    await db.collection('studySettings').doc('main').get();
+    $('fbDot').className = 'fb-dot ok';
+    $('fbTxt').textContent = '연결됨 (Firestore + Realtime DB)';
+  } catch(e) {
+    db = null; rtdb = null;
+    $('fbDot').className = 'fb-dot';
+    $('fbTxt').textContent = 'FIREBASE_CONFIG를 입력해주세요';
+  }
+}
+
+/* ── BOOTSTRAP ── */
+async function boot() {
+  // Dates
+  $('hDate').textContent = korDate(new Date());
+  $('planDateLbl').textContent = korDate(new Date());
+  $('statsDateLbl').textContent = korDate(statsDate);
+
+  await initFirebase();
+  renderColorOpts();
+  await loadSettings();
+  await loadSubjects();
+  await loadTodayMins();
+  renderPills();
+  renderSubManage();
+  updateGoalUI();
+  loadRecent();
+  loadTodos(todayStr());
+}
+
+/* ── SETTINGS ── */
+async function loadSettings() {
+  if (!db) return;
+  try {
+    const d = await db.collection('studySettings').doc('main').get();
+    if (d.exists) {
+      const v = d.data();
+      goalHours = v.goalHours || 8;
+      streak    = v.streak    || 0;
+      $('goalIn').value = goalHours;
+      $('streakNum').textContent = streak;
+    }
+  } catch(e) {}
+}
+async function saveGoal() {
+  goalHours = Math.max(1, Math.min(24, parseInt($('goalIn').value)||8));
+  $('goalIn').value = goalHours;
+  if (db) {
+    try { await db.collection('studySettings').doc('main').set({goalHours,streak},{merge:true}); } catch(e){}
+  }
+  updateGoalUI();
+}
+
+/* ── SUBJECTS ── */
+async function loadSubjects() {
+  const fallback = [
+    {id:'s1',name:'국어',color:PALETTE[0],dashboardKey:'kor'},
+    {id:'s2',name:'수학',color:PALETTE[1],dashboardKey:'math'},
+    {id:'s3',name:'영어',color:PALETTE[2],dashboardKey:'eng'},
+    {id:'s4',name:'사회',color:PALETTE[3],dashboardKey:'soc'},
+    {id:'s5',name:'과학',color:PALETTE[4],dashboardKey:'sci'},
+  ];
+  if (!db) { subjects = fallback; return; }
+  try {
+    const snap = await db.collection('studySubjects').orderBy('order').get();
+    subjects = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if (!subjects.length) {
+      for(let i=0;i<fallback.length;i++){
+        const r = await db.collection('studySubjects').add({
+          name:fallback[i].name, color:fallback[i].color,
+          dashboardKey:fallback[i].dashboardKey, order:i
+        });
+        subjects.push({id:r.id,...fallback[i],order:i});
+      }
+    }
+  } catch(e) { subjects = fallback; }
+}
+async function addSubject() {
+  const name = $('newSubIn').value.trim();
+  if (!name) return;
+  const dkey = $('newSubKey').value || '';
+  const sub = {name, color:selColor, dashboardKey:dkey, order: subjects.length};
+  if (db) {
+    try {
+      const r = await db.collection('studySubjects').add(sub);
+      subjects.push({id:r.id,...sub});
+    } catch(e) { subjects.push({id:''+Date.now(),...sub}); }
+  } else { subjects.push({id:''+Date.now(),...sub}); }
+  $('newSubIn').value = '';
+  $('newSubKey').value = '';
+  renderPills(); renderSubManage();
+}
+async function delSubject(id) {
+  subjects = subjects.filter(s=>s.id!==id);
+  if (db) { try { await db.collection('studySubjects').doc(id).delete(); } catch(e){} }
+  if (selSub?.id === id) { selSub = null; hideBadge(); }
+  renderPills(); renderSubManage();
+}
+
+/* ── TODAY TOTAL ── */
+async function loadTodayMins() {
+  todayMins = 0;
+  if (!db) return;
+  try {
+    const snap = await db.collection('studySessions').where('date','==',todayStr()).get();
+    snap.docs.forEach(d => { todayMins += (d.data().durationSec||0)/60; });
+  } catch(e) {}
+}
+
+/* ── SESSIONS ── */
+async function saveSession(sub, durationSec) {
+  const now = new Date();
+  const s = {
+    subjectId:    sub.id,
+    subjectName:  sub.name,
+    subjectColor: sub.color,
+    dashboardKey: sub.dashboardKey || '',
+    durationSec,
+    date:         todayStr(),
+    startTime:    (sessionStart||now).toISOString(),
+    endTime:      now.toISOString(),
+  };
+  todayMins += durationSec / 60;
+  if (db) {
+    try {
+      await db.collection('studySessions').add(s);
+      await syncToTracker(sub, durationSec);  // ← 대시보드 연동
+      await updateStreak();
+    } catch(e) {}
+  }
+  updateGoalUI();
+  loadRecent();
+}
+
+/* ── TRACKER 연동 ──
+   Realtime DB: bdh3/db/날짜/study/과목명 → {studyH, studyM}
+   transaction으로 안전하게 누적
+─────────────────────────────── */
+async function syncToTracker(sub, durationSec) {
+  if (!rtdb || !sub.dashboardKey || !DASH_FIELD[sub.dashboardKey]) return;
+  const korName = DASH_FIELD[sub.dashboardKey]; // e.g. "국어"
+  const addMins = Math.round(durationSec / 60);
+  if (addMins <= 0) return;
+
+  const ref = rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/study/${korName}`);
+  try {
+    await ref.transaction(current => {
+      const cur = current || { studyH: 0, studyM: 0 };
+      const totalMins = (cur.studyH || 0) * 60 + (cur.studyM || 0) + addMins;
+      return {
+        studyH: Math.floor(totalMins / 60),
+        studyM: totalMins % 60,
+      };
+    });
+  } catch(e) {
+    console.warn('대시보드 연동 실패:', e);
+  }
+}
+async function loadRecent() {
+  if (!db) { renderRecent([]); return; }
+  try {
+    const snap = await db.collection('studySessions')
+      .where('date','==',todayStr()).orderBy('endTime','desc').limit(6).get();
+    renderRecent(snap.docs.map(d=>d.data()));
+  } catch(e) { renderRecent([]); }
+}
+function renderRecent(list) {
+  const el = $('recentList');
+  if (!list.length) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:4px 0">기록이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const mins = Math.round(s.durationSec/60);
+    return `<div class="session-row">
+      <div class="s-dot" style="background:${s.subjectColor}"></div>
+      <div class="s-name">${s.subjectName}</div>
+      <div class="s-right">
+        <div class="s-dur">${fmtMin(mins)}</div>
+        <div class="s-time">${fmtTime(s.endTime)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── STREAK ── */
+async function updateStreak() {
+  if (!db) return;
+  try {
+    const doc = await db.collection('studySettings').doc('main').get();
+    const prev = doc.exists ? doc.data() : {};
+    const yesterday = ds(new Date(Date.now()-86400000));
+    const last = prev.lastStudyDate || '';
+    if      (last === todayStr())  {}            // already counted
+    else if (last === yesterday)   streak = (prev.streak||0)+1;
+    else if (!last)                streak = 1;
+    else                           streak = 1;   // broken
+    await db.collection('studySettings').doc('main').set(
+      {streak, lastStudyDate:todayStr(), goalHours},{merge:true});
+    $('streakNum').textContent = streak;
+  } catch(e) {}
+}
+
+/* ── TIMER ── */
+function handleMain() {
+  if (!selSub) { alert('먼저 과목을 선택해주세요'); return; }
+  if (!running && !paused) startTimer();
+  else if (running)         pauseTimer();
+  else                      resumeTimer();
+}
+function startTimer() {
+  running = true; paused = false; timerSec = 0;
+  sessionStart = new Date();
+  $('btnMain').textContent = '일시정지';
+  $('btnMain').classList.remove('paused');
+  $('btnStop').disabled = false;
+  $('timerDigits').classList.add('running');
+  timerTick = setInterval(() => {
+    timerSec++;
+    $('timerDigits').textContent = fmtSec(timerSec);
+  }, 1000);
+}
+function pauseTimer() {
+  running = false; paused = true;
+  clearInterval(timerTick);
+  $('btnMain').textContent = '계속하기';
+  $('btnMain').classList.add('paused');
+  $('timerDigits').classList.remove('running');
+}
+function resumeTimer() {
+  running = true; paused = false;
+  $('btnMain').textContent = '일시정지';
+  $('btnMain').classList.remove('paused');
+  $('timerDigits').classList.add('running');
+  timerTick = setInterval(() => {
+    timerSec++;
+    $('timerDigits').textContent = fmtSec(timerSec);
+  }, 1000);
+}
+async function handleStop() {
+  if (!running && !paused) return;
+  clearInterval(timerTick);
+  running = false; paused = false;
+  const dur = timerSec; timerSec = 0;
+
+  $('timerDigits').textContent = '00:00:00';
+  $('timerDigits').classList.remove('running');
+  $('btnMain').textContent = '시작';
+  $('btnMain').classList.remove('paused');
+  $('btnStop').disabled = true;
+
+  if (dur >= 10 && selSub) await saveSession(selSub, dur);
+}
+
+/* ── GOAL UI ── */
+function updateGoalUI() {
+  const pct = Math.min(100, Math.round((todayMins / (goalHours*60)) * 100));
+  $('todayVal').textContent = fmtMin(todayMins);
+  $('goalLbl').textContent  = `${goalHours}시간`;
+  $('goalPct').textContent  = pct;
+  $('goalFill').style.width = pct + '%';
+}
+
+/* ── STATS ── */
+async function loadStats(date) {
+  $('statsDateLbl').textContent = korDate(date);
+  if (!db) { renderStats([], date); await renderWeek(); return; }
+  try {
+    const snap = await db.collection('studySessions').where('date','==',ds(date)).get();
+    renderStats(snap.docs.map(d=>d.data()), date);
+  } catch(e) { renderStats([], date); }
+  await renderWeek();
+}
+function renderStats(sessions) {
+  const totalSec = sessions.reduce((a,s)=>a+(s.durationSec||0),0);
+  $('statsTot').textContent = fmtMin(totalSec/60);
+
+  const byS = {};
+  sessions.forEach(s=>{
+    if(!byS[s.subjectName]) byS[s.subjectName]={mins:0,color:s.subjectColor};
+    byS[s.subjectName].mins += s.durationSec/60;
+  });
+  const maxM = Math.max(...Object.values(byS).map(v=>v.mins), 1);
+  const el = $('subjectBars');
+  if (!Object.keys(byS).length) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:13px;">기록 없음</div>';
+    return;
+  }
+  el.innerHTML = Object.entries(byS)
+    .sort((a,b)=>b[1].mins-a[1].mins)
+    .map(([name,{mins,color}])=>`
+      <div class="sub-bar-row">
+        <div class="sub-bar-name">${name}</div>
+        <div class="sub-bar-track">
+          <div class="sub-bar-fill" style="width:${(mins/maxM)*100}%;background:${color}"></div>
+        </div>
+        <div class="sub-bar-time">${fmtMin(mins)}</div>
+      </div>
+    `).join('');
+}
+async function renderWeek() {
+  const today = new Date();
+  const dates = [], labels = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(today); d.setDate(today.getDate()-i);
+    dates.push(ds(d));
+    labels.push(['일','월','화','수','목','금','토'][d.getDay()]);
+  }
+  const data = Array(7).fill(0);
+  if (db) {
+    try {
+      const snap = await db.collection('studySessions')
+        .where('date','>=',dates[0]).where('date','<=',dates[6]).get();
+      snap.docs.forEach(d=>{
+        const idx = dates.indexOf(d.data().date);
+        if(idx!==-1) data[idx] += d.data().durationSec/3600;
+      });
+    } catch(e){}
+  }
+  const ctx = $('weekChart').getContext('2d');
+  if (weekChart) weekChart.destroy();
+  weekChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(v=>Math.round(v*10)/10),
+        backgroundColor: data.map((_,i)=>i===6?'#5ba3e8':'#5ba3e833'),
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.raw}시간`}}
+      },
+      scales: {
+        x:{
+          grid:{display:false},
+          ticks:{color:'#7777a0',font:{family:'Noto Sans KR',size:11}}
+        },
+        y:{
+          grid:{color:'#2a2a38'},
+          ticks:{color:'#7777a0',font:{family:'JetBrains Mono',size:10},callback:v=>v+'h'},
+          beginAtZero:true
+        }
+      }
+    }
+  });
+}
+function changeDate(d) {
+  statsDate.setDate(statsDate.getDate()+d);
+  loadStats(new Date(statsDate));
+}
+
+/* ── TODOS ── */
+async function loadTodos(date) {
+  todos[date] = todos[date] || [];
+  if (!db) { renderTodos(); return; }
+  try {
+    const d = await db.collection('studyTodos').doc(date).get();
+    if(d.exists) todos[date] = d.data().items || [];
+  } catch(e){}
+  renderTodos();
+}
+async function saveTodos(date) {
+  if(!db) return;
+  try { await db.collection('studyTodos').doc(date).set({items:todos[date]||[]}); } catch(e){}
+}
+async function addTodo() {
+  const txt = $('todoIn').value.trim();
+  if(!txt) return;
+  todos[todayStr()] = todos[todayStr()]||[];
+  todos[todayStr()].push({id:''+Date.now(),text:txt,done:false});
+  $('todoIn').value='';
+  await saveTodos(todayStr()); renderTodos();
+}
+async function toggleTodo(id) {
+  const item = (todos[todayStr()]||[]).find(t=>t.id===id);
+  if(item) item.done = !item.done;
+  await saveTodos(todayStr()); renderTodos();
+}
+async function delTodo(id) {
+  todos[todayStr()] = (todos[todayStr()]||[]).filter(t=>t.id!==id);
+  await saveTodos(todayStr()); renderTodos();
+}
+function renderTodos() {
+  const items = todos[todayStr()]||[];
+  const done  = items.filter(t=>t.done).length;
+  $('planProg').textContent = items.length
+    ? `${done} / ${items.length} 완료`
+    : '오늘의 할 일을 추가해보세요';
+  const el = $('todoList');
+  if(!items.length){ el.innerHTML=''; return; }
+  el.innerHTML = items.map(t=>`
+    <div class="todo-item">
+      <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${t.id}')">
+        ${t.done?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}
+      </div>
+      <div class="todo-txt ${t.done?'done':''}">${t.text}</div>
+      <button class="todo-del" onclick="delTodo('${t.id}')">×</button>
+    </div>
+  `).join('');
+}
+
+/* ── UI RENDERS ── */
+function renderPills() {
+  $('subjectPills').innerHTML = subjects.map((s,i)=>`
+    <div class="subject-pill ${selSub?.id===s.id?'sel':''}"
+      style="--pill-c:${s.color}"
+      onclick="selectSub(${i})">
+      ${s.name}
+    </div>
+  `).join('');
+}
+function selectSub(i) {
+  if(running) return;
+  selSub = subjects[i];
+  renderPills();
+  const b = $('timerBadge');
+  b.style.display='inline-block';
+  b.textContent=selSub.name;
+  b.style.cssText+=`;background:${selSub.color}22;color:${selSub.color};border:1px solid ${selSub.color}44;`;
+}
+function hideBadge() {
+  $('timerBadge').style.display='none';
+}
+
+function renderSubManage() {
+  $('subManageList').innerHTML = subjects.map(s=>{
+    const dk = s.dashboardKey || '';
+    const badge = dk
+      ? `<span style="font-size:10px;color:var(--blue);font-family:JetBrains Mono,monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;">${dk}</span>`
+      : `<span style="font-size:10px;color:var(--text2);">—</span>`;
+    return `<div class="sub-manage-item">
+      <div class="sm-dot" style="background:${s.color}"></div>
+      <div class="sm-name">${s.name}</div>
+      ${badge}
+      <button class="btn-sm-del" onclick="delSubject('${s.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+function renderColorOpts() {
+  $('colorOpts').innerHTML = PALETTE.map(c=>`
+    <div class="color-opt ${c===selColor?'sel':''}"
+      style="background:${c}"
+      onclick="pickColor('${c}')">
+    </div>
+  `).join('');
+}
+function pickColor(c) {
+  selColor = c; renderColorOpts();
+}
+
+/* ── TAB SWITCHING ── */
+function goTab(tab) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  $('screen-'+tab).classList.add('active');
+  $('nav-'+tab).classList.add('active');
+  if(tab==='stats') loadStats(new Date(statsDate));
+}
+
+/* ── PREVENT SCREEN SLEEP WHILE TIMING (if supported) ── */
+let wakeLock = null;
+async function requestWakeLock() {
+  try {
+    if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch(e) {}
+}
+
+/* ── GO ── */
+boot();
+</script>
+</body>
+</html>
