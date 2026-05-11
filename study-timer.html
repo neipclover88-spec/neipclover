@@ -893,40 +893,68 @@ function fmtTime(iso) {
 
 /* ── FIREBASE INIT ── */
 async function initFirebase() {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), 5000)
+  );
   try {
-    // 이미 초기화된 경우 재사용
     if (!firebase.apps.length) {
       firebase.initializeApp(FIREBASE_CONFIG);
     }
     rtdb = firebase.database();
+    // 연결 확인 (5초 타임아웃)
+    await Promise.race([
+      rtdb.ref(`${DASH_FB_PATH}/timer/settings`).get(),
+      timeout
+    ]);
     $('fbDot').className = 'fb-dot ok';
     $('fbTxt').textContent = '대시보드 연동 완료 ✓';
   } catch(e) {
-    rtdb = null;
-    $('fbDot').className = 'fb-dot';
-    $('fbTxt').textContent = '연결 실패: ' + e.message;
-    console.error('Firebase init error:', e);
+    if (rtdb && e.message !== 'timeout') {
+      // DB는 연결됐지만 데이터 없음 — 정상
+      $('fbDot').className = 'fb-dot ok';
+      $('fbTxt').textContent = '대시보드 연동 완료 ✓';
+    } else {
+      rtdb = null;
+      $('fbDot').className = 'fb-dot';
+      $('fbTxt').textContent = '연결 실패 (' + e.message + ')';
+    }
   }
 }
 
 /* ── BOOTSTRAP ── */
 async function boot() {
-  // Dates
-  $('hDate').textContent = korDate(new Date());
+  // 날짜 표시
+  $('hDate').textContent      = korDate(new Date());
   $('planDateLbl').textContent = korDate(new Date());
   $('statsDateLbl').textContent = korDate(statsDate);
 
-  await initFirebase();
+  // 과목·색상은 즉시 렌더 (Firebase 대기 없이)
   renderColorOpts();
-  await loadSettings();
-  await loadSubjects();
-  await loadTodayMins();
+  subjects = [
+    {id:'s1',name:'국어',color:'#4f8ef7',dashboardKey:'kor', subs:[]},
+    {id:'s2',name:'수학',color:'#27c96e',dashboardKey:'math',subs:[]},
+    {id:'s3',name:'영어',color:'#f5a623',dashboardKey:'eng', subs:[]},
+    {id:'s4',name:'사회',color:'#e74c3c',dashboardKey:'soc', subs:[]},
+    {id:'s5',name:'과학',color:'#a855f7',dashboardKey:'sci', subs:[]},
+  ];
   renderPills();
   renderSubManage();
   updateGoalUI();
-  loadRecent();
+  renderRecent([]);
   loadTodos(todayStr());
-  loadGoals();
+
+  // Firebase 초기화 후 실제 데이터 로드
+  await initFirebase();
+  if (rtdb) {
+    await loadSettings();
+    await loadSubjects();    // Firebase에서 과목 덮어씌우기
+    await loadTodayMins();
+    renderPills();
+    renderSubManage();
+    updateGoalUI();
+    loadRecent();
+    loadGoals();
+  }
 }
 
 /* ── SETTINGS ── */
