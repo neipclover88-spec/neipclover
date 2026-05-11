@@ -122,6 +122,63 @@ body {
   color: var(--pill-c);
 }
 
+/* Sub-category row */
+.subcat-row {
+  display: none; gap: 7px; flex-wrap: wrap;
+  padding: 10px 0 4px;
+  animation: fadeIn 0.15s ease;
+}
+.subcat-row.visible { display: flex; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+.subcat-pill {
+  padding: 5px 13px; border-radius: 100px;
+  border: 1.5px solid var(--border);
+  font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  background: var(--surface2); color: var(--text2);
+  font-family: 'Noto Sans KR', sans-serif; user-select: none;
+}
+.subcat-pill.sel {
+  border-color: var(--pill-c);
+  background: color-mix(in srgb, var(--pill-c) 12%, transparent);
+  color: var(--pill-c);
+}
+.subcat-add-btn {
+  padding: 5px 12px; border-radius: 100px;
+  border: 1.5px dashed var(--border);
+  font-size: 12px; cursor: pointer;
+  background: none; color: var(--text2);
+  font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s;
+}
+
+/* Sub-cat manage in settings */
+.sm-subs { display:flex; flex-wrap:wrap; gap:5px; padding:7px 0 4px 21px; }
+.sm-sub-tag {
+  display:flex; align-items:center; gap:4px;
+  padding:3px 8px; border-radius:100px;
+  border:1px solid var(--border); font-size:11px;
+  color:var(--text2); background:var(--surface2);
+}
+.sm-sub-del {
+  background:none; border:none; color:var(--text2);
+  cursor:pointer; font-size:13px; padding:0;
+  line-height:1; opacity:0.5; transition:opacity 0.15s;
+}
+.sm-sub-del:hover { opacity:1; color:var(--red); }
+.sm-sub-add { display:flex; gap:6px; padding:6px 0 4px 21px; }
+.sm-sub-input {
+  flex:1; background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; padding:5px 10px; color:var(--text);
+  font-size:12px; font-family:'Noto Sans KR',sans-serif; outline:none;
+}
+.sm-sub-input:focus { border-color:var(--blue); }
+.btn-sm-add {
+  background:var(--surface2); border:1px solid var(--border);
+  color:var(--text2); border-radius:8px; padding:5px 10px;
+  font-size:13px; cursor:pointer; transition:all 0.15s;
+}
+.btn-sm-add:hover { border-color:var(--blue); color:var(--blue); }
+
 .timer-block {
   text-align: center;
   padding: 20px 0 16px;
@@ -351,6 +408,7 @@ body {
     <div class="screen active" id="screen-timer">
       <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;">과목 선택</div>
       <div class="subject-scroll" id="subjectPills"></div>
+      <div class="subcat-row" id="subcatRow"></div>
 
       <div class="timer-block">
         <div class="timer-digits" id="timerDigits">00:00:00</div>
@@ -547,7 +605,9 @@ const DASH_KEY_LABELS = {
 /* ── STATE ── */
 let db = null;    // Firestore (타이머 자체 데이터)
 let rtdb = null;  // Realtime Database (대시보드 연동)
+let subjects = [];
 let selSub = null;
+let selSubCat = null; // 선택된 서브카테고리 (string|null)
 let selColor = PALETTE[0];
 
 let timerSec = 0;
@@ -650,21 +710,21 @@ async function saveGoal() {
 /* ── SUBJECTS ── */
 async function loadSubjects() {
   const fallback = [
-    {id:'s1',name:'국어',color:PALETTE[0],dashboardKey:'kor'},
-    {id:'s2',name:'수학',color:PALETTE[1],dashboardKey:'math'},
-    {id:'s3',name:'영어',color:PALETTE[2],dashboardKey:'eng'},
-    {id:'s4',name:'사회',color:PALETTE[3],dashboardKey:'soc'},
-    {id:'s5',name:'과학',color:PALETTE[4],dashboardKey:'sci'},
+    {id:'s1',name:'국어',color:'#4f8ef7',dashboardKey:'kor', subs:[]},
+    {id:'s2',name:'수학',color:'#27c96e',dashboardKey:'math',subs:[]},
+    {id:'s3',name:'영어',color:'#f5a623',dashboardKey:'eng', subs:[]},
+    {id:'s4',name:'사회',color:'#e74c3c',dashboardKey:'soc', subs:[]},
+    {id:'s5',name:'과학',color:'#a855f7',dashboardKey:'sci', subs:[]},
   ];
   if (!db) { subjects = fallback; return; }
   try {
     const snap = await db.collection('studySubjects').orderBy('order').get();
-    subjects = snap.docs.map(d=>({id:d.id,...d.data()}));
+    subjects = snap.docs.map(d=>({subs:[],...d.data(),id:d.id}));
     if (!subjects.length) {
       for(let i=0;i<fallback.length;i++){
         const r = await db.collection('studySubjects').add({
           name:fallback[i].name, color:fallback[i].color,
-          dashboardKey:fallback[i].dashboardKey, order:i
+          dashboardKey:fallback[i].dashboardKey, subs:[], order:i
         });
         subjects.push({id:r.id,...fallback[i],order:i});
       }
@@ -675,7 +735,7 @@ async function addSubject() {
   const name = $('newSubIn').value.trim();
   if (!name) return;
   const dkey = $('newSubKey').value || '';
-  const sub = {name, color:selColor, dashboardKey:dkey, order: subjects.length};
+  const sub = {name, color:selColor, dashboardKey:dkey, subs:[], order: subjects.length};
   if (db) {
     try {
       const r = await db.collection('studySubjects').add(sub);
@@ -689,8 +749,31 @@ async function addSubject() {
 async function delSubject(id) {
   subjects = subjects.filter(s=>s.id!==id);
   if (db) { try { await db.collection('studySubjects').doc(id).delete(); } catch(e){} }
-  if (selSub?.id === id) { selSub = null; hideBadge(); }
+  if (selSub?.id === id) { selSub = null; selSubCat = null; hideBadge(); hideSubcatRow(); }
   renderPills(); renderSubManage();
+}
+async function addSubCat(subId) {
+  const inp = $('subcat-in-' + subId);
+  const name = inp?.value.trim();
+  if (!name) return;
+  const sub = subjects.find(s=>s.id===subId);
+  if (!sub) return;
+  if (!sub.subs) sub.subs = [];
+  if (sub.subs.includes(name)) { inp.value=''; return; }
+  sub.subs.push(name);
+  inp.value = '';
+  if (db) { try { await db.collection('studySubjects').doc(subId).update({subs:sub.subs}); } catch(e){} }
+  renderSubManage();
+  if (selSub?.id === subId) renderSubcatRow();
+}
+async function delSubCat(subId, name) {
+  const sub = subjects.find(s=>s.id===subId);
+  if (!sub) return;
+  sub.subs = (sub.subs||[]).filter(s=>s!==name);
+  if (selSubCat === name) { selSubCat = null; updateBadge(); }
+  if (db) { try { await db.collection('studySubjects').doc(subId).update({subs:sub.subs}); } catch(e){} }
+  renderSubManage();
+  if (selSub?.id === subId) renderSubcatRow();
 }
 
 /* ── TODAY TOTAL ── */
@@ -707,20 +790,21 @@ async function loadTodayMins() {
 async function saveSession(sub, durationSec) {
   const now = new Date();
   const s = {
-    subjectId:    sub.id,
-    subjectName:  sub.name,
-    subjectColor: sub.color,
-    dashboardKey: sub.dashboardKey || '',
+    subjectId:       sub.id,
+    subjectName:     sub.name,
+    subjectColor:    sub.color,
+    dashboardKey:    sub.dashboardKey || '',
+    subCategoryName: selSubCat || '',
     durationSec,
-    date:         todayStr(),
-    startTime:    (sessionStart||now).toISOString(),
-    endTime:      now.toISOString(),
+    date:            todayStr(),
+    startTime:       (sessionStart||now).toISOString(),
+    endTime:         now.toISOString(),
   };
   todayMins += durationSec / 60;
   if (db) {
     try {
       await db.collection('studySessions').add(s);
-      await syncToTracker(sub, durationSec);  // ← 대시보드 연동
+      await syncToTracker(sub, durationSec);
       await updateStreak();
     } catch(e) {}
   }
@@ -768,9 +852,12 @@ function renderRecent(list) {
   }
   el.innerHTML = list.map(s => {
     const mins = Math.round(s.durationSec/60);
+    const label = s.subCategoryName
+      ? `${s.subjectName} <span style="color:var(--text2);font-size:11px;">› ${s.subCategoryName}</span>`
+      : s.subjectName;
     return `<div class="session-row">
       <div class="s-dot" style="background:${s.subjectColor}"></div>
-      <div class="s-name">${s.subjectName}</div>
+      <div class="s-name">${label}</div>
       <div class="s-right">
         <div class="s-dur">${fmtMin(mins)}</div>
         <div class="s-time">${fmtTime(s.endTime)}</div>
@@ -846,6 +933,8 @@ async function handleStop() {
   $('btnStop').disabled = true;
 
   if (dur >= 10 && selSub) await saveSession(selSub, dur);
+  selSubCat = null;
+  updateBadge();
 }
 
 /* ── GOAL UI ── */
@@ -1013,15 +1102,44 @@ function renderPills() {
 function selectSub(i) {
   if(running) return;
   selSub = subjects[i];
+  selSubCat = null;
   renderPills();
+  renderSubcatRow();
+  updateBadge();
+}
+function renderSubcatRow() {
+  const row = $('subcatRow');
+  if (!selSub) { row.classList.remove('visible'); return; }
+  const subs = selSub.subs || [];
+  if (!subs.length) { row.classList.remove('visible'); return; }
+  row.classList.add('visible');
+  const c = selSub.color;
+  row.innerHTML = subs.map(name=>`
+    <div class="subcat-pill ${selSubCat===name?'sel':''}"
+      style="--pill-c:${c}"
+      onclick="selectSubCat('${name.replace(/'/g,"\\'")}')">
+      ${name}
+    </div>
+  `).join('');
+}
+function selectSubCat(name) {
+  if(running) return;
+  selSubCat = selSubCat === name ? null : name;
+  renderSubcatRow();
+  updateBadge();
+}
+function updateBadge() {
   const b = $('timerBadge');
+  if (!selSub) { b.style.display='none'; return; }
   b.style.display='inline-block';
-  b.textContent=selSub.name;
-  b.style.cssText+=`;background:${selSub.color}22;color:${selSub.color};border:1px solid ${selSub.color}44;`;
+  const label = selSubCat
+    ? `${selSub.name} <span style="opacity:.6;font-size:11px;">›</span> ${selSubCat}`
+    : selSub.name;
+  b.innerHTML = label;
+  b.style.cssText = `display:inline-block;margin-top:10px;padding:4px 14px;border-radius:100px;font-size:13px;font-weight:500;background:${selSub.color}22;color:${selSub.color};border:1px solid ${selSub.color}44;`;
 }
-function hideBadge() {
-  $('timerBadge').style.display='none';
-}
+function hideBadge() { $('timerBadge').style.display='none'; }
+function hideSubcatRow() { $('subcatRow').classList.remove('visible'); }
 
 function renderSubManage() {
   $('subManageList').innerHTML = subjects.map(s=>{
@@ -1029,12 +1147,26 @@ function renderSubManage() {
     const badge = dk
       ? `<span style="font-size:10px;color:var(--blue);font-family:JetBrains Mono,monospace;background:var(--surface2);padding:2px 7px;border-radius:4px;">${dk}</span>`
       : `<span style="font-size:10px;color:var(--text2);">—</span>`;
-    return `<div class="sub-manage-item">
-      <div class="sm-dot" style="background:${s.color}"></div>
-      <div class="sm-name">${s.name}</div>
-      ${badge}
-      <button class="btn-sm-del" onclick="delSubject('${s.id}')">×</button>
-    </div>`;
+    const subs = s.subs || [];
+    const subTags = subs.map(name=>`
+      <div class="sm-sub-tag">
+        ${name}
+        <button class="sm-sub-del" onclick="delSubCat('${s.id}','${name.replace(/'/g,"\\'")}')">×</button>
+      </div>
+    `).join('');
+    return `
+      <div class="sub-manage-item" style="flex-wrap:wrap;align-items:flex-start;padding-bottom:4px;">
+        <div class="sm-dot" style="background:${s.color};margin-top:3px;"></div>
+        <div class="sm-name">${s.name}</div>
+        ${badge}
+        <button class="btn-sm-del" onclick="delSubject('${s.id}')">×</button>
+        ${subs.length ? `<div class="sm-subs" style="width:100%;">${subTags}</div>` : ''}
+        <div class="sm-sub-add" style="width:100%;">
+          <input class="sm-sub-input" id="subcat-in-${s.id}" placeholder="${s.name} 세부항목 추가"
+            maxlength="15" onkeydown="if(event.key==='Enter') addSubCat('${s.id}')">
+          <button class="btn-sm-add" onclick="addSubCat('${s.id}')">+</button>
+        </div>
+      </div>`;
   }).join('');
 }
 function renderColorOpts() {
