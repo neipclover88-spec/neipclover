@@ -896,26 +896,14 @@ function fmtTime(iso) {
 async function initFirebase() {
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
-  } catch(e) {
-    $('fbDot').className = 'fb-dot';
-    $('fbTxt').textContent = 'Firebase 초기화 실패';
-    return;
-  }
-
-  // ① Realtime DB (대시보드 연동) — 핵심
-  try {
     rtdb = firebase.database();
-    await rtdb.ref(`${DASH_FB_PATH}/db`).limitToFirst(1).get();
     $('fbDot').className = 'fb-dot ok';
     $('fbTxt').textContent = '대시보드 연동 완료 ✓';
   } catch(e) {
     rtdb = null;
     $('fbDot').className = 'fb-dot';
-    $('fbTxt').textContent = 'Realtime DB 연결 실패';
+    $('fbTxt').textContent = 'Firebase 초기화 실패: ' + e.message;
   }
-
-  // ② Firestore — 미사용 (모든 데이터 RTDB로 통합)
-  // db = null (기본값 유지)
 }
 
 /* ── BOOTSTRAP ── */
