@@ -924,8 +924,7 @@ async function initFirebase() {
 /* ── BOOTSTRAP ── */
 async function boot() {
   // 날짜 표시
-  $('hDate').textContent      = korDate(new Date());
-  $('planDateLbl').textContent = korDate(new Date());
+  $('hDate').textContent        = korDate(new Date());
   $('statsDateLbl').textContent = korDate(statsDate);
 
   // 과목·색상은 즉시 렌더 (Firebase 대기 없이)
