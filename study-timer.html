@@ -652,16 +652,30 @@ function fmtTime(iso) {
 async function initFirebase() {
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
-    db   = firebase.firestore();
-    rtdb = firebase.database();
-    // 연결 테스트 (Firestore)
-    await db.collection('studySettings').doc('main').get();
-    $('fbDot').className = 'fb-dot ok';
-    $('fbTxt').textContent = '연결됨 (Firestore + Realtime DB)';
   } catch(e) {
-    db = null; rtdb = null;
     $('fbDot').className = 'fb-dot';
-    $('fbTxt').textContent = 'FIREBASE_CONFIG를 입력해주세요';
+    $('fbTxt').textContent = 'Firebase 초기화 실패';
+    return;
+  }
+
+  // ① Realtime DB (대시보드 연동) — 핵심
+  try {
+    rtdb = firebase.database();
+    await rtdb.ref(`${DASH_FB_PATH}/db`).limitToFirst(1).get();
+    $('fbDot').className = 'fb-dot ok';
+    $('fbTxt').textContent = '대시보드 연동 완료 ✓';
+  } catch(e) {
+    rtdb = null;
+    $('fbDot').className = 'fb-dot';
+    $('fbTxt').textContent = 'Realtime DB 연결 실패';
+  }
+
+  // ② Firestore (타이머 자체 데이터) — 선택적
+  try {
+    db = firebase.firestore();
+    await db.collection('studySettings').doc('main').get();
+  } catch(e) {
+    db = null; // Firestore 없어도 RTDB 연동은 작동
   }
 }
 
