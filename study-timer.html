@@ -251,6 +251,14 @@ body {
   padding: 9px 0; border-bottom: 1px solid var(--border);
 }
 .session-row:last-child { border-bottom: none; }
+.session-del-btn {
+  background: none; border: none; color: var(--text2);
+  cursor: pointer; font-size: 18px; padding: 0 2px;
+  opacity: 0; transition: opacity 0.15s;
+  flex-shrink: 0; line-height: 1;
+}
+.session-row:hover .session-del-btn,
+.session-row:active .session-del-btn { opacity: 1; color: var(--red); }
 .s-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .s-name { font-size: 13px; flex: 1; }
 .s-right { text-align: right; }
@@ -387,9 +395,66 @@ body {
 .fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 .fb-dot.ok { background: var(--green); }
 
+@media (hover: none) {
+  .session-del-btn { opacity: 0.35; }
+}
 @media (min-width: 400px) {
   .timer-digits { font-size: 76px; }
 }
+
+/* ── MANUAL ENTRY MODAL ── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.65); z-index: 100;
+  align-items: flex-end; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal-sheet {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 560px; padding: 24px 20px 32px;
+  border-top: 1px solid var(--border);
+}
+.modal-title {
+  font-size: 15px; font-weight: 700; margin-bottom: 18px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-close {
+  background: none; border: none; color: var(--text2);
+  font-size: 22px; cursor: pointer; padding: 0; line-height: 1;
+}
+.modal-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.modal-row:last-of-type { border-bottom: none; }
+.modal-row label { color: var(--text2); }
+.modal-sel {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif; font-size: 13px; outline: none;
+}
+.modal-time-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.modal-time-row .num-input { width: 52px; }
+.btn-manual-add {
+  width: 100%; margin-top: 16px;
+  padding: 13px; background: var(--blue); color: #fff;
+  border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  transition: opacity 0.15s;
+}
+.btn-manual-add:active { opacity: 0.8; }
+.btn-add-record {
+  display: flex; align-items: center; gap: 5px;
+  background: none; border: 1px solid var(--border);
+  color: var(--text2); border-radius: 8px;
+  padding: 4px 10px; font-size: 11px; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s;
+  margin-left: auto;
+}
+.btn-add-record:hover { border-color: var(--blue); color: var(--blue); }
 </style>
 </head>
 <body>
@@ -435,8 +500,43 @@ body {
       </div>
 
       <div class="card">
-        <div class="card-label">오늘 기록</div>
+        <div style="display:flex;align-items:center;margin-bottom:12px;">
+          <div class="card-label" style="margin-bottom:0;">오늘 기록</div>
+          <button class="btn-add-record" onclick="openManualEntry()">+ 직접 추가</button>
+        </div>
         <div id="recentList"><div style="color:var(--text2);font-size:13px;">기록이 없습니다</div></div>
+      </div>
+    </div>
+
+    <!-- MANUAL ENTRY MODAL -->
+    <div class="modal-backdrop" id="manualModal" onclick="if(event.target===this)closeManualEntry()">
+      <div class="modal-sheet">
+        <div class="modal-title">
+          공부시간 직접 추가
+          <button class="modal-close" onclick="closeManualEntry()">×</button>
+        </div>
+        <div class="modal-row">
+          <label>날짜</label>
+          <input type="date" id="manualDate" class="modal-sel">
+        </div>
+        <div class="modal-row">
+          <label>과목</label>
+          <select id="manualSubject" class="modal-sel" onchange="updateManualSubcats()"></select>
+        </div>
+        <div class="modal-row" id="manualSubcatRow" style="display:none;">
+          <label>세부항목</label>
+          <select id="manualSubcat" class="modal-sel"></select>
+        </div>
+        <div class="modal-row">
+          <label>시간</label>
+          <div class="modal-time-row">
+            <input type="number" id="manualH" class="num-input" min="0" max="23" value="0" placeholder="0">
+            <span style="color:var(--text2);font-size:12px;">시간</span>
+            <input type="number" id="manualM" class="num-input" min="0" max="59" value="0" placeholder="0">
+            <span style="color:var(--text2);font-size:12px;">분</span>
+          </div>
+        </div>
+        <button class="btn-manual-add" onclick="submitManualEntry()">추가</button>
       </div>
     </div>
 
@@ -823,36 +923,33 @@ async function saveSession(sub, durationSec) {
    Realtime DB: bdh3/db/날짜/study/과목명 → {studyH, studyM}
    transaction으로 안전하게 누적
 ─────────────────────────────── */
-async function syncToTracker(sub, durationSec) {
+async function syncToTracker(sub, durationSec, date) {
   if (!rtdb || !sub.dashboardKey || !DASH_FIELD[sub.dashboardKey]) return;
-  const korName = DASH_FIELD[sub.dashboardKey]; // e.g. "국어"
+  const targetDate = date || todayStr();
+  const korName = DASH_FIELD[sub.dashboardKey];
   const addMins = Math.round(durationSec / 60);
   if (addMins <= 0) return;
-
-  const ref = rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/study/${korName}`);
+  const ref = rtdb.ref(`${DASH_FB_PATH}/db/${targetDate}/study/${korName}`);
   try {
     await ref.transaction(current => {
       const cur = current || { studyH: 0, studyM: 0 };
       const totalMins = (cur.studyH || 0) * 60 + (cur.studyM || 0) + addMins;
-      return {
-        studyH: Math.floor(totalMins / 60),
-        studyM: totalMins % 60,
-      };
+      return { studyH: Math.floor(totalMins / 60), studyM: totalMins % 60 };
     });
-  } catch(e) {
-    console.warn('대시보드 연동 실패:', e);
-  }
+  } catch(e) { console.warn('대시보드 연동 실패:', e); }
 }
 async function loadRecent() {
-  if (!rtdb) { renderRecent([]); return; }
+  if (!rtdb) { renderRecent([], {}); return; }
   try {
     const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${todayStr()}`).get();
-    if (!snap.exists()) { renderRecent([]); return; }
-    const list = Object.values(snap.val())
+    if (!snap.exists()) { renderRecent([], {}); return; }
+    const raw = snap.val();
+    const list = Object.entries(raw)
+      .map(([key, s]) => ({...s, _key: key}))
       .sort((a,b)=>(b.endTime||'').localeCompare(a.endTime||''))
-      .slice(0,6);
-    renderRecent(list);
-  } catch(e) { renderRecent([]); }
+      .slice(0,10);
+    renderRecent(list, raw);
+  } catch(e) { renderRecent([], {}); }
 }
 function renderRecent(list) {
   const el = $('recentList');
@@ -872,8 +969,18 @@ function renderRecent(list) {
         <div class="s-dur">${fmtMin(mins)}</div>
         <div class="s-time">${fmtTime(s.endTime)}</div>
       </div>
+      <button class="session-del-btn" onclick="delSession('${todayStr()}','${s._key}',${s.durationSec})">×</button>
     </div>`;
   }).join('');
+}
+async function delSession(date, key, durationSec) {
+  if (!rtdb) return;
+  try {
+    await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${date}/${key}`).remove();
+    todayMins = Math.max(0, todayMins - durationSec/60);
+    updateGoalUI();
+    loadRecent();
+  } catch(e) {}
 }
 
 /* ── STREAK ── */
@@ -1199,6 +1306,68 @@ async function requestWakeLock() {
   try {
     if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
   } catch(e) {}
+}
+
+/* ── MANUAL ENTRY ── */
+function openManualEntry() {
+  $('manualDate').value = todayStr();
+  // 과목 셀렉트 채우기
+  $('manualSubject').innerHTML = subjects.map(s=>
+    `<option value="${s.id}">${s.name}</option>`
+  ).join('');
+  updateManualSubcats();
+  $('manualH').value = 0;
+  $('manualM').value = 0;
+  $('manualModal').classList.add('open');
+}
+function closeManualEntry() {
+  $('manualModal').classList.remove('open');
+}
+function updateManualSubcats() {
+  const sid = $('manualSubject').value;
+  const sub = subjects.find(s=>s.id===sid);
+  const subs = sub?.subs || [];
+  const row = $('manualSubcatRow');
+  if (!subs.length) { row.style.display='none'; return; }
+  row.style.display='flex';
+  $('manualSubcat').innerHTML =
+    `<option value="">전체</option>` +
+    subs.map(n=>`<option value="${n}">${n}</option>`).join('');
+}
+async function submitManualEntry() {
+  const date = $('manualDate').value;
+  if (!date) return;
+  const sid = $('manualSubject').value;
+  const sub = subjects.find(s=>s.id===sid);
+  if (!sub) return;
+  const h = parseInt($('manualH').value)||0;
+  const m = parseInt($('manualM').value)||0;
+  const durationSec = h*3600 + m*60;
+  if (durationSec < 60) { alert('최소 1분 이상 입력해주세요'); return; }
+  const subcat = $('manualSubcatRow').style.display!=='none' ? $('manualSubcat').value : '';
+  const now = new Date().toISOString();
+  const s = {
+    subjectName:     sub.name,
+    subjectColor:    sub.color,
+    dashboardKey:    sub.dashboardKey || '',
+    subCategoryName: subcat,
+    durationSec,
+    startTime:       now,
+    endTime:         now,
+    manual:          true,
+  };
+  if (rtdb) {
+    try {
+      await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${date}`).push(s);
+      if (date === todayStr()) {
+        todayMins += durationSec / 60;
+        updateGoalUI();
+        loadRecent();
+      }
+      await syncToTracker(sub, durationSec, date);
+    } catch(e) { alert('저장 실패'); return; }
+  }
+  closeManualEntry();
 }
 
 /* ── GO ── */
