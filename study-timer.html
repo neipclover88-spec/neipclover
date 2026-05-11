@@ -7,7 +7,6 @@
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -895,14 +894,18 @@ function fmtTime(iso) {
 /* ── FIREBASE INIT ── */
 async function initFirebase() {
   try {
-    firebase.initializeApp(FIREBASE_CONFIG);
+    // 이미 초기화된 경우 재사용
+    if (!firebase.apps.length) {
+      firebase.initializeApp(FIREBASE_CONFIG);
+    }
     rtdb = firebase.database();
     $('fbDot').className = 'fb-dot ok';
     $('fbTxt').textContent = '대시보드 연동 완료 ✓';
   } catch(e) {
     rtdb = null;
     $('fbDot').className = 'fb-dot';
-    $('fbTxt').textContent = 'Firebase 초기화 실패: ' + e.message;
+    $('fbTxt').textContent = '연결 실패: ' + e.message;
+    console.error('Firebase init error:', e);
   }
 }
 
