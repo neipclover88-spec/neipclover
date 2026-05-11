@@ -599,6 +599,10 @@ body {
           <input type="date" id="manualDate" class="modal-sel">
         </div>
         <div class="modal-row">
+          <label>시작 시간</label>
+          <input type="time" id="manualTime" class="modal-sel">
+        </div>
+        <div class="modal-row">
           <label>과목</label>
           <select id="manualSubject" class="modal-sel" onchange="updateManualSubcats()"></select>
         </div>
@@ -1569,8 +1573,9 @@ async function requestWakeLock() {
 
 /* ── MANUAL ENTRY ── */
 function openManualEntry() {
+  const now = new Date();
   $('manualDate').value = todayStr();
-  // 과목 셀렉트 채우기
+  $('manualTime').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   $('manualSubject').innerHTML = subjects.map(s=>
     `<option value="${s.id}">${s.name}</option>`
   ).join('');
@@ -1604,16 +1609,30 @@ async function submitManualEntry() {
   const durationSec = h*3600 + m*60;
   if (durationSec < 60) { alert('최소 1분 이상 입력해주세요'); return; }
   const subcat = $('manualSubcatRow').style.display!=='none' ? $('manualSubcat').value : '';
-  const now = new Date().toISOString();
+
+  // 시작 시간 계산
+  const timeVal = $('manualTime').value; // "HH:MM"
+  let startTime, endTime;
+  if (timeVal) {
+    const [hh, mm] = timeVal.split(':').map(Number);
+    const start = new Date(`${date}T${timeVal}:00`);
+    const end   = new Date(start.getTime() + durationSec * 1000);
+    startTime = start.toISOString();
+    endTime   = end.toISOString();
+  } else {
+    const now = new Date().toISOString();
+    startTime = now; endTime = now;
+  }
+
   const s = {
     subjectName:     sub.name,
     subjectColor:    sub.color,
     dashboardKey:    sub.dashboardKey || '',
     subCategoryName: subcat,
     durationSec,
-    startTime:       now,
-    endTime:         now,
-    manual:          true,
+    startTime,
+    endTime,
+    manual: true,
   };
   if (rtdb) {
     try {
