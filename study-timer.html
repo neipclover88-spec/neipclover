@@ -2060,7 +2060,24 @@ async function submitManualEntry() {
   closeManualEntry();
 }
 
-/* ── GO ── */
+let loadedDate = todayStr(); // 마지막으로 데이터 로드한 날짜
+
+/* ── 날짜 변경 감지 ── */
+function checkDateChange() {
+  if (todayStr() !== loadedDate) {
+    loadedDate = todayStr();
+    todayMins  = 0;
+    $('hDate').textContent = korDate(new Date());
+    updateGoalUI();
+    loadRecent();
+    loadTodos(todayStr());
+  }
+}
+// 1분마다 + 화면 포커스 시 체크
+setInterval(checkDateChange, 60000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkDateChange();
+});
 boot();
 </script>
 </body>
