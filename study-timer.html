@@ -1854,42 +1854,36 @@ async function renderCert() {
   const today    = new Date();
   const dayKr    = ['일','월','화','수','목','금','토'][today.getDay()];
 
-  // 과목 순서: 공부한 과목 먼저, 그 다음 목표만 있는 과목
-  const studiedSubjs = Object.keys(bySubj);
-  const goalOnlySubjs = SUBJS_KR.filter(s =>
-    !studiedSubjs.includes(s) && (goals[s]||[]).length > 0
-  );
-  const allSubjs = [...studiedSubjs.sort((a,b)=>bySubj[b].total-bySubj[a].total), ...goalOnlySubjs];
+  const studiedSubjs = Object.keys(bySubj).sort((a,b)=>bySubj[b].total-bySubj[a].total);
+  const goalOnlySubjs = SUBJS_KR.filter(s => !studiedSubjs.includes(s) && (goals[s]||[]).length>0);
+  const allSubjs = [...studiedSubjs, ...goalOnlySubjs];
 
-  // 과목 카드 생성
   const subjCards = allSubjs.map(name => {
     const info  = bySubj[name];
     const color = info?.color || SUBJ_COLORS[name] || '#5ba3e8';
     const gs    = goals[name] || [];
     const sPct  = info && goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
 
-    // 소분류 시간
     const subRows = info ? Object.entries(info.subs)
       .sort((a,b)=>b[1]-a[1])
       .map(([cat,sec])=>`
-        <div style="display:flex;justify-content:space-between;padding:1px 0;gap:4px;">
-          <div style="font-size:9px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">· ${cat}</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text2);flex-shrink:0;">${fmtMin(sec/60)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0 3px 12px;">
+          <div style="font-size:12px;color:var(--text2);">· ${cat}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);">${fmtMin(sec/60)}</div>
         </div>`).join('') : '';
 
-    // 목표 진도
     const goalRows = gs.map(g => {
       const tv = Number(g.targetVal)||0;
       const cv = Number(g.completedVal)||0;
       const p  = tv>0 ? Math.min(100,Math.round(cv/tv*100)) : 0;
       return `
-        <div style="margin-top:3px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-            <div style="font-size:9px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${g.name||''}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${color};flex-shrink:0;margin-left:4px;">${cv}/${tv}</div>
+        <div style="margin-top:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+            <div style="font-size:12px;color:var(--text2);">${g.name||''}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${color};">${cv}/${tv} ${g.targetUnit||''}</div>
           </div>
-          <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;">
-            <div style="width:${p}%;height:100%;background:${color};border-radius:1px;"></div>
+          <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;">
+            <div style="width:${p}%;height:100%;background:${color};border-radius:2px;"></div>
           </div>
         </div>`;
     }).join('');
@@ -1897,51 +1891,45 @@ async function renderCert() {
     return `
       <div style="
         background:var(--surface2);border:1px solid var(--border);
-        border-radius:10px;padding:10px;
-        border-top:2px solid ${color};
+        border-radius:12px;padding:12px 14px;
+        border-left:3px solid ${color};
       ">
-        <!-- 과목명 + 시간 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <div style="font-size:12px;font-weight:700;color:${color};">${name}</div>
-          ${info ? `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${info?'5px':'0'};">
+          <div style="font-size:15px;font-weight:700;color:${color};">${name}</div>
+          ${info ? `<div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</div>` : ''}
         </div>
-        <!-- 시간 바 -->
-        ${info ? `<div style="height:2px;background:var(--surface);border-radius:1px;overflow:hidden;margin-bottom:5px;">
-          <div style="width:${sPct}%;height:100%;background:${color};border-radius:1px;"></div>
+        ${info ? `<div style="height:3px;background:var(--surface);border-radius:2px;overflow:hidden;margin-bottom:${subRows?'5px':'0'};">
+          <div style="width:${sPct}%;height:100%;background:${color};border-radius:2px;"></div>
         </div>` : ''}
-        <!-- 소분류 -->
         ${subRows}
-        <!-- 목표 진도 구분선 -->
-        ${gs.length && subRows ? `<div style="height:1px;background:var(--border);margin:5px 0;"></div>` : ''}
-        <!-- 목표 진도 -->
-        ${goalRows}
+        ${gs.length ? `<div style="height:1px;background:var(--border);margin:7px 0 2px;"></div>${goalRows}` : ''}
       </div>`;
   }).join('');
 
   $('certCard').innerHTML = `
-    <!-- 헤더: 좌=날짜, 우=총시간 -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;">
+    <!-- 헤더 -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px;">
       <div>
-        <div style="font-size:8px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:2px;">DAILY STUDY LOG</div>
-        <div style="font-size:13px;font-weight:600;">${today.getMonth()+1}월 ${today.getDate()}일 (${dayKr})</div>
-        ${streak>0?`<div style="font-size:10px;color:var(--amber);margin-top:1px;">🔥 ${streak}일 연속</div>`:''}
+        <div style="font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:3px;">DAILY STUDY LOG</div>
+        <div style="font-size:16px;font-weight:700;">${today.getMonth()+1}월 ${today.getDate()}일 (${dayKr})</div>
+        ${streak>0?`<div style="font-size:12px;color:var(--amber);margin-top:2px;">🔥 ${streak}일 연속</div>`:''}
       </div>
       <div style="text-align:right;flex-shrink:0;">
-        <div style="font-size:8px;color:var(--text2);letter-spacing:1px;margin-bottom:2px;">총 공부시간</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px;">${fmtMin(totalSec/60)}</div>
-        <div style="font-size:9px;color:var(--text2);margin-top:3px;">목표 ${goalHours}h · ${pct}%</div>
-        <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;width:80px;margin-left:auto;">
+        <div style="font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:2px;">총 공부시간</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-2px;">${fmtMin(totalSec/60)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">목표 ${goalHours}h · ${pct}%</div>
+        <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;">
           <div style="width:${pct}%;height:100%;background:var(--amber);border-radius:2px;"></div>
         </div>
       </div>
     </div>
 
-    <!-- 2열 과목 그리드 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      ${subjCards || '<div style="grid-column:1/-1;color:var(--text2);font-size:12px;text-align:center;padding:12px 0;">오늘 기록 없음</div>'}
+    <!-- 과목 카드 1열 -->
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${subjCards||'<div style="color:var(--text2);font-size:14px;text-align:center;padding:16px 0;">오늘 기록 없음</div>'}
     </div>
 
-    <div style="text-align:center;margin-top:12px;font-size:8px;color:var(--text2);opacity:0.3;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
+    <div style="text-align:center;margin-top:14px;font-size:9px;color:var(--text2);opacity:0.3;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
   `;
 }
 
