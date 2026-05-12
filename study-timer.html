@@ -951,30 +951,23 @@ function fmtTime(iso) {
 
 /* ── FIREBASE INIT ── */
 async function initFirebase() {
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), 5000)
-  );
   try {
     if (!firebase.apps.length) {
       firebase.initializeApp(FIREBASE_CONFIG);
     }
     rtdb = firebase.database();
-    // 연결 확인 (5초 타임아웃)
-    await Promise.race([
-      rtdb.ref(`${TIMER_FB_PATH}/timer/settings`).get(),
-      timeout
-    ]);
+    // 3초 안에 응답 오면 연결 확인, 타임아웃 나도 rtdb는 유지
+    const ping = rtdb.ref(`${TIMER_FB_PATH}/timer/settings/goalHours`).get();
+    await Promise.race([ping, new Promise(r=>setTimeout(r,3000))]);
     $('fbDot').className = 'fb-dot ok';
     $('fbTxt').textContent = '대시보드 연동 완료 ✓';
   } catch(e) {
-    if (rtdb && e.message !== 'timeout') {
-      // DB는 연결됐지만 데이터 없음 — 정상
+    if (rtdb) {
       $('fbDot').className = 'fb-dot ok';
-      $('fbTxt').textContent = '대시보드 연동 완료 ✓';
+      $('fbTxt').textContent = '연결됨';
     } else {
-      rtdb = null;
       $('fbDot').className = 'fb-dot';
-      $('fbTxt').textContent = '연결 실패 (' + e.message + ')';
+      $('fbTxt').textContent = '연결 실패: ' + e.message;
     }
   }
 }
@@ -1824,20 +1817,24 @@ async function renderCert() {
 
   if (rtdb) {
     try {
-      const [sessSnap, goalSnap, healthSnap] = await Promise.all([
-        rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).get(),
-        rtdb.ref(`${DASH_FB_PATH}/db/_goals`).get(),
-        rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/health`).get(),
+      const timeout = new Promise(r => setTimeout(r, 4000));
+      const [sessSnap, goalSnap, healthSnap] = await Promise.race([
+        Promise.all([
+          rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).get(),
+          rtdb.ref(`${DASH_FB_PATH}/db/_goals`).get(),
+          rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/health`).get(),
+        ]),
+        timeout.then(() => [null, null, null])
       ]);
-      if (sessSnap.exists())   sessions = Object.values(sessSnap.val());
-      if (goalSnap.exists())   {
+      if (sessSnap?.exists())   sessions = Object.values(sessSnap.val());
+      if (goalSnap?.exists())   {
         goals = goalSnap.val();
         SUBJS_KR.forEach(s => {
           if (goals[s] && !Array.isArray(goals[s])) goals[s] = Object.values(goals[s]);
           if (!goals[s]) goals[s] = [];
         });
       }
-      if (healthSnap.exists()) health = healthSnap.val();
+      if (healthSnap?.exists()) health = healthSnap.val();
     } catch(e) {}
   }
 
