@@ -1853,8 +1853,10 @@ async function renderCert() {
   const today    = new Date();
   const dayKr    = ['일','월','화','수','목','금','토'][today.getDay()];
 
-  const EX_COLOR  = '#c07a45'; // 갈색 (운동)
-  const SLP_COLOR = '#7a7a9a'; // 회색 (수면)
+  const EX_COLOR  = '#c07a45';
+  const SLP_COLOR = '#7a7a9a';
+  const cardTitle = (emoji, title, accent) =>
+    `<div style="font-size:9px;color:${accent};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">${emoji} ${title}</div>`;
 
   // 과목 카드 생성 함수
   function makeSubjCard(name, info) {
