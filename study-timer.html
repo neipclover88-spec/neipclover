@@ -880,7 +880,8 @@ const FIREBASE_CONFIG = {
 };
 
 /* ── 대시보드 Realtime DB 경로 ── */
-const DASH_FB_PATH = "bdh3"; // 대시보드와 동일한 루트 경로
+const DASH_FB_PATH  = "bdh3";    // 대시보드 데이터 (건드리지 말 것)
+const TIMER_FB_PATH = "bdh3_t";  // 타이머 전용 데이터 (대시보드 set()에 안 날아감)
 
 /* ── COLOR PALETTE ── */
 const PALETTE = [
@@ -961,7 +962,7 @@ async function initFirebase() {
     rtdb = firebase.database();
     // 연결 확인 (5초 타임아웃)
     await Promise.race([
-      rtdb.ref(`${DASH_FB_PATH}/timer/settings`).get(),
+      rtdb.ref(`${TIMER_FB_PATH}/timer/settings`).get(),
       timeout
     ]);
     $('fbDot').className = 'fb-dot ok';
@@ -1018,7 +1019,7 @@ async function boot() {
 async function loadSettings() {
   if (!rtdb) return;
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/settings`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/settings`).get();
     if (snap.exists()) {
       const v = snap.val();
       goalHours = v.goalHours || 8;
@@ -1032,7 +1033,7 @@ async function saveGoal() {
   goalHours = Math.max(1, Math.min(24, parseInt($('goalIn').value)||8));
   $('goalIn').value = goalHours;
   if (rtdb) {
-    try { await rtdb.ref(`${DASH_FB_PATH}/timer/settings`).update({goalHours}); } catch(e){}
+    try { await rtdb.ref(`${TIMER_FB_PATH}/timer/settings`).update({goalHours}); } catch(e){}
   }
   updateGoalUI();
 }
@@ -1048,7 +1049,7 @@ async function loadSubjects() {
   ];
   if (!rtdb) { subjects = fallback; return; }
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/subjects`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/subjects`).get();
     if (snap.exists()) {
       subjects = Object.entries(snap.val())
         .map(([id, d]) => ({id, subs:[], ...d}))
@@ -1057,7 +1058,7 @@ async function loadSubjects() {
       subjects = fallback;
       const obj = {};
       fallback.forEach(s => { const {id, ...rest} = s; obj[id] = rest; });
-      await rtdb.ref(`${DASH_FB_PATH}/timer/subjects`).set(obj);
+      await rtdb.ref(`${TIMER_FB_PATH}/timer/subjects`).set(obj);
     }
   } catch(e) { subjects = fallback; }
 }
@@ -1069,14 +1070,14 @@ async function addSubject() {
   const sub = {name, color:selColor, dashboardKey:dkey, subs:[], order: subjects.length};
   subjects.push({id, ...sub});
   if (rtdb) {
-    try { await rtdb.ref(`${DASH_FB_PATH}/timer/subjects/${id}`).set(sub); } catch(e){}
+    try { await rtdb.ref(`${TIMER_FB_PATH}/timer/subjects/${id}`).set(sub); } catch(e){}
   }
   $('newSubIn').value = ''; $('newSubKey').value = '';
   renderPills(); renderSubManage();
 }
 async function delSubject(id) {
   subjects = subjects.filter(s=>s.id!==id);
-  if (rtdb) { try { await rtdb.ref(`${DASH_FB_PATH}/timer/subjects/${id}`).remove(); } catch(e){} }
+  if (rtdb) { try { await rtdb.ref(`${TIMER_FB_PATH}/timer/subjects/${id}`).remove(); } catch(e){} }
   if (selSub?.id === id) { selSub = null; selSubCat = null; hideBadge(); hideSubcatRow(); }
   renderPills(); renderSubManage();
 }
@@ -1090,7 +1091,7 @@ async function addSubCat(subId) {
   if (sub.subs.includes(name)) { inp.value=''; return; }
   sub.subs.push(name);
   inp.value = '';
-  if (rtdb) { try { await rtdb.ref(`${DASH_FB_PATH}/timer/subjects/${subId}/subs`).set(sub.subs); } catch(e){} }
+  if (rtdb) { try { await rtdb.ref(`${TIMER_FB_PATH}/timer/subjects/${subId}/subs`).set(sub.subs); } catch(e){} }
   renderSubManage();
   if (selSub?.id === subId) renderSubcatRow();
 }
@@ -1099,7 +1100,7 @@ async function delSubCat(subId, name) {
   if (!sub) return;
   sub.subs = (sub.subs||[]).filter(s=>s!==name);
   if (selSubCat === name) { selSubCat = null; updateBadge(); }
-  if (rtdb) { try { await rtdb.ref(`${DASH_FB_PATH}/timer/subjects/${subId}/subs`).set(sub.subs); } catch(e){} }
+  if (rtdb) { try { await rtdb.ref(`${TIMER_FB_PATH}/timer/subjects/${subId}/subs`).set(sub.subs); } catch(e){} }
   renderSubManage();
   if (selSub?.id === subId) renderSubcatRow();
 }
@@ -1109,7 +1110,7 @@ async function loadTodayMins() {
   todayMins = 0;
   if (!rtdb) return;
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${todayStr()}`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).get();
     if (snap.exists()) {
       Object.values(snap.val()).forEach(s => { todayMins += (s.durationSec||0)/60; });
     }
@@ -1131,7 +1132,7 @@ async function saveSession(sub, durationSec) {
   todayMins += durationSec / 60;
   if (rtdb) {
     try {
-      await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${todayStr()}`).push(s);
+      await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).push(s);
       await syncToTracker(sub, durationSec);
       await updateStreak();
     } catch(e) {}
@@ -1162,7 +1163,7 @@ async function syncToTracker(sub, durationSec, date) {
 async function loadRecent() {
   if (!rtdb) { renderRecent([], {}); return; }
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${todayStr()}`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).get();
     if (!snap.exists()) { renderRecent([], {}); return; }
     const raw = snap.val();
     const list = Object.entries(raw)
@@ -1197,7 +1198,7 @@ function renderRecent(list) {
 async function delSession(date, key, durationSec) {
   if (!rtdb) return;
   try {
-    await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${date}/${key}`).remove();
+    await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${date}/${key}`).remove();
     todayMins = Math.max(0, todayMins - durationSec/60);
     updateGoalUI();
     loadRecent();
@@ -1208,7 +1209,7 @@ async function delSession(date, key, durationSec) {
 async function updateStreak() {
   if (!rtdb) return;
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/settings`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/settings`).get();
     const prev = snap.exists() ? snap.val() : {};
     const yesterday = ds(new Date(Date.now()-86400000));
     const last = prev.lastStudyDate || '';
@@ -1216,7 +1217,7 @@ async function updateStreak() {
     else if (last === yesterday)   streak = (prev.streak||0)+1;
     else if (!last)                streak = 1;
     else                           streak = 1;
-    await rtdb.ref(`${DASH_FB_PATH}/timer/settings`).update({streak, lastStudyDate:todayStr()});
+    await rtdb.ref(`${TIMER_FB_PATH}/timer/settings`).update({streak, lastStudyDate:todayStr()});
     $('streakNum').textContent = streak;
   } catch(e) {}
 }
@@ -1288,7 +1289,7 @@ async function loadStats(date) {
   $('statsDateLbl').textContent = korDate(date);
   if (!rtdb) { renderStats([]); await renderWeek(); return; }
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${ds(date)}`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${ds(date)}`).get();
     renderStats(snap.exists() ? Object.values(snap.val()) : []);
   } catch(e) { renderStats([]); }
   await renderWeek();
@@ -1331,7 +1332,7 @@ async function renderWeek() {
   if (rtdb) {
     try {
       const snaps = await Promise.all(
-        dates.map(d => rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${d}`).get())
+        dates.map(d => rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${d}`).get())
       );
       snaps.forEach((snap, i) => {
         if (snap.exists()) {
@@ -1494,14 +1495,14 @@ async function loadTodos(date) {
   todos[date] = todos[date] || [];
   if (!rtdb) { renderTodos(); return; }
   try {
-    const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/todos/${date}`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/todos/${date}`).get();
     if (snap.exists()) todos[date] = snap.val().items || [];
   } catch(e){}
   renderTodos();
 }
 async function saveTodos(date) {
   if (!rtdb) return;
-  try { await rtdb.ref(`${DASH_FB_PATH}/timer/todos/${date}`).set({items: todos[date]||[]}); } catch(e){}
+  try { await rtdb.ref(`${TIMER_FB_PATH}/timer/todos/${date}`).set({items: todos[date]||[]}); } catch(e){}
 }
 async function addTodo() {
   const txt = $('todoIn').value.trim();
@@ -1688,7 +1689,7 @@ async function loadCalendar() {
   const sessionsByDate = {};
   if (rtdb) {
     const snaps = await Promise.all(dates.map(d =>
-      rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${d}`).get()
+      rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${d}`).get()
     ));
     snaps.forEach((snap, i) => {
       sessionsByDate[dates[i]] = snap.exists() ? Object.values(snap.val()) : [];
@@ -1821,7 +1822,7 @@ async function renderCert() {
   let sessions = [];
   if (rtdb) {
     try {
-      const snap = await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${todayStr()}`).get();
+      const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).get();
       if (snap.exists()) sessions = Object.values(snap.val());
     } catch(e) {}
   }
@@ -1998,7 +1999,7 @@ async function submitManualEntry() {
   };
   if (rtdb) {
     try {
-      await rtdb.ref(`${DASH_FB_PATH}/timer/sessions/${date}`).push(s);
+      await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${date}`).push(s);
       if (date === todayStr()) {
         todayMins += durationSec / 60;
         updateGoalUI();
