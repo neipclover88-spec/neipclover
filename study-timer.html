@@ -1825,7 +1825,6 @@ async function renderCert() {
       if (snap.exists()) sessions = Object.values(snap.val());
     } catch(e) {}
   }
-  // 목표 최신값 로드
   let goals = {};
   if (rtdb) {
     try {
@@ -1840,7 +1839,6 @@ async function renderCert() {
     } catch(e) {}
   }
 
-  // 과목별 시간 집계
   const bySubj = {};
   sessions.forEach(s => {
     const sn = s.subjectName;
@@ -1856,101 +1854,94 @@ async function renderCert() {
   const today    = new Date();
   const dayKr    = ['일','월','화','수','목','금','토'][today.getDay()];
 
-  // 과목별 시간 행
-  const subjRows = Object.entries(bySubj)
-    .sort((a,b)=>b[1].total-a[1].total)
-    .map(([name,info]) => {
-      const color   = info.color||'#5ba3e8';
-      const sPct    = goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
-      const subRows = Object.entries(info.subs)
-        .sort((a,b)=>b[1]-a[1])
-        .map(([cat,sec])=>`
-          <div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 16px;">
-            <div style="width:3px;height:3px;border-radius:50%;background:${color};opacity:.5;flex-shrink:0;"></div>
-            <div style="flex:1;font-size:11px;color:var(--text2);">${cat}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);">${fmtMin(sec/60)}</div>
-          </div>`).join('');
-      return `
-        <div style="margin-bottom:8px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></div>
-            <div style="flex:1;font-size:13px;font-weight:700;">${name}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</div>
-          </div>
-          <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;margin:4px 0 3px;">
-            <div style="width:${sPct}%;height:100%;background:${color};border-radius:1px;"></div>
-          </div>
-          ${subRows}
-        </div>`;
-    }).join('');
+  // 과목 순서: 공부한 과목 먼저, 그 다음 목표만 있는 과목
+  const studiedSubjs = Object.keys(bySubj);
+  const goalOnlySubjs = SUBJS_KR.filter(s =>
+    !studiedSubjs.includes(s) && (goals[s]||[]).length > 0
+  );
+  const allSubjs = [...studiedSubjs.sort((a,b)=>bySubj[b].total-bySubj[a].total), ...goalOnlySubjs];
 
-  // 목표 진도 행
-  const hasGoals = SUBJS_KR.some(s=>(goals[s]||[]).length>0);
-  const goalRows = hasGoals ? SUBJS_KR.map(subj => {
-    const gs = goals[subj]||[];
-    if (!gs.length) return '';
-    const color = SUBJ_COLORS[subj]||'#5ba3e8';
-    const items = gs.map(g => {
+  // 과목 카드 생성
+  const subjCards = allSubjs.map(name => {
+    const info  = bySubj[name];
+    const color = info?.color || SUBJ_COLORS[name] || '#5ba3e8';
+    const gs    = goals[name] || [];
+    const sPct  = info && goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
+
+    // 소분류 시간
+    const subRows = info ? Object.entries(info.subs)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([cat,sec])=>`
+        <div style="display:flex;justify-content:space-between;padding:1px 0;gap:4px;">
+          <div style="font-size:9px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">· ${cat}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text2);flex-shrink:0;">${fmtMin(sec/60)}</div>
+        </div>`).join('') : '';
+
+    // 목표 진도
+    const goalRows = gs.map(g => {
       const tv = Number(g.targetVal)||0;
       const cv = Number(g.completedVal)||0;
       const p  = tv>0 ? Math.min(100,Math.round(cv/tv*100)) : 0;
       return `
-        <div style="display:flex;align-items:center;gap:6px;padding:3px 0 3px 16px;">
-          <div style="flex:1;font-size:11px;color:var(--text2);">${g.name||''}</div>
-          <div style="
-            width:60px;height:3px;background:var(--surface2);
-            border-radius:2px;overflow:hidden;flex-shrink:0;
-          ">
-            <div style="width:${p}%;height:100%;background:${color};border-radius:2px;"></div>
+        <div style="margin-top:3px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+            <div style="font-size:9px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${g.name||''}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:${color};flex-shrink:0;margin-left:4px;">${cv}/${tv}</div>
           </div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${color};width:52px;text-align:right;flex-shrink:0;">
-            ${cv}/${tv} ${g.targetUnit||''}
+          <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;">
+            <div style="width:${p}%;height:100%;background:${color};border-radius:1px;"></div>
           </div>
         </div>`;
     }).join('');
-    const totT = gs.reduce((a,g)=>a+(Number(g.targetVal)||0),0);
-    const totC = gs.reduce((a,g)=>a+(Number(g.completedVal)||0),0);
-    const totP = totT>0 ? Math.min(100,Math.round(totC/totT*100)) : 0;
+
     return `
-      <div style="margin-bottom:7px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></div>
-          <div style="flex:1;font-size:12px;font-weight:700;color:${color};">${subj}</div>
-          <div style="font-size:10px;color:var(--text2);">${totC}/${totT} · ${totP}%</div>
+      <div style="
+        background:var(--surface2);border:1px solid var(--border);
+        border-radius:10px;padding:10px;
+        border-top:2px solid ${color};
+      ">
+        <!-- 과목명 + 시간 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-size:12px;font-weight:700;color:${color};">${name}</div>
+          ${info ? `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</div>` : ''}
         </div>
-        ${items}
+        <!-- 시간 바 -->
+        ${info ? `<div style="height:2px;background:var(--surface);border-radius:1px;overflow:hidden;margin-bottom:5px;">
+          <div style="width:${sPct}%;height:100%;background:${color};border-radius:1px;"></div>
+        </div>` : ''}
+        <!-- 소분류 -->
+        ${subRows}
+        <!-- 목표 진도 구분선 -->
+        ${gs.length && subRows ? `<div style="height:1px;background:var(--border);margin:5px 0;"></div>` : ''}
+        <!-- 목표 진도 -->
+        ${goalRows}
       </div>`;
-  }).join('') : '';
+  }).join('');
 
   $('certCard').innerHTML = `
-    <div style="text-align:center;margin-bottom:16px;">
-      <div style="font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:3px;">DAILY STUDY LOG</div>
-      <div style="font-size:13px;color:var(--text2);">${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일 (${dayKr})</div>
-    </div>
-
-    <!-- 총 시간 -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:10px;text-align:center;">
-      <div style="font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:4px;">총 공부시간</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-2px;">${fmtMin(totalSec/60)}</div>
-      <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin:10px auto 5px;max-width:200px;">
-        <div style="width:${pct}%;height:100%;background:var(--amber);border-radius:2px;"></div>
+    <!-- 헤더: 좌=날짜, 우=총시간 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;">
+      <div>
+        <div style="font-size:8px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:2px;">DAILY STUDY LOG</div>
+        <div style="font-size:13px;font-weight:600;">${today.getMonth()+1}월 ${today.getDate()}일 (${dayKr})</div>
+        ${streak>0?`<div style="font-size:10px;color:var(--amber);margin-top:1px;">🔥 ${streak}일 연속</div>`:''}
       </div>
-      <div style="font-size:10px;color:var(--text2);">목표 ${goalHours}시간 · ${pct}% 달성${streak>0?` · 🔥 ${streak}일 연속`:''}</div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:8px;color:var(--text2);letter-spacing:1px;margin-bottom:2px;">총 공부시간</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px;">${fmtMin(totalSec/60)}</div>
+        <div style="font-size:9px;color:var(--text2);margin-top:3px;">목표 ${goalHours}h · ${pct}%</div>
+        <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px;width:80px;margin-left:auto;">
+          <div style="width:${pct}%;height:100%;background:var(--amber);border-radius:2px;"></div>
+        </div>
+      </div>
     </div>
 
-    <!-- 과목별 시간 + 목표 -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;${hasGoals?'margin-bottom:10px;':''}">
-      <div style="font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:10px;">과목별 기록</div>
-      ${subjRows||'<div style="color:var(--text2);font-size:12px;text-align:center;padding:8px 0;">오늘 기록 없음</div>'}
+    <!-- 2열 과목 그리드 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      ${subjCards || '<div style="grid-column:1/-1;color:var(--text2);font-size:12px;text-align:center;padding:12px 0;">오늘 기록 없음</div>'}
     </div>
 
-    ${hasGoals?`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;">
-      <div style="font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:10px;">목표 진도</div>
-      ${goalRows}
-    </div>`:''}
-
-    <div style="text-align:center;margin-top:14px;font-size:9px;color:var(--text2);opacity:0.35;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
+    <div style="text-align:center;margin-top:12px;font-size:8px;color:var(--text2);opacity:0.3;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
   `;
 }
 
