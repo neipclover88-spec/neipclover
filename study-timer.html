@@ -1856,58 +1856,48 @@ async function renderCert() {
   const today    = new Date();
   const dayKr    = ['일','월','화','수','목','금','토'][today.getDay()];
 
-  // 카드 공통 함수
-  const cardTitle = (emoji, title, accent) =>
-    `<div style="font-size:9px;color:${accent};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">${emoji} ${title}</div>`;
+  const EX_COLOR  = '#c07a45'; // 갈색 (운동)
+  const SLP_COLOR = '#7a7a9a'; // 회색 (수면)
 
-  // 공부한 과목 목록
-  const studiedList = Object.entries(bySubj).sort((a,b)=>b[1].total-a[1].total);
-  const hasGoals    = SUBJS_KR.some(s=>(goals[s]||[]).length>0);
-
-  // ── 과목별 카드 (공부한 과목 수만큼) ──
-  const subjCardHtml = studiedList.map(([name, info]) => {
-    const color = info.color||'#5ba3e8';
-    const sPct  = goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
-    const gs    = goals[name]||[];
-
+  // 과목 카드 생성 함수
+  function makeSubjCard(name, info) {
+    const color   = info.color||'#5ba3e8';
+    const sPct    = goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
+    const gs      = goals[name]||[];
     const subRows = Object.entries(info.subs).sort((a,b)=>b[1]-a[1]).map(([cat,sec])=>`
       <div style="display:flex;justify-content:space-between;padding:1px 0 1px 8px;">
         <span style="font-size:10px;color:var(--text2);">· ${cat}</span>
         <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);">${fmtMin(sec/60)}</span>
       </div>`).join('');
-
     const goalRows = gs.map(g => {
-      const tv = Number(g.targetVal)||0, cv = Number(g.completedVal)||0;
-      const p  = tv>0 ? Math.min(100,Math.round(cv/tv*100)) : 0;
-      return `
-        <div style="margin-top:4px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-            <span style="font-size:10px;color:var(--text2);">${g.name||''}</span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${color};">${cv}/${tv}${g.targetUnit?' '+g.targetUnit:''}</span>
-          </div>
-          <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;">
-            <div style="width:${p}%;height:100%;background:${color};"></div>
-          </div>
-        </div>`;
-    }).join('');
-
-    return `
-      <div style="
-        background:var(--surface);border:1px solid var(--border);
-        border-radius:10px;padding:9px 12px;
-        border-left:3px solid ${color};flex:1;min-width:0;min-height:0;overflow:hidden;
-      ">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-          <span style="font-size:13px;font-weight:700;color:${color};">${name}</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</span>
+      const tv=Number(g.targetVal)||0, cv=Number(g.completedVal)||0;
+      const p=tv>0?Math.min(100,Math.round(cv/tv*100)):0;
+      return `<div style="margin-top:3px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+          <span style="font-size:10px;color:var(--text2);">${g.name||''}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${color};">${cv}/${tv}${g.targetUnit?' '+g.targetUnit:''}</span>
         </div>
-        <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;margin-bottom:${subRows?'3px':'0'};">
-          <div style="width:${sPct}%;height:100%;background:${color};"></div>
+        <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;">
+          <div style="width:${p}%;height:100%;background:${color};"></div>
         </div>
-        ${subRows}
-        ${goalRows ? `<div style="height:1px;background:var(--border);margin:4px 0 1px;"></div>${goalRows}` : ''}
       </div>`;
-  }).join('');
+    }).join('');
+    return `<div style="
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;padding:9px 12px;
+      border-left:3px solid ${color};flex:1;min-width:0;
+    ">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-size:13px;font-weight:700;color:${color};">${name}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</span>
+      </div>
+      <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;margin-bottom:${subRows?'3px':'0'};">
+        <div style="width:${sPct}%;height:100%;background:${color};"></div>
+      </div>
+      ${subRows}
+      ${goalRows?`<div style="height:1px;background:var(--border);margin:4px 0 1px;"></div>${goalRows}`:''}
+    </div>`;
+  }
 
   // ── 운동 카드 ──
   const ex = [];
@@ -1915,10 +1905,10 @@ async function renderCert() {
   const swim = health?.swimming;
   const cyc  = health?.cycling;
   const push = health?.pushup;
-  if (run?.km>0)    ex.push(`🏃 러닝 <span style="color:#27c96e;font-family:'JetBrains Mono',monospace;">${run.km}km${run.runM>0?' · '+run.runM+'분':''}</span>`);
-  if (swim?.laps>0) ex.push(`🏊 수영 <span style="color:#27c96e;font-family:'JetBrains Mono',monospace;">${swim.laps}바퀴${swim.swimM>0?' · '+swim.swimM+'분':''}</span>`);
-  if (cyc?.km>0)    ex.push(`🚴 자전거 <span style="color:#27c96e;font-family:'JetBrains Mono',monospace;">${cyc.km}km</span>`);
-  if (push?.reps>0) ex.push(`💪 푸시업 <span style="color:#27c96e;font-family:'JetBrains Mono',monospace;">${push.reps}회</span>`);
+  if (run?.km>0)    ex.push(`🏃 러닝 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${run.km}km${run.runM>0?' · '+run.runM+'분':''}</span>`);
+  if (swim?.laps>0) ex.push(`🏊 수영 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${swim.laps}바퀴${swim.swimM>0?' · '+swim.swimM+'분':''}</span>`);
+  if (cyc?.km>0)    ex.push(`🚴 자전거 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${cyc.km}km</span>`);
+  if (push?.reps>0) ex.push(`💪 푸시업 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${push.reps}회</span>`);
   const exContent = ex.map(e=>`<div style="font-size:12px;padding:2px 0;">${e}</div>`).join('') ||
     `<div style="font-size:11px;color:var(--text2);">기록 없음</div>`;
 
@@ -1926,93 +1916,47 @@ async function renderCert() {
   const slpH = Number(health?.sleep?.sleepH)||0;
   const slpM = Number(health?.sleep?.sleepM)||0;
   const slpTotal = slpH*60+slpM;
-  const slpClr = slpTotal>=7*60&&slpTotal<=9*60?'#27c96e':slpTotal>=6*60?'#f5a623':'#e74c3c';
+  const slpQuality = slpTotal>=7*60&&slpTotal<=9*60?'#27c96e':slpTotal>=6*60?'#f5a623':'#e74c3c';
   const slpMsg = slpTotal>=7*60&&slpTotal<=9*60?'양호':slpTotal>=6*60?'부족':'매우 부족';
   const slpContent = slpTotal>0 ? `
-    <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${slpClr};line-height:1;margin-bottom:3px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${slpQuality};line-height:1;margin-bottom:3px;">
       ${slpH}:${String(slpM).padStart(2,'0')}
     </div>
-    <div style="font-size:10px;color:${slpClr};">${slpMsg} · 권장 7–9h</div>
+    <div style="font-size:10px;color:${slpQuality};">${slpMsg} · 권장 7–9h</div>
     <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;margin-top:5px;">
-      <div style="width:${Math.min(100,Math.round(slpTotal/(9*60)*100))}%;height:100%;background:${slpClr};"></div>
+      <div style="width:${Math.min(100,Math.round(slpTotal/(9*60)*100))}%;height:100%;background:${slpQuality};"></div>
     </div>` :
     `<div style="font-size:11px;color:var(--text2);">기록 없음</div>`;
 
-  // ── 과목 행 배치: 2개씩 묶어서 row ──
-  const rows = [];
+  // ── 행 배치: 과목 2개씩, 운동+수면 마지막 ──
+  const studiedList = Object.entries(bySubj).sort((a,b)=>b[1].total-a[1].total);
+  const rowsHtml = [];
+
   if (studiedList.length === 0) {
-    rows.push(`<div style="
-      background:var(--surface);border:1px solid var(--border);
-      border-radius:10px;padding:12px;flex:1;text-align:center;
-      color:var(--text2);font-size:12px;
-    ">오늘 공부 기록 없음</div>`);
+    rowsHtml.push(`<div style="display:flex;gap:7px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;flex:1;text-align:center;color:var(--text2);font-size:12px;">오늘 공부 기록 없음</div>
+    </div>`);
   } else {
     for (let i=0; i<studiedList.length; i+=2) {
       const pair = studiedList.slice(i, i+2);
-      // 각 pair의 HTML 가져오기
-      const pairHtml = pair.map(([name, info]) => {
-        const color = info.color||'#5ba3e8';
-        const sPct  = goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
-        const gs    = goals[name]||[];
-        const subRows = Object.entries(info.subs).sort((a,b)=>b[1]-a[1]).map(([cat,sec])=>`
-          <div style="display:flex;justify-content:space-between;padding:1px 0 1px 8px;">
-            <span style="font-size:10px;color:var(--text2);">· ${cat}</span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);">${fmtMin(sec/60)}</span>
-          </div>`).join('');
-        const goalRows = gs.map(g => {
-          const tv=Number(g.targetVal)||0, cv=Number(g.completedVal)||0;
-          const p=tv>0?Math.min(100,Math.round(cv/tv*100)):0;
-          return `<div style="margin-top:3px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-              <span style="font-size:10px;color:var(--text2);">${g.name||''}</span>
-              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${color};">${cv}/${tv}${g.targetUnit?' '+g.targetUnit:''}</span>
-            </div>
-            <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;">
-              <div style="width:${p}%;height:100%;background:${color};"></div>
-            </div>
-          </div>`;
-        }).join('');
-        return `<div style="
-          background:var(--surface);border:1px solid var(--border);
-          border-radius:10px;padding:9px 12px;
-          border-left:3px solid ${color};flex:1;min-width:0;overflow:hidden;
-        ">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-            <span style="font-size:13px;font-weight:700;color:${color};">${name}</span>
-            <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</span>
-          </div>
-          <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;margin-bottom:${subRows?'3px':'0'};">
-            <div style="width:${sPct}%;height:100%;background:${color};"></div>
-          </div>
-          ${subRows}
-          ${goalRows?`<div style="height:1px;background:var(--border);margin:4px 0 1px;"></div>${goalRows}`:''}
-        </div>`;
-      });
-      // 홀수 마지막은 빈 칸으로 채움
-      if (pair.length === 1) pairHtml.push(`<div style="flex:1;min-width:0;"></div>`);
-      rows.push(pairHtml.join(''));
+      const cardsHtml = pair.map(([n,info])=>makeSubjCard(n,info)).join('');
+      const filler = pair.length===1 ? `<div style="flex:1;min-width:0;"></div>` : '';
+      rowsHtml.push(`<div style="display:flex;gap:7px;">${cardsHtml}${filler}</div>`);
     }
   }
 
-  // 운동+수면은 항상 마지막 row
-  const bottomRow = `
-    <div style="
-      background:var(--surface);border:1px solid var(--border);
-      border-radius:10px;padding:9px 12px;
-      border-left:3px solid #27c96e;flex:1;min-width:0;overflow:hidden;
-    ">
-      ${cardTitle('🏃','운동','#27c96e')}${exContent}
+  // 운동+수면 마지막 행
+  rowsHtml.push(`<div style="display:flex;gap:7px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 12px;border-left:3px solid ${EX_COLOR};flex:1;min-width:0;">
+      ${cardTitle('🏃','운동',EX_COLOR)}${exContent}
     </div>
-    <div style="
-      background:var(--surface);border:1px solid var(--border);
-      border-radius:10px;padding:9px 12px;
-      border-left:3px solid #a855f7;flex:1;min-width:0;overflow:hidden;
-    ">
-      ${cardTitle('💤','수면','#a855f7')}${slpContent}
-    </div>`;
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 12px;border-left:3px solid ${SLP_COLOR};flex:1;min-width:0;">
+      ${cardTitle('💤','수면',SLP_COLOR)}${slpContent}
+    </div>
+  </div>`);
 
   $('certCard').innerHTML = `
-    <div style="display:flex;flex-direction:column;height:100%;gap:0;">
+    <div style="display:flex;flex-direction:column;height:100%;">
       <!-- 헤더 -->
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
         <div>
@@ -2030,10 +1974,9 @@ async function renderCert() {
         </div>
       </div>
 
-      <!-- 동적 카드 그리드 -->
-      <div style="display:flex;flex-direction:column;gap:7px;flex:1;min-height:0;">
-        ${rows.map(r=>`<div style="display:flex;gap:7px;flex:1;min-height:0;">${r}</div>`).join('')}
-        <div style="display:flex;gap:7px;flex:1;min-height:0;">${bottomRow}</div>
+      <!-- 카드들 (콘텐츠 크기에 맞게 자동 조절, 넘치면 스크롤) -->
+      <div style="display:flex;flex-direction:column;gap:7px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
+        ${rowsHtml.join('')}
       </div>
 
       <div style="text-align:center;margin-top:6px;font-size:8px;color:var(--text2);opacity:0.3;flex-shrink:0;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
