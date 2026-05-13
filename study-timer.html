@@ -754,6 +754,15 @@ body {
       </div>
     </div>
 
+    <!-- IMAGE ZOOM OVERLAY -->
+    <div id="imgZoom" onclick="this.style.display='none'" style="
+      display:none; position:fixed; inset:0; z-index:300;
+      background:rgba(0,0,0,0.95);
+      align-items:center; justify-content:center;
+    ">
+      <img id="imgZoomSrc" style="max-width:100%;max-height:100%;object-fit:contain;">
+    </div>
+
     <!-- MANUAL ENTRY MODAL -->
     <div class="modal-backdrop" id="manualModal" onclick="if(event.target===this)closeManualEntry()">
       <div class="modal-sheet">
@@ -1955,6 +1964,10 @@ async function deleteOdapType(id) {
   await saveOdapTypes();
   renderOdap(); // 현재 뷰 유지
 }
+function odapZoomImg(url) {
+  $('imgZoomSrc').src = url;
+  $('imgZoom').style.display = 'flex';
+}
 async function loadOdap() {
   if (!rtdb) return;
   try {
@@ -2024,7 +2037,10 @@ function renderOdapList() {
               <div class="odap-row-lbl" style="color:var(--text2);">메모</div>
               <div class="odap-row-val">${e.memo}</div>
             </div>`:''}
-            ${e.imageUrl?`<img src="${e.imageUrl}" style="width:100%;border-radius:8px;margin-bottom:8px;max-height:240px;object-fit:contain;background:var(--surface2);">`:''}
+            ${e.imageUrl?`
+            <div style="margin:8px -14px 8px;cursor:pointer;" onclick="event.stopPropagation();odapZoomImg('${e.imageUrl}')">
+              <img src="${e.imageUrl}" style="width:100%;display:block;max-height:320px;object-fit:contain;background:var(--surface2);">
+            </div>`:''}
             <button onclick="event.stopPropagation();odapDelete(${e.id})" style="
               margin-top:4px;font-size:11px;color:var(--text2);
               background:none;border:1px solid var(--border);
@@ -2209,32 +2225,76 @@ function odapFormSet(k, v) {
 }
 async function odapUploadImage(input) {
   const file = input.files[0];
-  if (!file || !fst) return;
+  if (!file) return;
+  if (!fst) { alert('Firebase Storage가 초기화되지 않았습니다'); return; }
+
   // 현재 입력값 백업
   ['problem','myRead','actual','memo'].forEach(field => {
     const el = $('odap-'+field);
     if (el) odapForm[field] = el.value;
   });
+
+  // 이미지 압축 (최대 1200px, 품질 0.8)
+  let uploadFile = file;
+  try {
+    uploadFile = await compressImage(file, 1200, 0.8);
+  } catch(e) { /* 압축 실패 시 원본 사용 */ }
+
   // 진행바 표시
   const prog = $('odap-upload-prog');
   const fill = $('odap-upload-fill');
   if (prog) prog.style.display = 'block';
+  if (fill) fill.style.width = '0%';
 
   try {
-    const ext  = file.name.split('.').pop();
-    const ref  = fst.ref(`odap/${Date.now()}.${ext}`);
-    const task = ref.put(file);
-    task.on('state_changed', snap => {
-      const pct = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-      if (fill) fill.style.width = pct + '%';
+    const ext  = file.name.split('.').pop() || 'jpg';
+    const path = `odap/${Date.now()}.${ext}`;
+    const ref  = fst.ref(path);
+    const task = ref.put(uploadFile);
+
+    await new Promise((resolve, reject) => {
+      task.on('state_changed',
+        snap => {
+          const pct = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+          if (fill) fill.style.width = pct + '%';
+        },
+        err => reject(err),
+        () => resolve()
+      );
     });
-    await task;
+
     odapForm.imageUrl = await ref.getDownloadURL();
     renderOdapAdd();
   } catch(e) {
     if (prog) prog.style.display = 'none';
-    alert('업로드 실패: ' + e.message);
+    if (e.code === 'storage/unauthorized') {
+      alert('Storage 규칙을 설정해주세요.\nFirebase 콘솔 → Storage → Rules에서\nallow read, write: if true; 로 변경 필요');
+    } else {
+      alert('업로드 실패: ' + e.message);
+    }
   }
+}
+
+function compressImage(file, maxPx, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else       { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('압축 실패')),
+        'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
 async function odapSave() {
