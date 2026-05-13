@@ -1909,22 +1909,28 @@ async function saveOdapTypes() {
 }
 async function addOdapType() {
   const labelEl = $('odap-new-type-label');
-  const descEl  = $('odap-new-type-desc');
   const label = labelEl?.value.trim();
   if (!label) return;
+  // 현재 텍스트 입력값 백업
+  ['problem','myRead','actual','memo'].forEach(field => {
+    const el = $('odap-'+field);
+    if (el) odapForm[field] = el.value;
+  });
   const id    = 'custom_' + Date.now();
   const color = ODAP_TYPE_COLORS[odapTypeColorIdx % ODAP_TYPE_COLORS.length];
   odapTypeColorIdx++;
-  ODAP_TYPES.push({id, label, desc: descEl?.value.trim()||'', color, custom:true});
+  ODAP_TYPES.push({id, label, desc:'', color, custom:true});
+  odapForm.errorType = id; // 방금 추가한 유형 자동 선택
   await saveOdapTypes();
-  renderOdapStats();
+  renderOdapAdd(); // 추가 탭 유지
 }
 async function deleteOdapType(id) {
   const t = ODAP_TYPES.find(t=>t.id===id);
-  if (!t?.custom) return; // 기본 유형은 삭제 불가
+  if (!t?.custom) return;
   ODAP_TYPES = ODAP_TYPES.filter(t=>t.id!==id);
+  if (odapForm.errorType === id) odapForm.errorType = 'cond';
   await saveOdapTypes();
-  renderOdapStats();
+  renderOdap(); // 현재 뷰 유지
 }
 async function loadOdap() {
   if (!rtdb) return;
@@ -2092,11 +2098,18 @@ function renderOdapAdd() {
   const subjChips = ODAP_SUBJS.map(s=>`
     <div class="odap-chip ${f.subject===s?'sel':''}" style="--chip-c:var(--blue);"
       onclick="odapFormSet('subject','${s}')">${s}</div>`).join('');
+
   const typeBtns = ODAP_TYPES.map(t=>`
     <button class="odap-type-btn ${f.errorType===t.id?'sel':''}" style="--sel-c:${t.color};"
       onclick="odapFormSet('errorType','${t.id}')">
-      ${t.label}${t.desc?` <span style="font-weight:400;color:var(--text2);font-size:11px;">— ${t.desc}</span>`:''}
+      <span style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+        <span>${t.label}${t.desc?` <span style="font-weight:400;color:var(--text2);font-size:11px;">— ${t.desc}</span>`:''}
+        </span>
+        ${t.custom?`<span onclick="event.stopPropagation();deleteOdapType('${t.id}')" style="color:var(--text2);opacity:0.5;font-size:14px;line-height:1;padding-left:6px;">×</span>`:''}
+      </span>
     </button>`).join('');
+
+  const nextColor = ODAP_TYPE_COLORS[odapTypeColorIdx % ODAP_TYPE_COLORS.length];
 
   $('odapBody').innerHTML = `
     <div class="odap-lbl">과목</div>
@@ -2107,7 +2120,18 @@ function renderOdapAdd() {
       oninput="odapForm.problem=this.value;odapUpdateSaveBtn()">
 
     <div class="odap-lbl">오류 유형</div>
-    <div style="margin-bottom:14px;">${typeBtns}</div>
+    <div style="margin-bottom:8px;">${typeBtns}</div>
+
+    <!-- 유형 추가 인라인 -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center;">
+      <div style="width:8px;height:8px;border-radius:50%;background:${nextColor};flex-shrink:0;"></div>
+      <input id="odap-new-type-label" class="odap-input" placeholder="새 유형 이름" style="margin-bottom:0;flex:1;">
+      <button onclick="addOdapType()" style="
+        background:var(--blue);color:#fff;border:none;
+        border-radius:8px;padding:9px 12px;font-size:12px;
+        font-weight:700;cursor:pointer;white-space:nowrap;
+        font-family:'Noto Sans KR',sans-serif;flex-shrink:0;">+ 유형 추가</button>
+    </div>
 
     <div class="odap-lbl">내가 읽은 것 (오류 내용) *</div>
     <textarea id="odap-myRead" class="odap-input odap-textarea" placeholder="내가 어떻게 잘못 읽었는지"
