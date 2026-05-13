@@ -2033,39 +2033,56 @@ function renderOdapAdd() {
       onclick="odapFormSet('errorType','${t.id}')">
       ${t.label}${t.desc?` <span style="font-weight:400;color:var(--text2);font-size:11px;">— ${t.desc}</span>`:''}
     </button>`).join('');
-  const ok = f.myRead.trim() && f.actual.trim();
 
   $('odapBody').innerHTML = `
     <div class="odap-lbl">과목</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${subjChips}</div>
 
     <div class="odap-lbl">문제 번호 (선택)</div>
-    <input class="odap-input" placeholder="예: 3번" value="${f.problem}"
-      oninput="odapFormSet('problem',this.value)">
+    <input id="odap-problem" class="odap-input" placeholder="예: 3번" value="${f.problem}"
+      oninput="odapForm.problem=this.value;odapUpdateSaveBtn()">
 
     <div class="odap-lbl">오류 유형</div>
     <div style="margin-bottom:14px;">${typeBtns}</div>
 
     <div class="odap-lbl">내가 읽은 것 (오류 내용) *</div>
-    <textarea class="odap-input odap-textarea" placeholder="내가 어떻게 잘못 읽었는지"
-      oninput="odapFormSet('myRead',this.value)">${f.myRead}</textarea>
+    <textarea id="odap-myRead" class="odap-input odap-textarea" placeholder="내가 어떻게 잘못 읽었는지"
+      oninput="odapForm.myRead=this.value;odapUpdateSaveBtn()">${f.myRead}</textarea>
 
     <div class="odap-lbl">실제 선지/지문이 말한 것 *</div>
-    <textarea class="odap-input odap-textarea" placeholder="정확한 내용이나 근거"
-      oninput="odapFormSet('actual',this.value)">${f.actual}</textarea>
+    <textarea id="odap-actual" class="odap-input odap-textarea" placeholder="정확한 내용이나 근거"
+      oninput="odapForm.actual=this.value;odapUpdateSaveBtn()">${f.actual}</textarea>
 
     <div class="odap-lbl">추가 메모 (선택)</div>
-    <textarea class="odap-input odap-textarea" placeholder="다음에 주의할 점 등"
-      oninput="odapFormSet('memo',this.value)">${f.memo}</textarea>
+    <textarea id="odap-memo" class="odap-input odap-textarea" placeholder="다음에 주의할 점 등"
+      oninput="odapForm.memo=this.value">${f.memo}</textarea>
 
-    <button class="odap-save-btn" ${ok?'':'disabled'} onclick="odapSave()">저장하기</button>
+    <button id="odap-save-btn" class="odap-save-btn"
+      ${f.myRead.trim()&&f.actual.trim()?'':'disabled'}
+      onclick="odapSave()">저장하기</button>
   `;
 }
+function odapUpdateSaveBtn() {
+  const btn = $('odap-save-btn');
+  if (!btn) return;
+  const ok = odapForm.myRead.trim() && odapForm.actual.trim();
+  btn.disabled = !ok;
+}
 function odapFormSet(k, v) {
+  // 현재 입력 중인 텍스트 값 먼저 백업
+  ['problem','myRead','actual','memo'].forEach(field => {
+    const el = $('odap-'+field);
+    if (el) odapForm[field] = el.value;
+  });
   odapForm[k] = v;
   renderOdapAdd();
 }
 async function odapSave() {
+  // 현재 입력 중인 값 반영
+  ['problem','myRead','actual','memo'].forEach(field => {
+    const el = $('odap-'+field);
+    if (el) odapForm[field] = el.value;
+  });
   if (!odapForm.myRead.trim()||!odapForm.actual.trim()) return;
   const entry = {id:Date.now(), ...odapForm};
   odapEntries.unshift(entry);
