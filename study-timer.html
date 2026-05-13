@@ -394,6 +394,71 @@ body {
 .fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 .fb-dot.ok { background: var(--green); }
 
+/* ── NAV 6개 대응 ── */
+.nav-btn { font-size: 9px; }
+.nav-btn svg { width: 18px; height: 18px; }
+
+/* ── ODAP ── */
+.odap-tab {
+  flex:1; padding:9px 0; background:none; border:none;
+  font-size:13px; font-weight:600; color:var(--text2);
+  border-bottom:2px solid transparent; cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif; transition:all 0.15s;
+}
+.odap-tab.active { color:var(--amber); border-bottom-color:var(--amber); }
+
+.odap-chip {
+  padding:4px 11px; border-radius:100px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text2);
+  font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;
+  font-family:'Noto Sans KR',sans-serif; transition:all 0.15s; flex-shrink:0;
+}
+.odap-chip.sel { border-color:var(--chip-c); background:color-mix(in srgb,var(--chip-c) 18%,transparent); color:var(--chip-c); }
+
+.odap-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; margin-bottom:9px; overflow:hidden; cursor:pointer;
+  transition:border-color 0.2s;
+}
+.odap-card-inner { padding:12px 14px; display:flex; align-items:center; gap:10px; }
+.odap-accent { width:3px; height:36px; border-radius:2px; flex-shrink:0; }
+.odap-meta { display:flex; gap:5px; align-items:center; margin-bottom:3px; flex-wrap:wrap; }
+.odap-tag {
+  font-size:10px; background:var(--surface2); color:var(--text2);
+  padding:1px 6px; border-radius:3px;
+}
+.odap-expand { padding:12px 14px; border-top:1px solid var(--border); }
+.odap-row { margin-bottom:8px; }
+.odap-row-lbl { font-size:10px; font-weight:700; margin-bottom:2px; }
+.odap-row-val { font-size:12px; color:var(--text2); line-height:1.5; }
+
+.odap-input {
+  width:100%; padding:9px 12px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:8px;
+  color:var(--text); font-size:13px; margin-bottom:12px;
+  box-sizing:border-box; outline:none; font-family:'Noto Sans KR',sans-serif;
+}
+.odap-input:focus { border-color:var(--blue); }
+.odap-textarea { resize:vertical; min-height:72px; }
+.odap-lbl { font-size:11px; color:var(--text2); font-weight:700; margin-bottom:5px; letter-spacing:0.3px; }
+
+.odap-type-btn {
+  width:100%; text-align:left; padding:9px 12px; border-radius:8px;
+  border:1px solid var(--border); background:var(--surface2);
+  color:var(--text2); font-size:12px; font-weight:600; cursor:pointer;
+  margin-bottom:5px; transition:all 0.15s; font-family:'Noto Sans KR',sans-serif;
+}
+.odap-type-btn.sel { border-color:var(--sel-c); background:color-mix(in srgb,var(--sel-c) 15%,transparent); color:var(--sel-c); }
+
+.odap-save-btn {
+  width:100%; padding:13px; border-radius:10px; border:none;
+  background:var(--amber); color:#000;
+  font-size:14px; font-weight:700; cursor:pointer; margin-top:4px;
+  font-family:'Noto Sans KR',sans-serif; transition:opacity 0.15s;
+}
+.odap-save-btn:disabled { background:var(--surface2); color:var(--text2); cursor:default; }
+.odap-save-btn:not(:disabled):active { opacity:0.8; }
+
 @media (hover: none) {
   .session-del-btn { opacity: 0.35; }
 }
@@ -773,7 +838,27 @@ body {
       </div>
     </div>
 
-    <!-- ④ SETTINGS -->
+    <!-- ⑤ ODAP -->
+    <div class="screen" id="screen-odap" style="padding:0;">
+      <!-- 오답노트 헤더 -->
+      <div style="padding:14px 18px 0;flex-shrink:0;">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">
+          <span style="font-size:18px;font-weight:700;color:var(--text);">오답노트</span>
+          <span style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;">2028 수능</span>
+          <span id="odapCount" style="margin-left:auto;font-size:13px;color:var(--amber);font-weight:700;">0개</span>
+        </div>
+        <!-- 서브 탭 -->
+        <div style="display:flex;border-bottom:1px solid var(--border);margin:0 -18px;padding:0 18px;">
+          <button class="odap-tab active" id="otab-list"   onclick="odapTab('list')">목록</button>
+          <button class="odap-tab"        id="otab-stats"  onclick="odapTab('stats')">패턴</button>
+          <button class="odap-tab"        id="otab-add"    onclick="odapTab('add')">+ 추가</button>
+        </div>
+      </div>
+      <!-- 서브 뷰 -->
+      <div class="tab-content" id="odapBody" style="padding:14px 18px;"></div>
+    </div>
+
+    <!-- ⑥ SETTINGS -->
     <div class="screen" id="screen-settings">
       <div class="card streak-card">
         <div class="card-label">🔥 연속 공부일</div>
@@ -860,6 +945,10 @@ body {
     <button class="nav-btn" id="nav-settings" onclick="goTab('settings')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       설정
+    </button>
+    <button class="nav-btn" id="nav-odap" onclick="goTab('odap')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      오답노트
     </button>
   </nav>
 </div><!-- /app -->
@@ -1009,6 +1098,7 @@ async function boot() {
     updateGoalUI();
     loadRecent();
     loadGoals();
+    loadOdap();
   }
 }
 
@@ -1776,6 +1866,214 @@ function renderCalGrid(dates, sessionsByDate) {
     `<div style="flex:1;display:flex;">${colsHtml}</div>`;
 }
 
+/* ── ODAP (오답노트) ── */
+const ODAP_TYPES = [
+  {id:'cond',     label:'조건어 오독',    desc:'~해야/~이상/~포함 등 흘려읽기', color:'#f59e0b'},
+  {id:'range',    label:'적용 범위 오류', desc:'조건을 잘못된 대상에 적용',     color:'#ef4444'},
+  {id:'reinterp', label:'선지 재해석',    desc:'내 방식으로 바꿔 읽기',         color:'#8b5cf6'},
+  {id:'integrate',label:'근거 통합 실패', desc:'지문+보기 조합 못함',            color:'#3b82f6'},
+  {id:'calc',     label:'계산 오류',      desc:'수치 계산 실수',                color:'#10b981'},
+  {id:'other',    label:'기타',           desc:'',                             color:'#6b7280'},
+];
+const ODAP_SUBJS = ['국어','수학','영어','사회','과학','기타'];
+
+let odapEntries  = [];
+let odapView     = 'list';
+let odapFilter   = 'all';
+let odapExpanded = null;
+let odapForm     = {subject:'국어', problem:'', myRead:'', actual:'', errorType:'cond', memo:''};
+
+async function loadOdap() {
+  if (!rtdb) return;
+  try {
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/odap`).get();
+    if (snap.exists()) {
+      const v = snap.val();
+      odapEntries = Array.isArray(v) ? v : Object.values(v);
+      odapEntries.sort((a,b)=>b.id-a.id);
+    }
+  } catch(e) {}
+  renderOdap();
+}
+async function saveOdapEntries() {
+  if (!rtdb) return;
+  try {
+    const obj = {};
+    odapEntries.forEach(e => { obj['e'+e.id] = e; });
+    await rtdb.ref(`${TIMER_FB_PATH}/timer/odap`).set(obj);
+  } catch(e) {}
+}
+function odapTab(tab) {
+  odapView = tab;
+  document.querySelectorAll('.odap-tab').forEach(b=>b.classList.remove('active'));
+  $('otab-'+tab)?.classList.add('active');
+  renderOdap();
+}
+function renderOdap() {
+  $('odapCount').textContent = odapEntries.length + '개';
+  if (odapView === 'list')  renderOdapList();
+  else if (odapView === 'stats') renderOdapStats();
+  else renderOdapAdd();
+}
+
+function renderOdapList() {
+  const filtered = odapFilter === 'all'
+    ? odapEntries
+    : odapEntries.filter(e=>e.errorType===odapFilter);
+
+  const chips = [
+    `<div class="odap-chip sel" style="--chip-c:var(--amber);" onclick="odapSetFilter('all')">전체</div>`
+  ].concat(ODAP_TYPES.map(t=>{
+    const sel = odapFilter===t.id;
+    return `<div class="odap-chip ${sel?'sel':''}" style="--chip-c:${t.color};" onclick="odapSetFilter('${t.id}')">${t.label}</div>`;
+  })).join('');
+
+  const cards = filtered.length===0
+    ? `<div style="text-align:center;padding:50px 0;color:var(--text2);">
+        <div style="font-size:32px;margin-bottom:10px;">📝</div>
+        <div style="font-size:13px;">아직 기록이 없어요</div>
+      </div>`
+    : filtered.map(e=>{
+        const t   = ODAP_TYPES.find(t=>t.id===e.errorType)||ODAP_TYPES[5];
+        const exp = odapExpanded===e.id;
+        const d   = new Date(e.id);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+        const expandHtml = exp ? `
+          <div class="odap-expand">
+            <div class="odap-row">
+              <div class="odap-row-lbl" style="color:#ef4444;">내가 읽은 것</div>
+              <div class="odap-row-val">${e.myRead}</div>
+            </div>
+            <div class="odap-row">
+              <div class="odap-row-lbl" style="color:#22c55e;">실제 선지/지문</div>
+              <div class="odap-row-val">${e.actual}</div>
+            </div>
+            ${e.memo?`<div class="odap-row">
+              <div class="odap-row-lbl" style="color:var(--text2);">메모</div>
+              <div class="odap-row-val">${e.memo}</div>
+            </div>`:''}
+            <button onclick="event.stopPropagation();odapDelete(${e.id})" style="
+              margin-top:4px;font-size:11px;color:var(--text2);
+              background:none;border:1px solid var(--border);
+              border-radius:6px;padding:4px 10px;cursor:pointer;
+              font-family:'Noto Sans KR',sans-serif;">삭제</button>
+          </div>` : '';
+        return `<div class="odap-card" style="border-color:${exp?t.color+'55':'var(--border)'};"
+          onclick="odapToggle(${e.id})">
+          <div class="odap-card-inner">
+            <div class="odap-accent" style="background:${t.color};"></div>
+            <div style="flex:1;min-width:0;">
+              <div class="odap-meta">
+                <span style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;">${dateStr}</span>
+                <span class="odap-tag">${e.subject}</span>
+                ${e.problem?`<span style="font-size:10px;color:var(--text2);">#${e.problem}</span>`:''}
+                <span style="font-size:11px;color:${t.color};font-weight:700;margin-left:auto;">${t.label}</span>
+              </div>
+              <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.myRead}</div>
+            </div>
+            <span style="color:var(--text2);font-size:11px;flex-shrink:0;">${exp?'▲':'▼'}</span>
+          </div>
+          ${expandHtml}
+        </div>`;
+      }).join('');
+
+  $('odapBody').innerHTML = `
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none;">${chips}</div>
+    ${cards}`;
+}
+function odapSetFilter(f) { odapFilter=f; renderOdap(); }
+function odapToggle(id) { odapExpanded = odapExpanded===id?null:id; renderOdap(); }
+
+async function odapDelete(id) {
+  odapEntries = odapEntries.filter(e=>e.id!==id);
+  if (odapExpanded===id) odapExpanded=null;
+  await saveOdapEntries();
+  renderOdap();
+}
+
+function renderOdapStats() {
+  const stats = ODAP_TYPES.map(t=>({...t, count:odapEntries.filter(e=>e.errorType===t.id).length}))
+    .sort((a,b)=>b.count-a.count);
+  const maxC = Math.max(...stats.map(s=>s.count),1);
+  const total = odapEntries.length;
+
+  const bars = stats.map(s=>`
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:13px;color:var(--text);font-weight:600;">${s.label}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${s.color};font-weight:700;">${s.count}회</span>
+      </div>
+      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;border-radius:3px;background:${s.color};width:${s.count/maxC*100}%;transition:width 0.4s;min-width:${s.count>0?4:0}px;"></div>
+      </div>
+      ${s.desc?`<div style="font-size:10px;color:var(--text2);margin-top:2px;">${s.desc}</div>`:''}
+    </div>`).join('');
+
+  const topPatterns = stats.filter(s=>s.count>0).slice(0,2).map(s=>
+    `<div style="font-size:12px;color:var(--text2);margin-bottom:5px;">
+      · <span style="color:${s.color};">${s.label}</span>이 ${s.count}회로 가장 많음
+    </div>`).join('');
+
+  $('odapBody').innerHTML = `
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">총 ${total}개 오답 패턴 분석</div>
+    ${bars}
+    ${total>0?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:8px;">
+      <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:8px;">🔍 주요 패턴</div>
+      ${topPatterns}
+    </div>`:''}`;
+}
+
+function renderOdapAdd() {
+  const f = odapForm;
+  const subjChips = ODAP_SUBJS.map(s=>`
+    <div class="odap-chip ${f.subject===s?'sel':''}" style="--chip-c:var(--blue);"
+      onclick="odapFormSet('subject','${s}')">${s}</div>`).join('');
+  const typeBtns = ODAP_TYPES.map(t=>`
+    <button class="odap-type-btn ${f.errorType===t.id?'sel':''}" style="--sel-c:${t.color};"
+      onclick="odapFormSet('errorType','${t.id}')">
+      ${t.label}${t.desc?` <span style="font-weight:400;color:var(--text2);font-size:11px;">— ${t.desc}</span>`:''}
+    </button>`).join('');
+  const ok = f.myRead.trim() && f.actual.trim();
+
+  $('odapBody').innerHTML = `
+    <div class="odap-lbl">과목</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">${subjChips}</div>
+
+    <div class="odap-lbl">문제 번호 (선택)</div>
+    <input class="odap-input" placeholder="예: 3번" value="${f.problem}"
+      oninput="odapFormSet('problem',this.value)">
+
+    <div class="odap-lbl">오류 유형</div>
+    <div style="margin-bottom:14px;">${typeBtns}</div>
+
+    <div class="odap-lbl">내가 읽은 것 (오류 내용) *</div>
+    <textarea class="odap-input odap-textarea" placeholder="내가 어떻게 잘못 읽었는지"
+      oninput="odapFormSet('myRead',this.value)">${f.myRead}</textarea>
+
+    <div class="odap-lbl">실제 선지/지문이 말한 것 *</div>
+    <textarea class="odap-input odap-textarea" placeholder="정확한 내용이나 근거"
+      oninput="odapFormSet('actual',this.value)">${f.actual}</textarea>
+
+    <div class="odap-lbl">추가 메모 (선택)</div>
+    <textarea class="odap-input odap-textarea" placeholder="다음에 주의할 점 등"
+      oninput="odapFormSet('memo',this.value)">${f.memo}</textarea>
+
+    <button class="odap-save-btn" ${ok?'':'disabled'} onclick="odapSave()">저장하기</button>
+  `;
+}
+function odapFormSet(k, v) {
+  odapForm[k] = v;
+  renderOdapAdd();
+}
+async function odapSave() {
+  if (!odapForm.myRead.trim()||!odapForm.actual.trim()) return;
+  const entry = {id:Date.now(), ...odapForm};
+  odapEntries.unshift(entry);
+  odapForm = {subject:'국어',problem:'',myRead:'',actual:'',errorType:'cond',memo:''};
+  await saveOdapEntries();
+  odapTab('list');
+}
+
 /* ── TAB SWITCHING ── */
 function goTab(tab) {
   document.querySelectorAll('.screen').forEach(s => {
@@ -1793,8 +2091,9 @@ function goTab(tab) {
     scr.classList.add('active');
   }
   $('nav-'+tab).classList.add('active');
-  if (tab === 'stats') loadStats(new Date(statsDate));
+  if (tab === 'stats')   loadStats(new Date(statsDate));
   if (tab === 'planner') loadGoals();
+  if (tab === 'odap')    renderOdap();
 }
 
 /* ── PREVENT SCREEN SLEEP WHILE TIMING (if supported) ── */
