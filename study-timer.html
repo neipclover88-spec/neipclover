@@ -1098,6 +1098,7 @@ async function boot() {
     updateGoalUI();
     loadRecent();
     loadGoals();
+    await loadOdapTypes();
     loadOdap();
   }
 }
@@ -1867,7 +1868,7 @@ function renderCalGrid(dates, sessionsByDate) {
 }
 
 /* ── ODAP (오답노트) ── */
-const ODAP_TYPES = [
+let ODAP_TYPES = [
   {id:'cond',     label:'조건어 오독',    desc:'~해야/~이상/~포함 등 흘려읽기', color:'#f59e0b'},
   {id:'range',    label:'적용 범위 오류', desc:'조건을 잘못된 대상에 적용',     color:'#ef4444'},
   {id:'reinterp', label:'선지 재해석',    desc:'내 방식으로 바꿔 읽기',         color:'#8b5cf6'},
@@ -1883,6 +1884,48 @@ let odapFilter   = 'all';
 let odapExpanded = null;
 let odapForm     = {subject:'국어', problem:'', myRead:'', actual:'', errorType:'cond', memo:''};
 
+const ODAP_TYPE_COLORS = ['#f59e0b','#ef4444','#8b5cf6','#3b82f6','#10b981','#ec4899','#06b6d4','#f97316','#6b7280'];
+let   odapTypeColorIdx = 0; // 다음 추가 시 사용할 색상 인덱스
+
+async function loadOdapTypes() {
+  if (!rtdb) return;
+  try {
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/odapTypes`).get();
+    if (snap.exists()) {
+      const custom = snap.val();
+      const customArr = Array.isArray(custom) ? custom : Object.values(custom);
+      // 기본 유형에 커스텀 유형 병합 (id 중복 제거)
+      const defaultIds = new Set(ODAP_TYPES.map(t=>t.id));
+      customArr.forEach(t => { if (!defaultIds.has(t.id)) ODAP_TYPES.push(t); });
+    }
+  } catch(e) {}
+}
+async function saveOdapTypes() {
+  if (!rtdb) return;
+  try {
+    const custom = ODAP_TYPES.filter(t=>t.custom);
+    await rtdb.ref(`${TIMER_FB_PATH}/timer/odapTypes`).set(custom.length ? custom : null);
+  } catch(e) {}
+}
+async function addOdapType() {
+  const labelEl = $('odap-new-type-label');
+  const descEl  = $('odap-new-type-desc');
+  const label = labelEl?.value.trim();
+  if (!label) return;
+  const id    = 'custom_' + Date.now();
+  const color = ODAP_TYPE_COLORS[odapTypeColorIdx % ODAP_TYPE_COLORS.length];
+  odapTypeColorIdx++;
+  ODAP_TYPES.push({id, label, desc: descEl?.value.trim()||'', color, custom:true});
+  await saveOdapTypes();
+  renderOdapStats();
+}
+async function deleteOdapType(id) {
+  const t = ODAP_TYPES.find(t=>t.id===id);
+  if (!t?.custom) return; // 기본 유형은 삭제 불가
+  ODAP_TYPES = ODAP_TYPES.filter(t=>t.id!==id);
+  await saveOdapTypes();
+  renderOdapStats();
+}
 async function loadOdap() {
   if (!rtdb) return;
   try {
@@ -1999,9 +2042,13 @@ function renderOdapStats() {
 
   const bars = stats.map(s=>`
     <div style="margin-bottom:14px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-        <span style="font-size:13px;color:var(--text);font-weight:600;">${s.label}</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${s.color};font-weight:700;">${s.count}회</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0;"></div>
+          <span style="font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.label}</span>
+          ${s.custom?`<button onclick="deleteOdapType('${s.id}')" style="background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer;padding:0;opacity:0.4;flex-shrink:0;">×</button>`:''}
+        </div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${s.color};font-weight:700;flex-shrink:0;margin-left:8px;">${s.count}회</span>
       </div>
       <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;">
         <div style="height:100%;border-radius:3px;background:${s.color};width:${s.count/maxC*100}%;transition:width 0.4s;min-width:${s.count>0?4:0}px;"></div>
@@ -2014,13 +2061,30 @@ function renderOdapStats() {
       · <span style="color:${s.color};">${s.label}</span>이 ${s.count}회로 가장 많음
     </div>`).join('');
 
+  // 색상 미리보기
+  const nextColor = ODAP_TYPE_COLORS[odapTypeColorIdx % ODAP_TYPE_COLORS.length];
+
   $('odapBody').innerHTML = `
     <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">총 ${total}개 오답 패턴 분석</div>
     ${bars}
-    ${total>0?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:8px;">
+    ${total>0?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:4px;margin-bottom:16px;">
       <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:8px;">🔍 주요 패턴</div>
       ${topPatterns}
-    </div>`:''}`;
+    </div>`:''}
+
+    <!-- 유형 추가 -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${nextColor};flex-shrink:0;"></div>
+        <div style="font-size:11px;color:var(--text2);font-weight:700;">오류 유형 추가</div>
+      </div>
+      <input id="odap-new-type-label" class="odap-input" placeholder="유형 이름 (예: 함정 선지)" style="margin-bottom:8px;">
+      <input id="odap-new-type-desc"  class="odap-input" placeholder="설명 (선택)" style="margin-bottom:8px;">
+      <button onclick="addOdapType()" style="
+        width:100%;padding:9px;background:var(--blue);color:#fff;
+        border:none;border-radius:8px;font-size:13px;font-weight:700;
+        cursor:pointer;font-family:'Noto Sans KR',sans-serif;">추가</button>
+    </div>`;
 }
 
 function renderOdapAdd() {
