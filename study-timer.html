@@ -1356,6 +1356,7 @@ function startTimer() {
   $('btnMain').classList.remove('paused');
   $('btnStop').disabled = false;
   $('timerDigits').classList.add('running');
+  requestWakeLock();
   timerTick = setInterval(() => {
     timerSec++;
     $('timerDigits').textContent = fmtSec(timerSec);
@@ -1367,12 +1368,14 @@ function pauseTimer() {
   $('btnMain').textContent = '계속하기';
   $('btnMain').classList.add('paused');
   $('timerDigits').classList.remove('running');
+  releaseWakeLock();
 }
 function resumeTimer() {
   running = true; paused = false;
   $('btnMain').textContent = '일시정지';
   $('btnMain').classList.remove('paused');
   $('timerDigits').classList.add('running');
+  requestWakeLock();
   timerTick = setInterval(() => {
     timerSec++;
     $('timerDigits').textContent = fmtSec(timerSec);
@@ -1393,6 +1396,7 @@ async function handleStop() {
   if (dur >= 10 && selSub) await saveSession(selSub, dur);
   selSubCat = null;
   updateBadge();
+  releaseWakeLock();
 }
 
 /* ── GOAL UI ── */
@@ -2333,13 +2337,23 @@ function goTab(tab) {
   if (tab === 'odap')    renderOdap();
 }
 
-/* ── PREVENT SCREEN SLEEP WHILE TIMING (if supported) ── */
+/* ── WAKE LOCK ── */
 let wakeLock = null;
 async function requestWakeLock() {
   try {
-    if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    }
   } catch(e) {}
 }
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+// 탭 다시 포커스될 때 재취득
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && running && !wakeLock) await requestWakeLock();
+});
 
 /* ── CERT (인증샷) ── */
 async function openCert() {
@@ -2614,7 +2628,7 @@ function checkDateChange() {
     loadTodos(todayStr());
   }
 }
-// 1분마다 + 화면 포커스 시 체크
+// 1분마다 + 화면 포커스 시 날짜 체크
 setInterval(checkDateChange, 60000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) checkDateChange();
