@@ -2355,6 +2355,16 @@ document.addEventListener('visibilitychange', async () => {
   if (!document.hidden && running && !wakeLock) await requestWakeLock();
 });
 
+async function certUpdateGoal(subj, gi, rawVal) {
+  const val = Math.max(0, Number(rawVal)||0);
+  if (!rtdb) return;
+  try {
+    await rtdb.ref(`${DASH_FB_PATH}/db/_goals/${subj}/${gi}/completedVal`).set(val);
+    // cachedGoals도 업데이트
+    if (cachedGoals[subj]?.[gi]) cachedGoals[subj][gi].completedVal = val;
+  } catch(e) {}
+}
+
 /* ── CERT (인증샷) ── */
 async function openCert() {
   $('certOverlay').style.display = 'block';
@@ -2371,15 +2381,17 @@ async function renderCert() {
   let sessions = [];
   let goals = {};
   let health = {};
+  let snapshots = {}; // 오늘 시작 시점 completedVal 스냅샷
 
   if (rtdb) {
     const t = ms => new Promise(r=>setTimeout(r,ms));
     const safeGet = ref => Promise.race([ref.get(), t(3000).then(()=>null)]);
     try {
-      const [sessSnap, goalSnap, healthSnap] = await Promise.all([
+      const [sessSnap, goalSnap, healthSnap, snapSnap] = await Promise.all([
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/_goals`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/health`)),
+        safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/goalSnapshots/${todayStr()}`)),
       ]);
       if (sessSnap?.exists())  sessions = Object.values(sessSnap.val());
       if (goalSnap?.exists())  {
@@ -2390,6 +2402,16 @@ async function renderCert() {
         });
       }
       if (healthSnap?.exists()) health = healthSnap.val();
+
+      // 오늘 스냅샷 로드 or 최초 생성
+      if (snapSnap?.exists()) {
+        snapshots = snapSnap.val();
+      } else if (Object.keys(goals).length) {
+        SUBJS_KR.forEach(s => {
+          snapshots[s] = (goals[s]||[]).map(g => Number(g.completedVal)||0);
+        });
+        try { await rtdb.ref(`${TIMER_FB_PATH}/timer/goalSnapshots/${todayStr()}`).set(snapshots); } catch(e) {}
+      }
     } catch(e) { /* fetch 실패해도 빈 데이터로 렌더 */ }
   }
 
@@ -2423,16 +2445,36 @@ async function renderCert() {
         <span style="font-size:10px;color:var(--text2);">· ${cat}</span>
         <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);">${fmtMin(sec/60)}</span>
       </div>`).join('');
-    const goalRows = gs.map(g => {
-      const tv=Number(g.targetVal)||0, cv=Number(g.completedVal)||0;
-      const p=tv>0?Math.min(100,Math.round(cv/tv*100)):0;
-      return `<div style="margin-top:3px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+    const goalRows = gs.map((g, gi) => {
+      const tv    = Number(g.targetVal)||0;
+      const cv    = Number(g.completedVal)||0;
+      const start = Number((snapshots[name]||[])[gi])||0;
+      const todayGain = Math.max(0, cv - start);
+      const startPct  = tv>0 ? Math.min(100,Math.round(start/tv*100)) : 0;
+      const todayPct  = tv>0 ? Math.min(100-startPct, Math.round(todayGain/tv*100)) : 0;
+
+      return `<div style="margin-top:5px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
           <span style="font-size:10px;color:var(--text2);">${g.name||''}</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${color};">${cv}/${tv}${g.targetUnit?' '+g.targetUnit:''}</span>
+          <div style="display:flex;align-items:center;gap:4px;">
+            ${todayGain>0?`<span style="font-size:9px;font-weight:700;color:${color};background:${color}22;padding:1px 5px;border-radius:4px;">+${todayGain}${g.targetUnit||''}</span>`:''}
+            <input type="number" min="0" max="${tv}" value="${cv}"
+              style="width:46px;background:var(--surface2);border:1px solid ${color}66;border-radius:5px;
+                padding:2px 4px;color:${color};font-family:'JetBrains Mono',monospace;
+                font-size:11px;text-align:center;outline:none;"
+              onchange="certUpdateGoal('${name}',${gi},this.value)"
+              onclick="event.stopPropagation()">
+            <span style="font-size:9px;color:var(--text2);">/${tv}${g.targetUnit||''}</span>
+          </div>
         </div>
-        <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;">
-          <div style="width:${p}%;height:100%;background:${color};"></div>
+        <!-- 바: 어제까지(어두운) + 오늘(밝은) -->
+        <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:${color};opacity:0.3;"></div>
+          <div style="position:absolute;left:${startPct}%;top:0;height:100%;width:${todayPct}%;background:${color};border-radius:0 3px 3px 0;box-shadow:0 0 6px ${color}88;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:2px;">
+          <span style="font-size:9px;color:var(--text2);">어제까지 ${start}${g.targetUnit||''}</span>
+          <span style="font-size:9px;color:${color};">오늘 +${todayGain}${g.targetUnit||''}</span>
         </div>
       </div>`;
     }).join('');
