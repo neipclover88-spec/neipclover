@@ -980,6 +980,64 @@ function renderWork() {
     </div>
   </div>`;
 
+  // 🏍️ 정비 기록
+  const moto = db._moto || {};
+  const curKm = Number(moto.curKm)||0;
+  const parts = moto.parts || [];
+  h += `<div style="background:linear-gradient(135deg,rgba(100,100,255,.08),rgba(100,100,255,.02));border-top:1px solid var(--b);padding:8px 9px">
+    <button onclick="toggleMoto()" style="background:none;border:none;color:#8888ffaa;font-size:9px;cursor:pointer;padding:0;letter-spacing:.5px;text-transform:uppercase;width:100%;text-align:left">🏍️ 오토바이 정비 기록</button>
+    <div id="motoBox" style="display:none;margin-top:8px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:var(--m);flex-shrink:0">현재 주행거리</span>
+        <input type="text" inputmode="numeric" value="${curKm?curKm.toLocaleString('ko-KR'):''}" placeholder="0"
+          style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.35);border-radius:5px;color:#a0a0ff;font-family:var(--bebas);font-size:14px;padding:3px 7px;outline:none;min-width:0"
+          oninput="fmtComma(this)" onchange="updMotoKm(unComma(this.value))">
+        <span style="font-size:9px;color:var(--m)">km</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${parts.map((p,i)=>{
+          const lastKm = Number(p.lastKm)||0;
+          const cycle  = Number(p.cycle)||0;
+          const nextKm = lastKm + cycle;
+          const remain = nextKm - curKm;
+          const pct    = cycle>0 ? Math.min(100,Math.round((curKm-lastKm)/cycle*100)) : 0;
+          const clr    = remain<=0?'#e74c3c':remain<=500?'#f5a623':'#a0a0ff';
+          return `<div style="background:rgba(100,100,255,.06);border:1px solid rgba(100,100,255,.2);border-radius:6px;padding:6px 8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:10px;font-weight:700;color:#c0c0ff">${esc(p.name)}</span>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-family:var(--bebas);font-size:13px;color:${clr}">${remain<=0?'⚠ 교체필요':remain.toLocaleString()+'km 남음'}</span>
+                <button onclick="delMotoPart(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:10px;padding:0;line-height:1">✕</button>
+              </div>
+            </div>
+            <div style="height:4px;background:var(--b);border-radius:2px;overflow:hidden;margin-bottom:5px">
+              <div style="height:100%;width:${pct}%;background:${clr};border-radius:2px;transition:width .4s"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+              <div style="display:flex;align-items:center;gap:3px">
+                <span style="font-size:8px;color:var(--m);flex-shrink:0">교체 km</span>
+                <input type="text" inputmode="numeric" value="${lastKm?lastKm.toLocaleString('ko-KR'):''}" placeholder="0"
+                  style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.25);border-radius:4px;color:#a0a0ff;font-family:var(--bebas);font-size:11px;padding:2px 4px;outline:none;min-width:0"
+                  oninput="fmtComma(this)" onchange="updMotoPart(${i},'lastKm',unComma(this.value))">
+              </div>
+              <div style="display:flex;align-items:center;gap:3px">
+                <span style="font-size:8px;color:var(--m);flex-shrink:0">교체 주기</span>
+                <input type="text" inputmode="numeric" value="${cycle?cycle.toLocaleString('ko-KR'):''}" placeholder="km"
+                  style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.25);border-radius:4px;color:#a0a0ff;font-family:var(--bebas);font-size:11px;padding:2px 4px;outline:none;min-width:0"
+                  oninput="fmtComma(this)" onchange="updMotoPart(${i},'cycle',unComma(this.value))">
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div style="display:flex;gap:4px;margin-top:2px">
+          <input id="motoPartName" type="text" placeholder="부품명 (예: 엔진오일)"
+            style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.25);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 7px;outline:none;min-width:0">
+          <button onclick="addMotoPart()" style="background:rgba(100,100,255,.2);border:1px solid rgba(100,100,255,.4);color:#a0a0ff;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;flex-shrink:0">+ 추가</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
   document.getElementById('pWork').innerHTML = h;
 }
 
@@ -1267,6 +1325,35 @@ function updLoanData(idx, field, val) {
   if(!db._loanData) db._loanData = {};
   if(!db._loanData[idx]) db._loanData[idx] = {};
   db._loanData[idx][field] = Number(val)||0;
+  save(); renderWork();
+}
+
+function toggleMoto() {
+  const el = document.getElementById('motoBox');
+  if(!el) return;
+  el.style.display = el.style.display==='none'?'flex':'none';
+}
+function updMotoKm(val) {
+  if(!db._moto) db._moto = {};
+  db._moto.curKm = Number(val)||0;
+  save(); renderWork();
+}
+function addMotoPart() {
+  const nm = document.getElementById('motoPartName')?.value.trim();
+  if(!nm) return;
+  if(!db._moto) db._moto = {};
+  if(!db._moto.parts) db._moto.parts = [];
+  db._moto.parts.push({name:nm, lastKm:0, cycle:0});
+  save(); renderWork();
+}
+function delMotoPart(idx) {
+  if(!db._moto?.parts) return;
+  db._moto.parts.splice(idx,1);
+  save(); renderWork();
+}
+function updMotoPart(idx, field, val) {
+  if(!db._moto?.parts?.[idx]) return;
+  db._moto.parts[idx][field] = Number(val)||0;
   save(); renderWork();
 }
 
