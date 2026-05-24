@@ -853,11 +853,12 @@ function renderWork() {
     </div>
 
     <div style="display:flex;gap:3px;margin-bottom:5px">
-      <input id="expCatSel" type="text" placeholder="카테고리" list="expCatList"
-        style="flex:0 0 auto;width:68px;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 5px;outline:none">
-      <datalist id="expCatList">
-        ${EXP_CATS.map(c=>`<option value="${c}">`).join('')}
-      </datalist>
+      <select id="expCatSel"
+        style="flex:0 0 auto;width:72px;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 4px;outline:none;-webkit-appearance:none;appearance:none;text-align:center">
+        <option value="">카테고리</option>
+        ${EXP_CATS.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        <option value="__custom__">직접입력</option>
+      </select>
       <input id="expAmtInp" type="number" placeholder="금액" style="flex:1;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--bebas);font-size:14px;padding:4px 6px;outline:none;min-width:0">
       <input id="expMemoInp" type="text" placeholder="메모" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 5px;outline:none;min-width:0">
       <button onclick="addExpEntry()" style="background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#e74c3c;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0">+</button>
@@ -1004,9 +1005,9 @@ function renderWork() {
           const clr    = remain<=0?'#e74c3c':remain<=500?'#f5a623':'#a0a0ff';
           return `<div style="background:rgba(100,100,255,.06);border:1px solid rgba(100,100,255,.2);border-radius:6px;padding:6px 8px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:700;color:#c0c0ff">${esc(p.name)}</span>
-              <div style="display:flex;align-items:center;gap:4px">
-                <span style="font-family:var(--bebas);font-size:13px;color:${clr}">${remain<=0?'⚠ 교체필요':remain.toLocaleString()+'km 남음'}</span>
+              <span style="font-size:11px;font-weight:700;color:#c0c0ff;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px">${esc(p.name)}</span>
+              <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                <span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:${clr};white-space:nowrap">${remain<=0?'⚠ 교체필요':remain.toLocaleString()+'km 남음'}</span>
                 <button onclick="delMotoPart(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:10px;padding:0;line-height:1">✕</button>
               </div>
             </div>
@@ -1371,7 +1372,11 @@ function toggleDebtDetail() {
 }
 
 function addExpEntry() {
-  const cat = (document.getElementById('expCatSel')?.value||'').trim();
+  let cat = (document.getElementById('expCatSel')?.value||'').trim();
+  if(cat==='__custom__') {
+    cat = prompt('카테고리 직접 입력:')||'';
+    cat = cat.trim();
+  }
   const amt = Number(document.getElementById('expAmtInp')?.value)||0;
   const memo= document.getElementById('expMemoInp')?.value.trim()||'';
   if(!cat || !amt) return;
