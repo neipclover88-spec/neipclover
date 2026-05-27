@@ -376,7 +376,7 @@ function dayData(k) {
     }
   }
   const h = d.health;
-  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0};
+  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0};
   if(!h.swimming) h.swimming = {laps:0,swimM:0};
   if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
@@ -612,7 +612,9 @@ function renderCal() {
 
     // sleep tag in header
     const slp = db[dk]?.health?.sleep;
+    const slpScore = Number(slp?.score)||0;
     const slpStr = (slp?.sleepH||slp?.sleepM) ? fmtHM(slp.sleepH,slp.sleepM) : '';
+    const slpTag = slpStr ? (slpStr.replace(' ','') + (slpScore>0?` ${slpScore}점`:'')) : '';
 
     // study
     const stMin = totalStudyMins(dk);
@@ -643,7 +645,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpStr?('<span class="dsleep-tag">💤'+slpStr.replace(' ','')+'</span>'):''}
+        ${slpTag?('<span class="dsleep-tag">💤'+slpTag+'</span>'):''}
       </div>
       <div class="dbody">
         <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
@@ -1054,10 +1056,12 @@ function renderHealth() {
   // calc display values
   const slpH = Number(h.sleep.sleepH)||0;
   const slpM = Number(h.sleep.sleepM)||0;
+  const slpScore = Number(h.sleep.score)||0;
   const slpTotalMins = slpH*60+slpM;
   const slpStr = fmtHM(slpH,slpM)||'';
   const slpClr = slpTotalMins>=7*60?'#27c96e':slpTotalMins>=6*60?'#f5a623':slpTotalMins>0?'#e74c3c':'var(--m)';
   const slpMsg = slpTotalMins>=7*60?'✓ 충분':slpTotalMins>=6*60?'⚡ 부족':slpTotalMins>0?'⚠ 매우 부족':'';
+  const scoreClr = slpScore>=90?'#27c96e':slpScore>=70?'#4f8ef7':slpScore>=50?'#f5a623':slpScore>0?'#e74c3c':'var(--m2)';
 
   const swimLaps = Number(h.swimming.laps)||0;
   const swimM    = Number(h.swimming.swimM)||0;
@@ -1114,7 +1118,10 @@ function renderHealth() {
     <div class="hact-hdr">
       <span class="hico">😴</span>
       <span class="hact-name">수면</span>
-      <span class="hact-val" style="color:${slpClr};font-size:16px">${slpStr}</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        ${slpScore>0?`<span style="font-family:var(--bebas);font-size:14px;color:${scoreClr}">${slpScore}점</span>`:''}
+        <span class="hact-val" style="color:${slpClr};font-size:16px">${slpStr}</span>
+      </div>
     </div>
     <div class="hact-body">
       <div class="hrow">
@@ -1127,6 +1134,13 @@ function renderHealth() {
             style="border-color:#a855f740" onchange="updH('sleep','sleepM',this.value)">
           <span class="tu" style="color:#a855f7aa">분</span>
         </div>
+      </div>
+      <div class="hrow">
+        <span class="hlbl" style="color:#a855f7aa">점수</span>
+        <input type="number" class="hinp" min="0" max="100" value="${slpScore||''}" placeholder="삼성헬스 점수"
+          style="border-color:#a855f740;color:${scoreClr}"
+          onchange="updH('sleep','score',this.value)">
+        ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=90?'최상':slpScore>=70?'양호':slpScore>=50?'보통':'나쁨'}</span>`:''}
       </div>
       ${slpTotalMins>0?`<div class="sleep-status" style="color:${slpClr}">${slpMsg} (권장 7–9h)</div>`:''}
     </div>
@@ -1401,7 +1415,7 @@ function updWork(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','reps'];
+  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','score','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1811,10 +1825,13 @@ function renderModalHealth() {
     const pct=Math.round(m/maxSleep*100);
     const {h:sh,m:sm}=minsToHM(m);
     const str=m>0?(sm?sh+'h'+sm:''+sh+'h'):'';
+    const score=Number(db[dates[i]]?.health?.sleep?.score)||0;
     const clr=m>=7*60?'#a855f7':m>=6*60?'#f5a623':m>0?'#e74c3c':'var(--b)';
+    const sClr=score>=90?'#27c96e':score>=70?'#4f8ef7':score>=50?'#f5a623':score>0?'#e74c3c':'transparent';
     const isT=dates[i]===todayStr();
-    b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:10px;color:${clr};font-weight:700">${str}</div>
+    b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%">
+      ${score>0?`<div style="font-family:var(--bebas);font-size:10px;color:${sClr};font-weight:700">${score}</div>`:'<div style="height:14px"></div>'}
+      <div style="font-family:var(--mono);font-size:9px;color:${clr};font-weight:700">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%">
         <div style="width:100%;height:${pct||2}%;background:${clr};border-radius:3px 3px 0 0;opacity:${isT?1:.7};min-height:2px;${isT?'box-shadow:0 0 6px '+clr+'88':''}"></div>
       </div>
