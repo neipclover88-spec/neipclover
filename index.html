@@ -613,8 +613,7 @@ function renderCal() {
     // sleep tag in header
     const slp = db[dk]?.health?.sleep;
     const slpScore = Number(slp?.score)||0;
-    const slpStr = (slp?.sleepH||slp?.sleepM) ? fmtHM(slp.sleepH,slp.sleepM) : '';
-    const slpTag = slpStr ? (slpStr.replace(' ','') + (slpScore>0?` ${slpScore}점`:'')) : '';
+    const slpTag = slpScore>0 ? slpScore+'점' : '';
 
     // study
     const stMin = totalStudyMins(dk);
@@ -645,7 +644,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpTag?('<span class="dsleep-tag">💤'+slpTag+'</span>'):''}
+        ${slpTag?('<span class="dsleep-tag" style="color:'+(slpScore>=90?'#27c96e':slpScore>=70?'#a0d0ff':slpScore>=50?'#f5a623':'#e74c3c')+'">💤'+slpTag+'</span>'):''}
       </div>
       <div class="dbody">
         <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
