@@ -644,7 +644,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpTag?('<span class="dsleep-tag" style="color:'+(slpScore>=90?'#27c96e':slpScore>=70?'#a0d0ff':slpScore>=50?'#f5a623':'#e74c3c')+'">💤'+slpTag+'</span>'):''}
+        ${slpTag?('<span class="dsleep-tag" style="color:'+(slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':'#f5a623')+'">💤'+slpTag+'</span>'):''}
       </div>
       <div class="dbody">
         <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
@@ -1058,9 +1058,9 @@ function renderHealth() {
   const slpScore = Number(h.sleep.score)||0;
   const slpTotalMins = slpH*60+slpM;
   const slpStr = fmtHM(slpH,slpM)||'';
-  const slpClr = slpTotalMins>=7*60?'#27c96e':slpTotalMins>=6*60?'#f5a623':slpTotalMins>0?'#e74c3c':'var(--m)';
-  const slpMsg = slpTotalMins>=7*60?'✓ 충분':slpTotalMins>=6*60?'⚡ 부족':slpTotalMins>0?'⚠ 매우 부족':'';
-  const scoreClr = slpScore>=90?'#27c96e':slpScore>=70?'#4f8ef7':slpScore>=50?'#f5a623':slpScore>0?'#e74c3c':'var(--m2)';
+  const slpClr = slpScore>0?(slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':'#f5a623'):(slpTotalMins>=7*60?'#27c96e':slpTotalMins>=6*60?'#f5a623':slpTotalMins>0?'#e74c3c':'var(--m)');
+  const slpMsg = slpScore>0?(slpScore>=85?'매우 좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심 필요'):(slpTotalMins>=7*60?'✓ 충분':slpTotalMins>=6*60?'⚡ 부족':slpTotalMins>0?'⚠ 매우 부족':'');
+  const scoreClr = slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':slpScore>0?'#f5a623':'var(--m2)';
 
   const swimLaps = Number(h.swimming.laps)||0;
   const swimM    = Number(h.swimming.swimM)||0;
@@ -1139,7 +1139,7 @@ function renderHealth() {
         <input type="number" class="hinp" min="0" max="100" value="${slpScore||''}" placeholder="삼성헬스 점수"
           style="border-color:#a855f740;color:${scoreClr}"
           onchange="updH('sleep','score',this.value)">
-        ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=90?'최상':slpScore>=70?'양호':slpScore>=50?'보통':'나쁨'}</span>`:''}
+        ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=85?'매우좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심필요'}</span>`:''}
       </div>
       ${slpTotalMins>0?`<div class="sleep-status" style="color:${slpClr}">${slpMsg} (권장 7–9h)</div>`:''}
     </div>
@@ -1825,7 +1825,7 @@ function renderModalHealth() {
     const {h:sh,m:sm}=minsToHM(m);
     const str=m>0?(sm?sh+'h'+sm:''+sh+'h'):'';
     const score=Number(db[dates[i]]?.health?.sleep?.score)||0;
-    const clr=m>=7*60?'#a855f7':m>=6*60?'#f5a623':m>0?'#e74c3c':'var(--b)';
+    const clr=m>=7*60?'#4f8ef7':m>=6*60?'#27c96e':m>=5*60?'#f5c200':m>0?'#f5a623':'var(--b)';
     const sClr=score>=90?'#27c96e':score>=70?'#4f8ef7':score>=50?'#f5a623':score>0?'#e74c3c':'transparent';
     const isT=dates[i]===todayStr();
     b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%">
