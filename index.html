@@ -376,7 +376,7 @@ function dayData(k) {
     }
   }
   const h = d.health;
-  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0};
+  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0};
   if(!h.swimming) h.swimming = {laps:0,swimM:0};
   if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
@@ -392,7 +392,7 @@ function totalStudyMins(dk) {
   return SUBJS.reduce((t,s)=>t+hmToMins(d.study[s]?.studyH,d.study[s]?.studyM),0);
 }
 const LIVING_BUDGET = 2_000_000;
-const EXP_CATS = ['식비','쇼핑','생활','업무','구독'];
+const EXP_CATS = ['식비','쇼핑','생활','업무','구독','학습','금융'];
 
 function dayTotalExp(dk) {
   return (db[dk]?.work?.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0);
@@ -1141,6 +1141,17 @@ function renderHealth() {
           onchange="updH('sleep','score',this.value)">
         ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=85?'매우좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심필요'}</span>`:''}
       </div>
+      <div class="hrow">
+        <span class="hlbl" style="color:#a855f766;font-size:8px">낮잠</span>
+        <div class="tpair">
+          <input type="number" class="ti" min="0" value="${Number(h.sleep.napH)||''}" placeholder="0"
+            style="border-color:#a855f720" onchange="updH('sleep','napH',this.value)">
+          <span class="tu" style="color:#a855f766">시간</span>
+          <input type="number" class="ti" min="0" max="59" value="${Number(h.sleep.napM)||''}" placeholder="0"
+            style="border-color:#a855f720" onchange="updH('sleep','napM',this.value)">
+          <span class="tu" style="color:#a855f766">분</span>
+        </div>
+      </div>
       ${slpTotalMins>0?`<div class="sleep-status" style="color:${slpClr}">${slpMsg} (권장 7–9h)</div>`:''}
     </div>
   </div>`;
@@ -1414,7 +1425,7 @@ function updWork(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','score','reps'];
+  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1629,21 +1640,48 @@ function renderModalWork() {
 
   // ② 지출 카테고리 바
   if(totalCatExp>0) {
+    // 카테고리별 항목 수집
+    const catItems = {}; // {cat: [{date, memo, amount}]}
+    [...mKeys].sort().forEach(dk=>{
+      for(const e of (db[dk]?.work?.expenses||[])) {
+        if(!catItems[e.cat]) catItems[e.cat]=[];
+        const dd=Number(dk.slice(8));
+        catItems[e.cat].push({dd, memo:e.memo||'', amount:Number(e.amount)||0});
+      }
+    });
+
     b += `<div style="background:#090d1a;border:1px solid rgba(231,76,60,.25);border-radius:12px;padding:14px">
       <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">카테고리별 지출</div>
-      <div style="display:flex;flex-direction:column;gap:6px">`;
+      <div style="display:flex;flex-direction:column;gap:5px">`;
     Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([c,v])=>{
       const pct=Math.round(v/totalCatExp*100);
+      const uid='cat_'+c.replace(/[^a-z0-9가-힣]/gi,'_');
+      const items=catItems[c]||[];
       b+=`<div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-          <span style="font-size:11px;color:var(--t)">${c}</span>
+        <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'"
+          style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:4px 0">
+          <div style="display:flex;align-items:center;gap:6px;flex:1">
+            <span style="font-size:11px;color:var(--t)">${c}</span>
+            <span style="font-size:8px;color:var(--m)">${items.length}건</span>
+          </div>
           <div style="display:flex;align-items:baseline;gap:5px">
             <span style="font-size:9px;color:var(--m)">${pct}%</span>
             <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${(v/10000).toFixed(1)+'만'}</span>
+            <span style="font-size:10px;color:var(--m)">▼</span>
           </div>
         </div>
-        <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden">
+        <div style="height:6px;background:var(--b);border-radius:4px;overflow:hidden;margin-bottom:4px">
           <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:4px;opacity:.85"></div>
+        </div>
+        <div style="display:none;flex-direction:column;gap:2px;margin-bottom:4px;padding:4px;background:rgba(231,76,60,.05);border-radius:6px">
+          ${items.map(it=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04)">
+            <div style="display:flex;align-items:center;gap:5px">
+              <span style="font-family:var(--mono);font-size:9px;color:var(--m);width:20px;flex-shrink:0">${it.dd}일</span>
+              <span style="font-size:10px;color:var(--t)">${esc(it.memo)||'–'}</span>
+            </div>
+            <span style="font-family:var(--bebas);font-size:13px;color:#e74c3c;flex-shrink:0">₩${it.amount.toLocaleString()}</span>
+          </div>`).join('')}
         </div>
       </div>`;
     });
@@ -1745,7 +1783,7 @@ function renderModalHealth() {
   const maxKm  = Math.max(1,...Object.values(ss));
   const [,m0,d0]=dates[0].split('-'), [,m1,d1]=dates[6].split('-');
 
-  let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0;
+  let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0,totalNapMins=0;
   let totalPushup=0, totalPullup=0, totalLegraise=0;
   const dailySleep=[],dailyRun=[],dailyCyc=[],dailyPush=[],dailyPull=[],dailyLeg=[];
   for(const dk of dates) {
@@ -1760,7 +1798,9 @@ function renderModalHealth() {
     totalPullup    += Number(h.pullup?.reps)||0;
     totalLegraise  += Number(h.legraise?.reps)||0;
     const slp=hmToMins(h.sleep?.sleepH,h.sleep?.sleepM);
+    const nap=hmToMins(h.sleep?.napH,h.sleep?.napM);
     totalSleepMins+=slp;
+    totalNapMins+=nap;
     dailySleep.push(slp);
     dailyRun.push(Number(h.running?.km)||0);
     dailyCyc.push(Number(h.cycling?.km)||0);
@@ -1769,7 +1809,9 @@ function renderModalHealth() {
     dailyLeg.push(Number(h.legraise?.reps)||0);
   }
   const avgSleepMins=Math.round(totalSleepMins/7);
+  const avgNapMins=Math.round(totalNapMins/7);
   const {h:asH,m:asM}=minsToHM(avgSleepMins);
+  const {h:anH,m:anM}=minsToHM(avgNapMins);
   const slpClr=avgSleepMins>=7*60?'#a855f7':avgSleepMins>=6*60?'#f5a623':'#e74c3c';
   const maxSleep=Math.max(1,...dailySleep);
   const maxRun=Math.max(1,...dailyRun);
@@ -1793,7 +1835,7 @@ function renderModalHealth() {
     <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
       <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">평균 수면</div>
       <div style="font-family:var(--bebas);font-size:20px;color:${slpClr};line-height:1.1">${fmtHM(asH,asM)||'–'}</div>
-      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${avgSleepMins>=7*60?'✓충분':avgSleepMins>=6*60?'⚡부족':'⚠매우부족'}</div>
+      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${avgSleepMins>=7*60?'✓충분':avgSleepMins>=6*60?'⚡부족':'⚠매우부족'}${avgNapMins>0?' + 낮잠 '+fmtHM(anH,anM):''}</div>
     </div>
     <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
       <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">총 운동</div>
