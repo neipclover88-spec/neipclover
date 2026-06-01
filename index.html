@@ -1658,7 +1658,7 @@ function renderModalWork() {
       const uid='cat_'+c.replace(/[^a-z0-9가-힣]/gi,'_');
       const items=catItems[c]||[];
       b+=`<div>
-        <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'"
+        <div onclick="const d=this.parentNode.querySelector('.cat-detail');d.style.display=d.style.display==='flex'?'none':'flex'"
           style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:4px 0">
           <div style="display:flex;align-items:center;gap:6px;flex:1">
             <span style="font-size:11px;color:var(--t)">${c}</span>
@@ -1673,7 +1673,7 @@ function renderModalWork() {
         <div style="height:6px;background:var(--b);border-radius:4px;overflow:hidden;margin-bottom:4px">
           <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:4px;opacity:.85"></div>
         </div>
-        <div style="display:none;flex-direction:column;gap:2px;margin-bottom:4px;padding:4px;background:rgba(231,76,60,.05);border-radius:6px">
+        <div class="cat-detail" style="display:none;flex-direction:column;gap:2px;margin-bottom:4px;padding:4px;background:rgba(231,76,60,.05);border-radius:6px">
           ${items.map(it=>`
           <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04)">
             <div style="display:flex;align-items:center;gap:5px">
