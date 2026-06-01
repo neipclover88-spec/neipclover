@@ -2487,24 +2487,28 @@ async function renderCert() {
         <span style="font-size:13px;font-weight:700;color:${color};">${name}</span>
         <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</span>
       </div>
-      <div style="height:2px;background:var(--surface2);border-radius:1px;overflow:hidden;margin-bottom:${subRows?'3px':'0'};">
-        <div style="width:${sPct}%;height:100%;background:${color};"></div>
+      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:${subRows?'3px':'0'};">
+        <div style="width:${sPct}%;height:100%;background:${color};border-radius:3px;"></div>
       </div>
       ${subRows}
       ${goalRows?`<div style="height:1px;background:var(--border);margin:4px 0 1px;"></div>${goalRows}`:''}
     </div>`;
   }
 
-  // ── 운동 카드 ──
+  // ── 운동 카드 ── (전체 종목)
   const ex = [];
   const run  = health?.running;
   const swim = health?.swimming;
   const cyc  = health?.cycling;
   const push = health?.pushup;
+  const pull = health?.pullup;
+  const leg  = health?.legraise;
   if (run?.km>0)    ex.push(`🏃 러닝 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${run.km}km${run.runM>0?' · '+run.runM+'분':''}</span>`);
   if (swim?.laps>0) ex.push(`🏊 수영 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${swim.laps}바퀴${swim.swimM>0?' · '+swim.swimM+'분':''}</span>`);
   if (cyc?.km>0)    ex.push(`🚴 자전거 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${cyc.km}km</span>`);
   if (push?.reps>0) ex.push(`💪 푸시업 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${push.reps}회</span>`);
+  if (pull?.reps>0) ex.push(`🏋️ 풀업 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${pull.reps}회</span>`);
+  if (leg?.reps>0)  ex.push(`🦵 레그레이즈 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${leg.reps}회</span>`);
   const exContent = ex.map(e=>`<div style="font-size:12px;padding:2px 0;">${e}</div>`).join('') ||
     `<div style="font-size:11px;color:var(--text2);">기록 없음</div>`;
 
@@ -2523,20 +2527,24 @@ async function renderCert() {
     : slpTotal>=5*60   ? Math.round(40 + (slpTotal-5*60)/(60*60)*30)
     : Math.max(10, Math.round(slpTotal/(5*60)*40));
   const slpContent = slpTotal>0 ? `
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:5px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
       <div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${slpQuality};line-height:1;">
-          ${slpH}:${String(slpM).padStart(2,'0')}
-        </div>
-        <div style="font-size:10px;color:${slpQuality};margin-top:2px;">${slpMsg} · 권장 7–9h</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${slpQuality};line-height:1;">${slpH}:${String(slpM).padStart(2,'0')}</div>
+        <div style="font-size:10px;color:${slpQuality};margin-top:2px;">${slpMsg}</div>
+        <div style="font-size:9px;color:var(--text2);margin-top:1px;">권장 7–9h</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:22px;line-height:1;">${slpEmoji}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:${slpQuality};margin-top:2px;">${slpScore}<span style="font-size:9px;color:var(--text2);">점</span></div>
+        <div style="font-size:24px;line-height:1;">${slpEmoji}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${slpQuality};line-height:1;margin-top:3px;">${slpScore}
+          <span style="font-size:9px;color:var(--text2);">/ 100</span>
+        </div>
       </div>
     </div>
-    <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;">
-      <div style="width:${Math.min(100,Math.round(slpTotal/(9*60)*100))}%;height:100%;background:${slpQuality};border-radius:2px;"></div>
+    <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:5px;">
+      <div style="width:${Math.min(100,Math.round(slpTotal/(9*60)*100))}%;height:100%;background:${slpQuality};border-radius:3px;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text2);">
+      <span>0h</span><span style="color:${slpQuality};">↑ ${slpH}h ${slpM}m</span><span>9h</span>
     </div>` :
     `<div style="font-size:11px;color:var(--text2);">기록 없음</div>`;
 
