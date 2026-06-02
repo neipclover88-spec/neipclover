@@ -395,9 +395,68 @@ body {
 .fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
 .fb-dot.ok { background: var(--green); }
 
-/* ── NAV 6개 대응 ── */
-.nav-btn { font-size: 9px; }
-.nav-btn svg { width: 18px; height: 18px; }
+/* ── JEONGBOK MAP ── */
+#jb-wrap .jb-bookcard {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px 14px;margin-bottom:12px;
+}
+#jb-wrap .jb-bookcard input,
+#jb-wrap .jb-bookcard select {
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;padding:6px 8px;
+  font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;
+}
+#jb-wrap .jb-bhead {
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px;
+}
+#jb-wrap .jb-subj { width:100px;font-weight:600; }
+#jb-wrap .jb-name { flex:1;min-width:120px; }
+#jb-wrap .jb-stat { font-size:11px;color:var(--text2);margin-left:auto; }
+#jb-wrap .jb-del {
+  border:none;background:transparent;color:var(--text2);
+  font-size:18px;line-height:1;width:26px;height:26px;
+  border-radius:6px;cursor:pointer;flex-shrink:0;
+}
+#jb-wrap .jb-del:hover { color:#f87171; }
+#jb-wrap .jb-bctrl {
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px;
+}
+#jb-wrap .jb-count { width:96px; }
+#jb-wrap .jb-btn {
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;padding:6px 11px;
+  font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+  transition:.12s;
+}
+#jb-wrap .jb-btn.on { background:var(--blue);border-color:var(--blue);color:#fff; }
+#jb-wrap .jb-grid {
+  display:flex;flex-wrap:wrap;gap:3px;
+}
+#jb-wrap .jb-grid.insert { outline:1px dashed #3a4660;outline-offset:4px;border-radius:6px; }
+#jb-wrap .jb-cell {
+  border:1px solid var(--border);border-radius:4px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;transition:background .1s,border-color .1s,opacity .1s;
+  background:transparent;flex:0 0 auto;
+}
+#jb-wrap .jb-q, #jb-wrap .jb-pmark { width:24px;height:24px; }
+#jb-wrap .jb-addp {
+  width:24px;height:24px;border:1px dashed #3a4660;
+  color:#7fa6e8;font-size:12px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+#jb-wrap .jb-mcell { width:28px;height:28px; }
+#jb-wrap .jb-stars { font-size:7px;line-height:1;letter-spacing:.5px;position:absolute;bottom:2px; }
+#jb-wrap .jb-pn { font-size:7px;line-height:1;position:absolute;top:2px;font-variant-numeric:tabular-nums; }
+#jb-wrap .jb-mark { font-size:12px;font-weight:700;line-height:1; }
+#jb-wrap .jb-legend {
+  display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2);
+}
+#jb-wrap .jb-legend span { display:inline-flex;align-items:center;gap:5px; }
+#jb-wrap .jb-dot { width:10px;height:10px;border-radius:3px;display:inline-block; }
+#jb-wrap .jb-dot.out { background:transparent;border:1.5px solid #2563eb; }
+
+.nav-btn svg { width: 17px; height: 17px; }
 
 /* ── ODAP ── */
 .odap-tab {
@@ -888,6 +947,34 @@ body {
       <div class="tab-content" id="odapBody" style="padding:14px 18px;"></div>
     </div>
 
+    <!-- ⑦ JEONGBOK MAP -->
+    <div class="screen" id="screen-map" style="padding:0;overflow-y:auto;">
+      <div id="jb-wrap" style="padding:14px 14px 80px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:17px;font-weight:700;">교재 정복지도</span>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style="color:var(--text2);font-size:12px;">오늘 정복</span>
+            <b id="jb-today" style="font-size:20px;font-weight:700;color:var(--blue);">+0</b>
+          </div>
+        </div>
+        <button id="jb-addBook" style="
+          display:block;width:100%;background:transparent;
+          border:1px dashed var(--border);color:var(--text2);
+          border-radius:10px;padding:10px;font-size:13px;
+          margin-bottom:14px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        ">＋ 교재 추가</button>
+        <div id="jb-books"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+          <span id="jb-save-state" style="font-size:11px;color:var(--text2);">자동 저장됨</span>
+          <button id="jb-reset" style="
+            color:#f87171;background:transparent;
+            border:1px solid #3a2a2e;border-radius:8px;
+            padding:6px 12px;font-size:12px;cursor:pointer;
+            font-family:'Noto Sans KR',sans-serif;">전체 초기화</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ⑥ SETTINGS -->
     <div class="screen" id="screen-settings">
       <div class="card streak-card">
@@ -979,6 +1066,10 @@ body {
     <button class="nav-btn" id="nav-odap" onclick="goTab('odap')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
       오답노트
+    </button>
+    <button class="nav-btn" id="nav-map" onclick="goTab('map')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      정복지도
     </button>
   </nav>
 </div><!-- /app -->
@@ -2315,6 +2406,220 @@ async function odapSave() {
   odapTab('list');
 }
 
+/* ── JEONGBOK MAP ── */
+(function(){
+  var JB_PATH = TIMER_FB_PATH + '/timer/jeongbok';
+  var jbState = {books:[]};
+  var jbInsert = {};
+  var SUBJS = ['국어','수학','영어','사회개념','과학개념','사회문제','과학문제'];
+  var mathColor = {solved:'#a8e6cf',slow:'#aac9f0',mistake:'#c9e89a',important:'#fbe38c',unsolved:'#f4a6a6'};
+  var pageCol = ['','#d6ccf2','#b3a0ea','#8a72d6'];
+  var statusOrder = [null,'solved','slow','mistake','important','unsolved'];
+  var qOrder = ['','o','x'];
+  var stars = ["","★","★★","★★★"];
+  var jbLoaded = false;
+
+  function todayStr(){
+    var d=new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+  function isToday(day){return day===todayStr();}
+  function mkId(){return 'b'+Date.now()+Math.floor(Math.random()*1000);}
+
+  async function jbSave(){
+    try{localStorage.setItem('jb_v1',JSON.stringify(jbState));}catch(e){}
+    if(typeof rtdb!=='undefined'&&rtdb){
+      try{ await rtdb.ref(JB_PATH).set(jbState); }catch(e){}
+    }
+    var el=document.getElementById('jb-save-state');
+    if(el) el.textContent='저장됨 ✓';
+    setTimeout(()=>{if(el)el.textContent='자동 저장됨';},1500);
+  }
+  async function jbLoad(){
+    try{var s=localStorage.getItem('jb_v1');if(s)jbState=JSON.parse(s);}catch(e){}
+    if(typeof rtdb!=='undefined'&&rtdb){
+      try{
+        var snap=await rtdb.ref(JB_PATH).get();
+        if(snap.exists()&&snap.val()?.books?.length) jbState=snap.val();
+      }catch(e){}
+    }
+    if(!jbState.books||!jbState.books.length) jbSeed();
+  }
+  function jbSeed(){
+    jbState={books:[
+      {id:mkId(),subject:'국어',name:'수능스타트',type:'oxp',qn:80,items:[],n:0,cells:[],pn:0,pages:[]},
+      {id:mkId(),subject:'수학',name:'마더텅',type:'status',qn:0,items:[],n:150,cells:[],pn:0,pages:[]}
+    ]};
+  }
+
+  function typeOf(subject){
+    if(subject==='국어') return 'oxp';
+    if(subject==='사회개념'||subject==='과학개념') return 'page';
+    return 'status';
+  }
+  function countField(b){return b.type==='oxp'?'qn':b.type==='page'?'pn':'n';}
+  function fitBook(b){
+    if(b.type==='oxp'){
+      if(!b.items)b.items=[];
+      var qc=function(){return b.items.filter(i=>i.t==='q').length;};
+      while(qc()<(b.qn||0)) b.items.push({t:'q',v:'',day:null});
+      while(qc()>(b.qn||0)){for(var k=b.items.length-1;k>=0;k--){if(b.items[k].t==='q'){b.items.splice(k,1);break;}}}
+    } else if(b.type==='page'){
+      if(!b.pages)b.pages=[];
+      while(b.pages.length<(b.pn||0)) b.pages.push({lvl:0,day:null});
+      if(b.pages.length>(b.pn||0)) b.pages.length=(b.pn||0);
+    } else {
+      if(!b.cells)b.cells=[];
+      while(b.cells.length<(b.n||0)) b.cells.push({st:null,day:null});
+      if(b.cells.length>(b.n||0)) b.cells.length=(b.n||0);
+    }
+  }
+
+  function dim(el,filled,day){el.style.opacity=(filled&&!isToday(day))?'0.45':'1';}
+  function paintQ(el,q){
+    if(q.v==='o'){el.style.background='#5fa8f5';el.style.borderColor='#5fa8f5';el.innerHTML='';}
+    else if(q.v==='x'){el.style.background='#5fa8f5';el.style.borderColor='#5fa8f5';el.innerHTML='<span class="jb-mark" style="color:#7a1f1f">✗</span>';}
+    else{el.style.background='transparent';el.style.borderColor='var(--border)';el.innerHTML='';}
+    dim(el,q.v!=='',q.day);
+  }
+  function paintMark(el,m,num){
+    if(m.lvl>0){el.style.background='#2563eb';el.style.borderColor='#2563eb';
+      var mk=m.lvl===1?'−':stars[m.lvl-1];
+      el.innerHTML='<span class="jb-pn" style="color:#cfe0ff">'+num+'</span><span class="jb-stars" style="color:#fff">'+mk+'</span>';}
+    else{el.style.background='transparent';el.style.borderColor='#2563eb';el.style.borderWidth='1.5px';
+      el.innerHTML='<span class="jb-pn" style="color:#7fa6e8">'+num+'</span>';}
+    dim(el,m.lvl>0,m.day);
+  }
+  function paintM(el,c){
+    if(c.st){el.style.background=mathColor[c.st];el.style.borderColor=mathColor[c.st];}
+    else{el.style.background='transparent';el.style.borderColor='var(--border)';}
+    dim(el,!!c.st,c.day);
+  }
+  function paintPage(el,p){
+    if(p.lvl>0){el.style.background=pageCol[p.lvl];el.style.borderColor=pageCol[p.lvl];
+      el.innerHTML='<span class="jb-mark" style="font-size:10px;color:'+(p.lvl>=3?'#fff':'#3a2f5e')+'">'+p.lvl+'</span>';}
+    else{el.style.background='transparent';el.style.borderColor='var(--border)';el.innerHTML='';}
+    dim(el,p.lvl>0,p.day);
+  }
+
+  function countToday(){
+    var t=todayStr(),n=0;
+    jbState.books.forEach(b=>{
+      if(b.type==='oxp')(b.items||[]).forEach(i=>{if(i.t==='q'&&i.v!==''&&i.day===t)n++;if(i.t==='p'&&i.lvl>0&&i.day===t)n++;});
+      else if(b.type==='page')(b.pages||[]).forEach(p=>{if(p.lvl>0&&p.day===t)n++;});
+      else(b.cells||[]).forEach(c=>{if(c.st&&c.day===t)n++;});
+    });
+    return n;
+  }
+  function updateJbToday(){var el=document.getElementById('jb-today');if(el)el.textContent='+'+countToday();}
+
+  function updateStat(book,card){
+    var s=card.querySelector('.jb-stat');
+    if(book.type==='oxp'){
+      var pT=0,pS=0,qT=0,qD=0,qW=0;
+      (book.items||[]).forEach(i=>{if(i.t==='p'){pT++;if(i.lvl>0)pS++;}else{qT++;if(i.v!=='')qD++;if(i.v==='x')qW++;}});
+      s.innerHTML='지문 <b>'+pS+'</b>/'+pT+' · 문제 <b>'+qD+'</b>/'+qT+' · 틀림 '+qW;
+    } else if(book.type==='page'){
+      var ps=book.pages||[],done=ps.filter(p=>p.lvl>0).length,three=ps.filter(p=>p.lvl>=3).length,tot=book.pn||0;
+      s.innerHTML='<b>'+done+'</b>/'+tot+' · '+(tot?Math.round(done/tot*100):0)+'% · 3회독 '+three;
+    } else {
+      var m=(book.cells||[]).filter(c=>!!c.st).length,mn=book.n||0,u=(book.cells||[]).filter(c=>c.st==='unsolved').length;
+      s.innerHTML='<b>'+m+'</b>/'+mn+' · '+(mn?Math.round(m/mn*100):0)+'% · 못풂 '+u;
+    }
+  }
+
+  function legendHTML(type){
+    if(type==='oxp') return '<span><span class="jb-dot out"></span>지문(미)</span><span><span class="jb-dot" style="background:#2563eb"></span>지문(학)</span><span><span class="jb-dot" style="background:#5fa8f5"></span>문제 O/✗</span>';
+    if(type==='page') return '<span><span class="jb-dot" style="background:#d6ccf2"></span>1회독</span><span><span class="jb-dot" style="background:#b3a0ea"></span>2회독</span><span><span class="jb-dot" style="background:#8a72d6"></span>3회독</span>';
+    return '<span><span class="jb-dot" style="background:#a8e6cf"></span>해결</span><span><span class="jb-dot" style="background:#aac9f0"></span>오래</span><span><span class="jb-dot" style="background:#c9e89a"></span>실수</span><span><span class="jb-dot" style="background:#fbe38c"></span>중요</span><span><span class="jb-dot" style="background:#f4a6a6"></span>못풂</span>';
+  }
+
+  function populateGrid(book,card){
+    var grid=card.querySelector('.b-grid2'),ins=card.querySelector('.jb-ins-btn'),legend=card.querySelector('.jb-legend');
+    grid.innerHTML=''; grid.className='jb-grid b-grid2';
+    legend.innerHTML=legendHTML(book.type);
+    ins.style.display=book.type==='oxp'?'':'none';
+    if(book.type==='oxp'){
+      var im=!!jbInsert[book.id]; if(im)grid.classList.add('insert');
+      var pIdx=0;
+      (book.items||[]).forEach((it,idx)=>{
+        var el=document.createElement('div');el.className='jb-cell';
+        if(it.t==='p'){
+          pIdx++;var num=pIdx;el.classList.add('jb-pmark');paintMark(el,it,num);
+          el.onclick=()=>{
+            if(jbInsert[book.id]){book.items.splice(idx,1);populateGrid(book,card);updateJbToday();jbSave();return;}
+            it.lvl=(it.lvl+1)%5;it.day=it.lvl>0?todayStr():null;paintMark(el,it,num);updateStat(book,card);updateJbToday();jbSave();
+          };
+        } else {
+          el.classList.add('jb-q');paintQ(el,it);
+          el.onclick=()=>{
+            if(jbInsert[book.id]){book.items.splice(idx,0,{t:'p',lvl:0,day:null});populateGrid(book,card);updateJbToday();jbSave();return;}
+            var i=qOrder.indexOf(it.v);it.v=qOrder[(i+1)%3];it.day=it.v!==''?todayStr():null;paintQ(el,it);updateStat(book,card);updateJbToday();jbSave();
+          };
+        }
+        grid.appendChild(el);
+      });
+      if(im){var add=document.createElement('div');add.className='jb-addp';add.textContent='＋';
+        add.onclick=()=>{book.items.push({t:'p',lvl:0,day:null});populateGrid(book,card);jbSave();};grid.appendChild(add);}
+    } else if(book.type==='page'){
+      (book.pages||[]).forEach(p=>{
+        var el=document.createElement('div');el.className='jb-cell jb-mcell';paintPage(el,p);
+        el.onclick=()=>{p.lvl=(p.lvl+1)%4;p.day=p.lvl>0?todayStr():null;paintPage(el,p);updateStat(book,card);updateJbToday();jbSave();};
+        grid.appendChild(el);
+      });
+    } else {
+      (book.cells||[]).forEach(c=>{
+        var el=document.createElement('div');el.className='jb-cell jb-mcell';paintM(el,c);
+        el.onclick=()=>{var i=statusOrder.indexOf(c.st);c.st=statusOrder[(i+1)%statusOrder.length];c.day=c.st?todayStr():null;paintM(el,c);updateStat(book,card);updateJbToday();jbSave();};
+        grid.appendChild(el);
+      });
+    }
+    updateStat(book,card);
+  }
+
+  var SUBJ_OPTS='<option value="">과목 선택</option>'+SUBJS.map(s=>'<option>'+s+'</option>').join('');
+
+  function buildCard(book){
+    book.type=typeOf(book.subject);
+    var card=document.createElement('div');card.className='jb-bookcard';
+    card.innerHTML=
+      '<div class="jb-bhead"><select class="jb-subj jb-sel">'+SUBJ_OPTS+'</select><input class="jb-name" placeholder="교재 이름"><div class="jb-stat"></div><button class="jb-del" title="삭제">×</button></div>'
+      +'<div class="jb-bctrl"><input class="jb-count" type="number" min="0"><button class="jb-btn jb-apply-btn">적용</button><button class="jb-btn jb-ins-btn">지문 삽입 모드</button></div>'
+      +'<div class="jb-grid b-grid2"></div><div class="jb-legend"></div>';
+    var subj=card.querySelector('.jb-sel'),name=card.querySelector('.jb-name'),count=card.querySelector('.jb-count'),ins=card.querySelector('.jb-ins-btn');
+    subj.value=book.subject||'';name.value=book.name||'';
+    function syncCount(){count.value=book[countField(book)]||0;count.placeholder=book.type==='page'?'페이지':'문제 수';}
+    syncCount();
+    subj.onchange=()=>{book.subject=subj.value;book.type=typeOf(book.subject);fitBook(book);syncCount();populateGrid(book,card);jbSave();};
+    name.oninput=()=>{book.name=name.value;jbSave();};
+    card.querySelector('.jb-apply-btn').onclick=()=>{var v=Math.max(0,parseInt(count.value)||0);book[countField(book)]=v;fitBook(book);populateGrid(book,card);updateJbToday();jbSave();};
+    ins.onclick=()=>{jbInsert[book.id]=!jbInsert[book.id];ins.classList.toggle('on',jbInsert[book.id]);ins.textContent=jbInsert[book.id]?'삽입 중':'지문 삽입 모드';populateGrid(book,card);};
+    card.querySelector('.jb-del').onclick=()=>{if(confirm('"'+(book.name||'이 교재')+'" 삭제할까?')){jbState.books=jbState.books.filter(x=>x.id!==book.id);renderJbBooks();jbSave();}};
+    fitBook(book);populateGrid(book,card);
+    return card;
+  }
+
+  function renderJbBooks(){
+    var host=document.getElementById('jb-books');if(!host)return;
+    host.innerHTML='';
+    jbState.books.forEach(b=>{if(!b.id)b.id=mkId();host.appendChild(buildCard(b));});
+    updateJbToday();
+  }
+
+  // 공개 초기화 함수
+  window.jbInit = async function(){
+    if(!jbLoaded){ await jbLoad(); jbLoaded=true; }
+    renderJbBooks();
+    document.getElementById('jb-addBook').onclick=()=>{
+      jbState.books.unshift({id:mkId(),subject:'',name:'',type:'status',qn:0,items:[],n:0,cells:[],pn:0,pages:[]});
+      renderJbBooks();jbSave();
+    };
+    document.getElementById('jb-reset').onclick=()=>{
+      if(confirm('모든 교재와 기록을 지울까?')){jbSeed();renderJbBooks();jbSave();}
+    };
+  };
+})();
+
 /* ── TAB SWITCHING ── */
 function goTab(tab) {
   document.querySelectorAll('.screen').forEach(s => {
@@ -2332,9 +2637,10 @@ function goTab(tab) {
     scr.classList.add('active');
   }
   $('nav-'+tab).classList.add('active');
-  if (tab === 'stats')   loadStats(new Date(statsDate));
-  if (tab === 'planner') loadGoals();
-  if (tab === 'odap')    renderOdap();
+  if (tab === 'stats')    loadStats(new Date(statsDate));
+  if (tab === 'planner')  loadGoals();
+  if (tab === 'odap')     renderOdap();
+  if (tab === 'map')      window.jbInit?.();
 }
 
 /* ── WAKE LOCK ── */
