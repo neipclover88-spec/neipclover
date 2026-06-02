@@ -2468,9 +2468,9 @@ async function renderCert() {
           </div>
         </div>
         <!-- 바: 어제까지(어두운) + 오늘(밝은) -->
-        <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative;">
-          <div style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:${color};opacity:0.3;"></div>
-          <div style="position:absolute;left:${startPct}%;top:0;height:100%;width:${todayPct}%;background:${color};border-radius:0 3px 3px 0;box-shadow:0 0 6px ${color}88;"></div>
+        <div style="height:12px;background:var(--surface2);border-radius:6px;overflow:hidden;position:relative;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:${color};opacity:0.25;border-radius:6px 0 0 6px;"></div>
+          <div style="position:absolute;left:${startPct}%;top:0;height:100%;width:${todayPct}%;background:${color};border-radius:0 6px 6px 0;box-shadow:0 0 10px ${color}aa;"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:2px;">
           <span style="font-size:9px;color:var(--text2);">어제까지 ${start}${g.targetUnit||''}</span>
