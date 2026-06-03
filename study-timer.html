@@ -451,6 +451,15 @@ body {
 #jb-wrap .jb-mark { font-size:10px;font-weight:700;line-height:1; }
 #jb-wrap .jb-sec-line {
   box-shadow: inset 3px 0 0 #9aa1b2 !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+#jb-wrap .jb-sec-lbl {
+  position: absolute;
+  top: -14px; left: -2px;
+  font-size: 9px; font-weight: 700;
+  color: #9aa1b2; white-space: nowrap;
+  line-height: 13px; pointer-events: none;
 }
 #jb-wrap .jb-range-highlight {
   background: color-mix(in srgb, #9aa1b2 30%, transparent) !important;
@@ -2646,7 +2655,7 @@ async function odapSave() {
     var host = card.querySelector('.b-grid2'), ins = card.querySelector('.jb-ins-btn'), legend = card.querySelector('.jb-legend');
     host.innerHTML = '';
     host.className = 'jb-grid b-grid2';
-    host.style.paddingTop = '0';
+    host.style.cssText = 'padding-top:16px; overflow:visible;';
     legend.innerHTML = legendHTML(book.type);
     ins.style.display = book.type==='oxp' ? '' : 'none';
 
@@ -2661,8 +2670,10 @@ async function odapSave() {
       var el = makeCellEl(book, card, it, idx, pIdxRef);
       if (it._sec) {
         el.classList.add('jb-sec-line');
-        // 탭 시 단원명 토스트
-        el.addEventListener('click', () => showSecTooltip(it._sec));
+        var lbl = document.createElement('span');
+        lbl.className = 'jb-sec-lbl';
+        lbl.textContent = '§ ' + it._sec;
+        el.appendChild(lbl);
       }
       host.appendChild(el);
     });
