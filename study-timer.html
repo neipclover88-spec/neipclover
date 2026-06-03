@@ -450,18 +450,7 @@ body {
 #jb-wrap .jb-pn { font-size:6px;line-height:1;position:absolute;top:1px;font-variant-numeric:tabular-nums; }
 #jb-wrap .jb-mark { font-size:10px;font-weight:700;line-height:1; }
 #jb-wrap .jb-sec-line {
-  border-left: 2.5px solid #9aa1b2 !important;
-  margin-left: 3px;
-  position: relative;
-  overflow: visible;
-}
-#jb-wrap .jb-sec-line > .jb-sec-lbl {
-  position: absolute;
-  top: -15px; left: -3px;
-  font-size: 9px; font-weight: 700;
-  color: #9aa1b2; white-space: nowrap;
-  pointer-events: none; line-height: 14px;
-  background: var(--bg); padding: 0 2px;
+  box-shadow: inset 3px 0 0 #9aa1b2 !important;
 }
 #jb-wrap .jb-range-highlight {
   background: color-mix(in srgb, #9aa1b2 30%, transparent) !important;
@@ -2657,7 +2646,7 @@ async function odapSave() {
     var host = card.querySelector('.b-grid2'), ins = card.querySelector('.jb-ins-btn'), legend = card.querySelector('.jb-legend');
     host.innerHTML = '';
     host.className = 'jb-grid b-grid2';
-    host.style.paddingTop = '16px';
+    host.style.paddingTop = '0';
     legend.innerHTML = legendHTML(book.type);
     ins.style.display = book.type==='oxp' ? '' : 'none';
 
@@ -2672,20 +2661,8 @@ async function odapSave() {
       var el = makeCellEl(book, card, it, idx, pIdxRef);
       if (it._sec) {
         el.classList.add('jb-sec-line');
-        var lbl = document.createElement('span');
-        lbl.className = 'jb-sec-lbl';
-        lbl.textContent = '§ ' + it._sec;
-        lbl.style.pointerEvents = 'auto';
-        lbl.style.cursor = 'pointer';
-        lbl.onclick = (e) => {
-          e.stopPropagation();
-          var nv = prompt('단원명 변경 (비우면 제거):', it._sec);
-          if (nv === null) return;
-          if (nv.trim() === '') delete it._sec;
-          else it._sec = nv.trim();
-          populateGrid(book, card); jbSave();
-        };
-        el.appendChild(lbl);
+        // 탭 시 단원명 토스트
+        el.addEventListener('click', () => showSecTooltip(it._sec));
       }
       host.appendChild(el);
     });
