@@ -449,27 +449,22 @@ body {
 #jb-wrap .jb-stars { font-size:6px;line-height:1;letter-spacing:.3px;position:absolute;bottom:1px; }
 #jb-wrap .jb-pn { font-size:6px;line-height:1;position:absolute;top:1px;font-variant-numeric:tabular-nums; }
 #jb-wrap .jb-mark { font-size:10px;font-weight:700;line-height:1; }
-#jb-wrap .jb-section-group {
-  border: 1.5px solid #6b7280;
-  border-radius: 10px;
-  padding: 7px 6px 6px;
-  margin-bottom: 4px;
+#jb-wrap .jb-sec-line {
+  border-left: 2.5px solid #9aa1b2 !important;
+  margin-left: 3px;
   position: relative;
-  background: transparent;
+  overflow: visible;
 }
-#jb-wrap .jb-section-group > .jb-grouplabel {
-  font-size: 10px; font-weight: 700; color: #9aa1b2;
-  margin-bottom: 5px; display: flex; align-items: center; gap: 5px;
+#jb-wrap .jb-sec-line > .jb-sec-lbl {
+  position: absolute;
+  top: -15px; left: -3px;
+  font-size: 9px; font-weight: 700;
+  color: #9aa1b2; white-space: nowrap;
+  pointer-events: none; line-height: 14px;
+  background: var(--bg); padding: 0 2px;
 }
-#jb-wrap .jb-section-group > .jb-grouplabel .jb-glabel-txt { cursor: pointer; }
-#jb-wrap .jb-section-group > .jb-grouplabel .jb-glabel-txt:hover { text-decoration: underline; }
-#jb-wrap .jb-grouplabel .jb-glabel-del {
-  background:none;border:none;color:var(--text2);font-size:13px;
-  cursor:pointer;padding:0;opacity:0.4;line-height:1;margin-left:auto;
-}
-#jb-wrap .jb-grouplabel .jb-glabel-del:hover { opacity:1;color:#f87171; }
 #jb-wrap .jb-range-highlight {
-  background: color-mix(in srgb, #9aa1b2 35%, transparent) !important;
+  background: color-mix(in srgb, #9aa1b2 30%, transparent) !important;
   border-color: #9aa1b2 !important;
   transition: background 0.1s;
 }
@@ -2661,59 +2656,45 @@ async function odapSave() {
 
   function populateGrid(book, card) {
     var host = card.querySelector('.b-grid2'), ins = card.querySelector('.jb-ins-btn'), legend = card.querySelector('.jb-legend');
-    host.innerHTML = ''; host.className = 'b-grid2';
+    host.innerHTML = '';
+    host.className = 'jb-grid b-grid2';
+    host.style.paddingTop = '16px';
     legend.innerHTML = legendHTML(book.type);
     ins.style.display = book.type==='oxp' ? '' : 'none';
 
     var arr = book.type==='oxp'?book.items:book.type==='page'?book.pages:book.cells;
     arr = arr || [];
     var im = book.type==='oxp' && !!jbInsert[book.id];
+    if (im) host.classList.add('insert');
     var pIdxRef = {v:0};
 
-    // 단원 그룹으로 분할
-    var groups = [];
-    var cur = { label:null, items:[] };
     arr.forEach((it, idx) => {
-      if (it._s) return; // 구버전 무시
-      if (it._sec) { if(cur.items.length||cur.label) groups.push(cur); cur = { label: it._sec, startIdx: idx, items: [] }; }
-      cur.items.push({ it, idx });
-    });
-    if (cur.items.length || cur.label) groups.push(cur);
-
-    groups.forEach(g => {
-      if (g.label) {
-        // 그룹 박스
-        var box = document.createElement('div'); box.className = 'jb-section-group';
-        var lbl = document.createElement('div'); lbl.className = 'jb-grouplabel';
-        var txt = document.createElement('span'); txt.className = 'jb-glabel-txt';
-        txt.textContent = '§ ' + g.label;
-        txt.onclick = () => {
-          var nv = prompt('단원명 변경:', g.label);
-          if (nv !== null) { arr[g.startIdx]._sec = nv.trim()||g.label; populateGrid(book,card); jbSave(); }
+      if (it._s) return;
+      var el = makeCellEl(book, card, it, idx, pIdxRef);
+      if (it._sec) {
+        el.classList.add('jb-sec-line');
+        var lbl = document.createElement('span');
+        lbl.className = 'jb-sec-lbl';
+        lbl.textContent = '§ ' + it._sec;
+        lbl.style.pointerEvents = 'auto';
+        lbl.style.cursor = 'pointer';
+        lbl.onclick = (e) => {
+          e.stopPropagation();
+          var nv = prompt('단원명 변경 (비우면 제거):', it._sec);
+          if (nv === null) return;
+          if (nv.trim() === '') delete it._sec;
+          else it._sec = nv.trim();
+          populateGrid(book, card); jbSave();
         };
-        var del = document.createElement('button'); del.className = 'jb-glabel-del'; del.textContent = '×';
-        del.onclick = () => { delete arr[g.startIdx]._sec; populateGrid(book,card); jbSave(); };
-        lbl.appendChild(txt); lbl.appendChild(del);
-        var grid = document.createElement('div'); grid.className = 'jb-grid';
-        if (im) grid.classList.add('insert');
-        g.items.forEach(({it, idx}) => grid.appendChild(makeCellEl(book, card, it, idx, pIdxRef)));
-        box.appendChild(lbl); box.appendChild(grid);
-        host.appendChild(box);
-      } else {
-        // 그룹 없는 셀들 (첫 단원 이전)
-        var grid = document.createElement('div'); grid.className = 'jb-grid';
-        if (im) grid.classList.add('insert');
-        g.items.forEach(({it, idx}) => grid.appendChild(makeCellEl(book, card, it, idx, pIdxRef)));
-        host.appendChild(grid);
+        el.appendChild(lbl);
       }
+      host.appendChild(el);
     });
 
-    // 지문 삽입 모드 추가 버튼
     if (im) {
-      var add=document.createElement('div'); add.className='jb-addp'; add.textContent='＋';
+      var add = document.createElement('div'); add.className='jb-addp'; add.textContent='＋';
       add.onclick=()=>{ book.items.push({t:'p',lvl:0,day:null}); populateGrid(book,card); jbSave(); };
-      var lastGrid = host.querySelector('.jb-grid:last-child') || host;
-      lastGrid.appendChild(add);
+      host.appendChild(add);
     }
     updateStat(book, card);
   }
