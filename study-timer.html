@@ -449,21 +449,21 @@ body {
 #jb-wrap .jb-stars { font-size:6px;line-height:1;letter-spacing:.3px;position:absolute;bottom:1px; }
 #jb-wrap .jb-pn { font-size:6px;line-height:1;position:absolute;top:1px;font-variant-numeric:tabular-nums; }
 #jb-wrap .jb-mark { font-size:10px;font-weight:700;line-height:1; }
-#jb-wrap .jb-section-row {
-  width:100%; display:flex; align-items:center; gap:5px;
-  padding:6px 0 3px; margin-top:3px;
-  border-top:1px solid var(--border);
-  flex-basis:100%;
+#jb-wrap .jb-cell-wrap {
+  position:relative; flex:0 0 auto;
 }
-#jb-wrap .jb-section-lbl {
-  font-size:11px;font-weight:700;color:var(--blue);flex:1;cursor:pointer;
+#jb-wrap .jb-sec-badge {
+  position:absolute; top:-14px; left:0;
+  font-size:9px; font-weight:700; color:var(--amber);
+  background:var(--bg); padding:0 3px;
+  white-space:nowrap; pointer-events:none;
+  border:1px solid var(--amber); border-radius:3px;
+  line-height:14px; z-index:5;
 }
-#jb-wrap .jb-section-lbl:hover { text-decoration:underline; }
-#jb-wrap .jb-section-del {
-  background:none;border:none;color:var(--text2);
-  font-size:13px;cursor:pointer;padding:0;opacity:0.4;line-height:1;
+#jb-wrap .jb-sec-start {
+  border-top-color: var(--amber) !important;
+  border-top-width: 2px !important;
 }
-#jb-wrap .jb-section-del:hover { opacity:1;color:var(--red); }
 #jb-wrap .jb-legend {
   display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2);
 }
@@ -2552,27 +2552,51 @@ async function odapSave() {
     return '<span><span class="jb-dot" style="background:#a8e6cf"></span>해결</span><span><span class="jb-dot" style="background:#aac9f0"></span>오래</span><span><span class="jb-dot" style="background:#c9e89a"></span>실수</span><span><span class="jb-dot" style="background:#fbe38c"></span>중요</span><span><span class="jb-dot" style="background:#f4a6a6"></span>못풂</span>';
   }
 
+  function attachLongPress(el, item, arr, idx, book, card) {
+    var timer;
+    function start(e) {
+      timer = setTimeout(() => {
+        var cur = item._sec || null;
+        var label = prompt(cur ? '단원명 변경 (비우면 제거):' : '단원 시작 표시 — 단원명:', cur || '');
+        if (label === null) return;
+        if (label.trim() === '') { delete item._sec; }
+        else { item._sec = label.trim(); }
+        populateGrid(book, card);
+        jbSave();
+      }, 500);
+    }
+    function cancel() { clearTimeout(timer); }
+    el.addEventListener('touchstart', start, {passive:true});
+    el.addEventListener('touchend',   cancel);
+    el.addEventListener('touchmove',  cancel);
+    el.addEventListener('mousedown',  start);
+    el.addEventListener('mouseup',    cancel);
+    el.addEventListener('mouseleave', cancel);
+  }
+
+  function wrapCell(el, item) {
+    if (!item._sec) return el;
+    var wrap = document.createElement('div');
+    wrap.className = 'jb-cell-wrap';
+    wrap.style.marginTop = '16px'; // 배지 공간
+    el.classList.add('jb-sec-start');
+    var badge = document.createElement('div');
+    badge.className = 'jb-sec-badge';
+    badge.textContent = item._sec;
+    wrap.appendChild(badge);
+    wrap.appendChild(el);
+    return wrap;
+  }
+
   function makeSecRow(arr, idx, book, card) {
-    var item = arr[idx];
-    var row = document.createElement('div');
-    row.className = 'jb-section-row';
-    var lbl = document.createElement('span');
-    lbl.className = 'jb-section-lbl';
-    lbl.textContent = '§ ' + (item.label||'단원');
-    lbl.onclick = () => {
-      var nv = prompt('단원명 변경:', item.label||'단원');
-      if (nv !== null) { item.label = nv; populateGrid(book,card); jbSave(); }
-    };
-    var del = document.createElement('button');
-    del.className = 'jb-section-del'; del.textContent = '×';
-    del.onclick = () => { arr.splice(idx,1); populateGrid(book,card); jbSave(); };
-    row.appendChild(lbl); row.appendChild(del);
-    return row;
+    // 구버전 호환 — 더 이상 사용 안 함 (빈 span 반환)
+    return document.createElement('span');
   }
 
   function populateGrid(book,card){
     var grid=card.querySelector('.b-grid2'),ins=card.querySelector('.jb-ins-btn'),legend=card.querySelector('.jb-legend');
     grid.innerHTML=''; grid.className='jb-grid b-grid2';
+    grid.style.paddingTop='4px';
     legend.innerHTML=legendHTML(book.type);
     ins.style.display=book.type==='oxp'?'':'none';
 
@@ -2580,7 +2604,7 @@ async function odapSave() {
       var im=!!jbInsert[book.id]; if(im)grid.classList.add('insert');
       var pIdx=0;
       (book.items||[]).forEach((it,idx)=>{
-        if(it._s){ grid.appendChild(makeSecRow(book.items,idx,book,card)); return; }
+        if(it._s) return; // 구버전 구분선 무시
         var el=document.createElement('div');el.className='jb-cell';
         if(it.t==='p'){
           pIdx++;var num=pIdx;el.classList.add('jb-pmark');paintMark(el,it,num);
@@ -2595,23 +2619,26 @@ async function odapSave() {
             var i=qOrder.indexOf(it.v);it.v=qOrder[(i+1)%3];it.day=it.v!==''?todayStr():null;paintQ(el,it);updateStat(book,card);updateJbToday();jbSave();
           };
         }
-        grid.appendChild(el);
+        attachLongPress(el, it, book.items, idx, book, card);
+        grid.appendChild(wrapCell(el, it));
       });
       if(im){var add=document.createElement('div');add.className='jb-addp';add.textContent='＋';
         add.onclick=()=>{book.items.push({t:'p',lvl:0,day:null});populateGrid(book,card);jbSave();};grid.appendChild(add);}
     } else if(book.type==='page'){
       (book.pages||[]).forEach((p,idx)=>{
-        if(p._s){ grid.appendChild(makeSecRow(book.pages,idx,book,card)); return; }
+        if(p._s) return;
         var el=document.createElement('div');el.className='jb-cell jb-mcell';paintPage(el,p);
         el.onclick=()=>{p.lvl=(p.lvl+1)%4;p.day=p.lvl>0?todayStr():null;paintPage(el,p);updateStat(book,card);updateJbToday();jbSave();};
-        grid.appendChild(el);
+        attachLongPress(el, p, book.pages, idx, book, card);
+        grid.appendChild(wrapCell(el, p));
       });
     } else {
       (book.cells||[]).forEach((c,idx)=>{
-        if(c._s){ grid.appendChild(makeSecRow(book.cells,idx,book,card)); return; }
+        if(c._s) return;
         var el=document.createElement('div');el.className='jb-cell jb-mcell';paintM(el,c);
         el.onclick=()=>{var i=statusOrder.indexOf(c.st);c.st=statusOrder[(i+1)%statusOrder.length];c.day=c.st?todayStr():null;paintM(el,c);updateStat(book,card);updateJbToday();jbSave();};
-        grid.appendChild(el);
+        attachLongPress(el, c, book.cells, idx, book, card);
+        grid.appendChild(wrapCell(el, c));
       });
     }
     updateStat(book,card);
@@ -2624,7 +2651,7 @@ async function odapSave() {
     var card=document.createElement('div');card.className='jb-bookcard';
     card.innerHTML=
       '<div class="jb-bhead"><select class="jb-subj jb-sel">'+SUBJ_OPTS+'</select><input class="jb-name" placeholder="교재 이름"><div class="jb-stat"></div><button class="jb-del" title="삭제">×</button></div>'
-      +'<div class="jb-bctrl"><input class="jb-count" type="number" min="0"><button class="jb-btn jb-apply-btn">적용</button><button class="jb-btn jb-ins-btn">지문 삽입</button><button class="jb-btn jb-sec-btn">§ 단원 추가</button></div>'
+      +'<div class="jb-bctrl"><input class="jb-count" type="number" min="0"><button class="jb-btn jb-apply-btn">적용</button><button class="jb-btn jb-ins-btn">지문 삽입</button></div>'
       +'<div class="jb-grid b-grid2"></div><div class="jb-legend"></div>';
     var subj=card.querySelector('.jb-sel'),name=card.querySelector('.jb-name'),count=card.querySelector('.jb-count'),ins=card.querySelector('.jb-ins-btn');
     subj.value=book.subject||'';name.value=book.name||'';
@@ -2634,13 +2661,6 @@ async function odapSave() {
     name.oninput=()=>{book.name=name.value;jbSave();};
     card.querySelector('.jb-apply-btn').onclick=()=>{var v=Math.max(0,parseInt(count.value)||0);book[countField(book)]=v;fitBook(book);populateGrid(book,card);updateJbToday();jbSave();};
     ins.onclick=()=>{jbInsert[book.id]=!jbInsert[book.id];ins.classList.toggle('on',jbInsert[book.id]);ins.textContent=jbInsert[book.id]?'삽입 중':'지문 삽입';populateGrid(book,card);};
-    card.querySelector('.jb-sec-btn').onclick=()=>{
-      var label=prompt('단원명 입력:','단원');
-      if(!label) return;
-      var arr=book.type==='oxp'?book.items:book.type==='page'?book.pages:book.cells;
-      arr.push({_s:true,label});
-      populateGrid(book,card);jbSave();
-    };
     card.querySelector('.jb-del').onclick=()=>{if(confirm('"'+(book.name||'이 교재')+'" 삭제할까?')){jbState.books=jbState.books.filter(x=>x.id!==book.id);renderJbBooks();jbSave();}};
     fitBook(book);populateGrid(book,card);
     return card;
