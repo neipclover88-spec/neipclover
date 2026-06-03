@@ -434,21 +434,36 @@ body {
 }
 #jb-wrap .jb-grid.insert { outline:1px dashed #3a4660;outline-offset:4px;border-radius:6px; }
 #jb-wrap .jb-cell {
-  border:1px solid var(--border);border-radius:4px;cursor:pointer;
+  border:1px solid var(--border);border-radius:3px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   position:relative;transition:background .1s,border-color .1s,opacity .1s;
   background:transparent;flex:0 0 auto;
 }
-#jb-wrap .jb-q, #jb-wrap .jb-pmark { width:24px;height:24px; }
+#jb-wrap .jb-q, #jb-wrap .jb-pmark { width:20px;height:20px; }
 #jb-wrap .jb-addp {
-  width:24px;height:24px;border:1px dashed #3a4660;
-  color:#7fa6e8;font-size:12px;border-radius:4px;
+  width:20px;height:20px;border:1px dashed #3a4660;
+  color:#7fa6e8;font-size:11px;border-radius:3px;
   display:flex;align-items:center;justify-content:center;cursor:pointer;
 }
-#jb-wrap .jb-mcell { width:28px;height:28px; }
-#jb-wrap .jb-stars { font-size:7px;line-height:1;letter-spacing:.5px;position:absolute;bottom:2px; }
-#jb-wrap .jb-pn { font-size:7px;line-height:1;position:absolute;top:2px;font-variant-numeric:tabular-nums; }
-#jb-wrap .jb-mark { font-size:12px;font-weight:700;line-height:1; }
+#jb-wrap .jb-mcell { width:18px;height:18px; }
+#jb-wrap .jb-stars { font-size:6px;line-height:1;letter-spacing:.3px;position:absolute;bottom:1px; }
+#jb-wrap .jb-pn { font-size:6px;line-height:1;position:absolute;top:1px;font-variant-numeric:tabular-nums; }
+#jb-wrap .jb-mark { font-size:10px;font-weight:700;line-height:1; }
+#jb-wrap .jb-section-row {
+  width:100%; display:flex; align-items:center; gap:5px;
+  padding:6px 0 3px; margin-top:3px;
+  border-top:1px solid var(--border);
+  flex-basis:100%;
+}
+#jb-wrap .jb-section-lbl {
+  font-size:11px;font-weight:700;color:var(--blue);flex:1;cursor:pointer;
+}
+#jb-wrap .jb-section-lbl:hover { text-decoration:underline; }
+#jb-wrap .jb-section-del {
+  background:none;border:none;color:var(--text2);
+  font-size:13px;cursor:pointer;padding:0;opacity:0.4;line-height:1;
+}
+#jb-wrap .jb-section-del:hover { opacity:1;color:var(--red); }
 #jb-wrap .jb-legend {
   display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2);
 }
@@ -2466,12 +2481,15 @@ async function odapSave() {
       while(qc()>(b.qn||0)){for(var k=b.items.length-1;k>=0;k--){if(b.items[k].t==='q'){b.items.splice(k,1);break;}}}
     } else if(b.type==='page'){
       if(!b.pages)b.pages=[];
-      while(b.pages.length<(b.pn||0)) b.pages.push({lvl:0,day:null});
-      if(b.pages.length>(b.pn||0)) b.pages.length=(b.pn||0);
+      var realP=()=>b.pages.filter(p=>!p._s).length;
+      while(realP()<(b.pn||0)) b.pages.push({lvl:0,day:null});
+      // 뒤에서부터 실제 페이지 항목 제거
+      while(realP()>(b.pn||0)){for(var k=b.pages.length-1;k>=0;k--){if(!b.pages[k]._s){b.pages.splice(k,1);break;}}}
     } else {
       if(!b.cells)b.cells=[];
-      while(b.cells.length<(b.n||0)) b.cells.push({st:null,day:null});
-      if(b.cells.length>(b.n||0)) b.cells.length=(b.n||0);
+      var realC=()=>b.cells.filter(c=>!c._s).length;
+      while(realC()<(b.n||0)) b.cells.push({st:null,day:null});
+      while(realC()>(b.n||0)){for(var k=b.cells.length-1;k>=0;k--){if(!b.cells[k]._s){b.cells.splice(k,1);break;}}}
     }
   }
 
@@ -2534,15 +2552,35 @@ async function odapSave() {
     return '<span><span class="jb-dot" style="background:#a8e6cf"></span>해결</span><span><span class="jb-dot" style="background:#aac9f0"></span>오래</span><span><span class="jb-dot" style="background:#c9e89a"></span>실수</span><span><span class="jb-dot" style="background:#fbe38c"></span>중요</span><span><span class="jb-dot" style="background:#f4a6a6"></span>못풂</span>';
   }
 
+  function makeSecRow(arr, idx, book, card) {
+    var item = arr[idx];
+    var row = document.createElement('div');
+    row.className = 'jb-section-row';
+    var lbl = document.createElement('span');
+    lbl.className = 'jb-section-lbl';
+    lbl.textContent = '§ ' + (item.label||'단원');
+    lbl.onclick = () => {
+      var nv = prompt('단원명 변경:', item.label||'단원');
+      if (nv !== null) { item.label = nv; populateGrid(book,card); jbSave(); }
+    };
+    var del = document.createElement('button');
+    del.className = 'jb-section-del'; del.textContent = '×';
+    del.onclick = () => { arr.splice(idx,1); populateGrid(book,card); jbSave(); };
+    row.appendChild(lbl); row.appendChild(del);
+    return row;
+  }
+
   function populateGrid(book,card){
     var grid=card.querySelector('.b-grid2'),ins=card.querySelector('.jb-ins-btn'),legend=card.querySelector('.jb-legend');
     grid.innerHTML=''; grid.className='jb-grid b-grid2';
     legend.innerHTML=legendHTML(book.type);
     ins.style.display=book.type==='oxp'?'':'none';
+
     if(book.type==='oxp'){
       var im=!!jbInsert[book.id]; if(im)grid.classList.add('insert');
       var pIdx=0;
       (book.items||[]).forEach((it,idx)=>{
+        if(it._s){ grid.appendChild(makeSecRow(book.items,idx,book,card)); return; }
         var el=document.createElement('div');el.className='jb-cell';
         if(it.t==='p'){
           pIdx++;var num=pIdx;el.classList.add('jb-pmark');paintMark(el,it,num);
@@ -2562,13 +2600,15 @@ async function odapSave() {
       if(im){var add=document.createElement('div');add.className='jb-addp';add.textContent='＋';
         add.onclick=()=>{book.items.push({t:'p',lvl:0,day:null});populateGrid(book,card);jbSave();};grid.appendChild(add);}
     } else if(book.type==='page'){
-      (book.pages||[]).forEach(p=>{
+      (book.pages||[]).forEach((p,idx)=>{
+        if(p._s){ grid.appendChild(makeSecRow(book.pages,idx,book,card)); return; }
         var el=document.createElement('div');el.className='jb-cell jb-mcell';paintPage(el,p);
         el.onclick=()=>{p.lvl=(p.lvl+1)%4;p.day=p.lvl>0?todayStr():null;paintPage(el,p);updateStat(book,card);updateJbToday();jbSave();};
         grid.appendChild(el);
       });
     } else {
-      (book.cells||[]).forEach(c=>{
+      (book.cells||[]).forEach((c,idx)=>{
+        if(c._s){ grid.appendChild(makeSecRow(book.cells,idx,book,card)); return; }
         var el=document.createElement('div');el.className='jb-cell jb-mcell';paintM(el,c);
         el.onclick=()=>{var i=statusOrder.indexOf(c.st);c.st=statusOrder[(i+1)%statusOrder.length];c.day=c.st?todayStr():null;paintM(el,c);updateStat(book,card);updateJbToday();jbSave();};
         grid.appendChild(el);
@@ -2584,7 +2624,7 @@ async function odapSave() {
     var card=document.createElement('div');card.className='jb-bookcard';
     card.innerHTML=
       '<div class="jb-bhead"><select class="jb-subj jb-sel">'+SUBJ_OPTS+'</select><input class="jb-name" placeholder="교재 이름"><div class="jb-stat"></div><button class="jb-del" title="삭제">×</button></div>'
-      +'<div class="jb-bctrl"><input class="jb-count" type="number" min="0"><button class="jb-btn jb-apply-btn">적용</button><button class="jb-btn jb-ins-btn">지문 삽입 모드</button></div>'
+      +'<div class="jb-bctrl"><input class="jb-count" type="number" min="0"><button class="jb-btn jb-apply-btn">적용</button><button class="jb-btn jb-ins-btn">지문 삽입</button><button class="jb-btn jb-sec-btn">§ 단원 추가</button></div>'
       +'<div class="jb-grid b-grid2"></div><div class="jb-legend"></div>';
     var subj=card.querySelector('.jb-sel'),name=card.querySelector('.jb-name'),count=card.querySelector('.jb-count'),ins=card.querySelector('.jb-ins-btn');
     subj.value=book.subject||'';name.value=book.name||'';
@@ -2593,7 +2633,14 @@ async function odapSave() {
     subj.onchange=()=>{book.subject=subj.value;book.type=typeOf(book.subject);fitBook(book);syncCount();populateGrid(book,card);jbSave();};
     name.oninput=()=>{book.name=name.value;jbSave();};
     card.querySelector('.jb-apply-btn').onclick=()=>{var v=Math.max(0,parseInt(count.value)||0);book[countField(book)]=v;fitBook(book);populateGrid(book,card);updateJbToday();jbSave();};
-    ins.onclick=()=>{jbInsert[book.id]=!jbInsert[book.id];ins.classList.toggle('on',jbInsert[book.id]);ins.textContent=jbInsert[book.id]?'삽입 중':'지문 삽입 모드';populateGrid(book,card);};
+    ins.onclick=()=>{jbInsert[book.id]=!jbInsert[book.id];ins.classList.toggle('on',jbInsert[book.id]);ins.textContent=jbInsert[book.id]?'삽입 중':'지문 삽입';populateGrid(book,card);};
+    card.querySelector('.jb-sec-btn').onclick=()=>{
+      var label=prompt('단원명 입력:','단원');
+      if(!label) return;
+      var arr=book.type==='oxp'?book.items:book.type==='page'?book.pages:book.cells;
+      arr.push({_s:true,label});
+      populateGrid(book,card);jbSave();
+    };
     card.querySelector('.jb-del').onclick=()=>{if(confirm('"'+(book.name||'이 교재')+'" 삭제할까?')){jbState.books=jbState.books.filter(x=>x.id!==book.id);renderJbBooks();jbSave();}};
     fitBook(book);populateGrid(book,card);
     return card;
