@@ -449,20 +449,21 @@ body {
 #jb-wrap .jb-stars { font-size:6px;line-height:1;letter-spacing:.3px;position:absolute;bottom:1px; }
 #jb-wrap .jb-pn { font-size:6px;line-height:1;position:absolute;top:1px;font-variant-numeric:tabular-nums; }
 #jb-wrap .jb-mark { font-size:10px;font-weight:700;line-height:1; }
-#jb-wrap .jb-cell-wrap {
-  position:relative; flex:0 0 auto;
-}
-#jb-wrap .jb-sec-badge {
-  position:absolute; top:-14px; left:0;
-  font-size:9px; font-weight:700; color:var(--amber);
-  background:var(--bg); padding:0 3px;
-  white-space:nowrap; pointer-events:none;
-  border:1px solid var(--amber); border-radius:3px;
-  line-height:14px; z-index:5;
-}
 #jb-wrap .jb-sec-start {
-  border-top-color: var(--amber) !important;
-  border-top-width: 2px !important;
+  box-shadow: inset 3px 3px 0 var(--amber) !important;
+  border-color: var(--amber) !important;
+}
+#jb-wrap .jb-sec-tooltip {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  background:var(--amber); color:#000;
+  font-size:12px; font-weight:700;
+  padding:5px 14px; border-radius:100px;
+  z-index:50; pointer-events:none;
+  animation: fadeInUp 0.15s ease;
+}
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateX(-50%) translateY(6px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
 }
 #jb-wrap .jb-legend {
   display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--text2);
@@ -2552,6 +2553,18 @@ async function odapSave() {
     return '<span><span class="jb-dot" style="background:#a8e6cf"></span>해결</span><span><span class="jb-dot" style="background:#aac9f0"></span>오래</span><span><span class="jb-dot" style="background:#c9e89a"></span>실수</span><span><span class="jb-dot" style="background:#fbe38c"></span>중요</span><span><span class="jb-dot" style="background:#f4a6a6"></span>못풂</span>';
   }
 
+  var jbTooltipTimer;
+  function showSecTooltip(label) {
+    var old = document.querySelector('.jb-sec-tooltip');
+    if (old) old.remove();
+    var tip = document.createElement('div');
+    tip.className = 'jb-sec-tooltip';
+    tip.textContent = '§ ' + label;
+    document.body.appendChild(tip);
+    clearTimeout(jbTooltipTimer);
+    jbTooltipTimer = setTimeout(() => tip.remove(), 2000);
+  }
+
   function attachLongPress(el, item, arr, idx, book, card) {
     var timer;
     function start(e) {
@@ -2572,20 +2585,16 @@ async function odapSave() {
     el.addEventListener('mousedown',  start);
     el.addEventListener('mouseup',    cancel);
     el.addEventListener('mouseleave', cancel);
+    // 탭 시 단원명 토스트 표시
+    if (item._sec) {
+      el.addEventListener('click', () => showSecTooltip(item._sec), {once:false});
+    }
   }
 
   function wrapCell(el, item) {
-    if (!item._sec) return el;
-    var wrap = document.createElement('div');
-    wrap.className = 'jb-cell-wrap';
-    wrap.style.marginTop = '16px'; // 배지 공간
-    el.classList.add('jb-sec-start');
-    var badge = document.createElement('div');
-    badge.className = 'jb-sec-badge';
-    badge.textContent = item._sec;
-    wrap.appendChild(badge);
-    wrap.appendChild(el);
-    return wrap;
+    // 래퍼 없이 셀 자체에 표시
+    if (item._sec) el.classList.add('jb-sec-start');
+    return el;
   }
 
   function makeSecRow(arr, idx, book, card) {
