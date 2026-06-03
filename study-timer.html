@@ -2593,20 +2593,19 @@ async function odapSave() {
       highlighted = [];
     }
     function start(e) {
-      // 이전 단원 시작점 찾기
-      var fromIdx = 0;
-      for (var k = idx - 1; k >= 0; k--) {
-        if (arr[k] && arr[k]._sec) { fromIdx = k; break; }
+      // 여기서부터 다음 단원 시작 직전까지 하이라이트
+      var toIdx = arr.length - 1;
+      for (var k = idx + 1; k < arr.length; k++) {
+        if (arr[k] && arr[k]._sec) { toIdx = k - 1; break; }
       }
-      // 카드 전체에서 해당 범위 셀 하이라이트
       card.querySelectorAll('[data-cidx]').forEach(c => {
         var i = Number(c.dataset.cidx);
-        if (i >= fromIdx && i <= idx) { c.classList.add('jb-range-highlight'); highlighted.push(c); }
+        if (i >= idx && i <= toIdx) { c.classList.add('jb-range-highlight'); highlighted.push(c); }
       });
       timer = setTimeout(() => {
         clearHighlight();
         var cur = item._sec || null;
-        var label = prompt(cur ? '단원명 변경 (비우면 제거):' : '여기까지 한 단원으로 묶기 — 단원명:', cur || '');
+        var label = prompt(cur ? '단원명 변경 (비우면 제거):' : '여기서부터 새 단원 — 단원명:', cur || '');
         if (label === null) return;
         if (label.trim() === '') delete item._sec;
         else item._sec = label.trim();
