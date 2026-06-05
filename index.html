@@ -826,7 +826,7 @@ function renderWork() {
     <div class="wrow">
       <span class="wlbl">총수입</span>
       <input class="winp" type="number" value="${todayGross||''}" placeholder="0"
-        onchange="updWork('incomeAmount',this.value)">
+        oninput="updWork('incomeAmount',this.value)">
       <span class="wunit">원</span>
     </div>
     ${todayGross>0?`<div class="wrow" style="opacity:.7">
@@ -837,17 +837,17 @@ function renderWork() {
     <div class="wrow">
       <span class="wlbl">건수</span>
       <input class="winp" type="number" value="${dd.work.deliveries||''}" placeholder="0"
-        onchange="updWork('deliveries',this.value)">
+        oninput="updWork('deliveries',this.value)">
       <span class="wunit">건</span>
     </div>
     <div class="wrow">
       <span class="wlbl">근무</span>
       <div class="tpair">
         <input type="number" class="ti" min="0" value="${dd.work.workH||''}" placeholder="0"
-          style="border-color:#f5a62340" onchange="updWork('workH',this.value)">
+          style="border-color:#f5a62340" oninput="updWork('workH',this.value)">
         <span class="tu" style="color:#f5a623aa">시간</span>
         <input type="number" class="ti" min="0" max="59" value="${dd.work.workM||''}" placeholder="0"
-          style="border-color:#f5a62340" onchange="updWork('workM',this.value)">
+          style="border-color:#f5a62340" oninput="updWork('workM',this.value)">
         <span class="tu" style="color:#f5a623aa">분</span>
       </div>
     </div>
@@ -1133,10 +1133,10 @@ function renderHealth() {
         <span class="hlbl">시간</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${slpH||''}" placeholder="0"
-            style="border-color:#a855f740" onchange="updH('sleep','sleepH',this.value)">
+            style="border-color:#a855f740" oninput="updH('sleep','sleepH',this.value)">
           <span class="tu" style="color:#a855f7aa">시간</span>
           <input type="number" class="ti" min="0" max="59" value="${slpM||''}" placeholder="0"
-            style="border-color:#a855f740" onchange="updH('sleep','sleepM',this.value)">
+            style="border-color:#a855f740" oninput="updH('sleep','sleepM',this.value)">
           <span class="tu" style="color:#a855f7aa">분</span>
         </div>
       </div>
@@ -1144,17 +1144,17 @@ function renderHealth() {
         <span class="hlbl" style="color:#a855f7aa">점수</span>
         <input type="number" class="hinp" min="0" max="100" value="${slpScore||''}" placeholder="삼성헬스 점수"
           style="border-color:#a855f740;color:${scoreClr}"
-          onchange="updH('sleep','score',this.value)">
+          oninput="updH('sleep','score',this.value)">
         ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=85?'매우좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심필요'}</span>`:''}
       </div>
       <div class="hrow">
         <span class="hlbl" style="color:#a855f766;font-size:8px">낮잠</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${Number(h.sleep.napH)||''}" placeholder="0"
-            style="border-color:#a855f720" onchange="updH('sleep','napH',this.value)">
+            style="border-color:#a855f720" oninput="updH('sleep','napH',this.value)">
           <span class="tu" style="color:#a855f766">시간</span>
           <input type="number" class="ti" min="0" max="59" value="${Number(h.sleep.napM)||''}" placeholder="0"
-            style="border-color:#a855f720" onchange="updH('sleep','napM',this.value)">
+            style="border-color:#a855f720" oninput="updH('sleep','napM',this.value)">
           <span class="tu" style="color:#a855f766">분</span>
         </div>
       </div>
@@ -1167,13 +1167,13 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">바퀴</span>
         <input class="hinp" type="number" min="0" value="${swimLaps||''}" placeholder="0"
-          onchange="updH('swimming','laps',this.value)">
+          oninput="updH('swimming','laps',this.value)">
         <span class="hunit">바퀴</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
         <input class="hinp" type="number" min="0" value="${swimM||''}" placeholder="0"
-          onchange="updH('swimming','swimM',this.value)">
+          oninput="updH('swimming','swimM',this.value)">
         <span class="hunit">분</span>
       </div>
       ${swimLaps>0?`<div class="hcalc" style="color:#27c96e">= ${swimLaps*50}m · ${(swimLaps*50/1000).toFixed(2)}km</div>`:''}`
@@ -1184,23 +1184,23 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">거리</span>
         <input class="hinp" type="number" step="0.1" min="0" value="${runKm||''}" placeholder="0"
-          onchange="updH('running','km',this.value)">
+          oninput="updH('running','km',this.value)">
         <span class="hunit">km</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${runM||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('running','runM',this.value)">
+            style="border-color:#27c96e40" oninput="updH('running','runM',this.value)">
           <span class="tu" style="color:#27c96eaa">분</span>
           <input type="number" class="ti" min="0" max="59" value="${runS||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('running','runS',this.value)">
+            style="border-color:#27c96e40" oninput="updH('running','runS',this.value)">
           <span class="tu" style="color:#27c96eaa">초</span>
         </div>
       </div>
       <div class="hrow">
         <span class="hlbl">신발</span>
-        <select class="hinp" onchange="updH('running','shoe',this.value)">
+        <select class="hinp" oninput="updH('running','shoe',this.value)">
           ${getShoeNames().map(sn=>`<option value="${sn}"${h.running.shoe===sn?' selected':''}>${sn}</option>`).join('')}
         </select>
       </div>
@@ -1228,17 +1228,17 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">거리</span>
         <input class="hinp" type="number" step="0.1" min="0" value="${cycKm||''}" placeholder="0"
-          onchange="updH('cycling','km',this.value)">
+          oninput="updH('cycling','km',this.value)">
         <span class="hunit">km</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${cycH||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('cycling','cycH',this.value)">
+            style="border-color:#27c96e40" oninput="updH('cycling','cycH',this.value)">
           <span class="tu" style="color:#27c96eaa">시간</span>
           <input type="number" class="ti" min="0" max="59" value="${cycM||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('cycling','cycM',this.value)">
+            style="border-color:#27c96e40" oninput="updH('cycling','cycM',this.value)">
           <span class="tu" style="color:#27c96eaa">분</span>
         </div>
       </div>
@@ -1250,7 +1250,7 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">횟수</span>
         <input class="hinp" type="number" min="0" value="${pushReps||''}" placeholder="0"
-          onchange="updH('pushup','reps',this.value)">
+          oninput="updH('pushup','reps',this.value)">
         <span class="hunit">회</span>
       </div>`
   );
@@ -1260,7 +1260,7 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">횟수</span>
         <input class="hinp" type="number" min="0" value="${pullReps||''}" placeholder="0"
-          onchange="updH('pullup','reps',this.value)">
+          oninput="updH('pullup','reps',this.value)">
         <span class="hunit">회</span>
       </div>`
   );
@@ -1272,7 +1272,7 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">횟수</span>
         <input class="hinp" type="number" min="0" value="${legReps||''}" placeholder="0"
-          onchange="updH('legraise','reps',this.value)">
+          oninput="updH('legraise','reps',this.value)">
         <span class="hunit">회</span>
       </div>`
   );
@@ -1429,7 +1429,10 @@ function updWork(fld, val) {
   dayData(sel).work[fld] = Number(val)||0;
   save(); renderCal();
   clearTimeout(_workTimer);
-  _workTimer = setTimeout(() => renderWork(), 600);
+  _workTimer = setTimeout(() => {
+    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='SELECT'||document.activeElement?.tagName==='TEXTAREA') return;
+    renderWork();
+  }, 800);
 }
 
 let _healthTimer = null;
@@ -1438,7 +1441,10 @@ function updH(cat, fld, val) {
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
-  _healthTimer = setTimeout(() => renderHealth(), 600);
+  _healthTimer = setTimeout(() => {
+    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='SELECT'||document.activeElement?.tagName==='TEXTAREA') return;
+    renderHealth();
+  }, 800);
 }
 
 function toggleH(key) {
