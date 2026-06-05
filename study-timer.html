@@ -2455,7 +2455,7 @@ async function odapSave() {
   var jbState = {books:[]};
   var jbInsert = {};
   var SUBJS = ['국어','수학','영어','사회개념','과학개념','사회문제','과학문제'];
-  var mathColor = {solved:'#4ade80',review:'#fbbf24',unsolved:'#f87171'};
+  var mathColor = {solved:'#4ade80',review:'#fde047',unsolved:'#f87171'};
   var pageCol = ['','#d6ccf2','#b3a0ea','#8a72d6'];
   var statusOrder = [null,'solved','review','unsolved'];
   var qOrder = ['','o','x'];
@@ -2626,7 +2626,7 @@ async function odapSave() {
   function legendHTML(type){
     if(type==='oxp') return '<span><span class="jb-dot out"></span>지문(미)</span><span><span class="jb-dot" style="background:#2563eb"></span>지문(학)</span><span><span class="jb-dot" style="background:#5fa8f5"></span>문제 O/✗</span>';
     if(type==='page') return '<span><span class="jb-dot" style="background:#d6ccf2"></span>1회독</span><span><span class="jb-dot" style="background:#b3a0ea"></span>2회독</span><span><span class="jb-dot" style="background:#8a72d6"></span>3회독</span>';
-    return '<span><span class="jb-dot" style="background:#4ade80"></span>해결</span><span><span class="jb-dot" style="background:#fbbf24"></span>다시볼것</span><span><span class="jb-dot" style="background:#f87171"></span>못풂</span>';
+    return '<span><span class="jb-dot" style="background:#4ade80"></span>해결</span><span><span class="jb-dot" style="background:#fde047"></span>다시볼것</span><span><span class="jb-dot" style="background:#f87171"></span>못풂</span>';
   }
 
   var jbTooltipTimer;
