@@ -2479,20 +2479,31 @@ async function odapSave() {
     setTimeout(()=>{if(el)el.textContent='자동 저장됨';},1500);
   }
   async function jbLoad(){
-    try{var s=localStorage.getItem('jb_v1');if(s)jbState=JSON.parse(s);}catch(e){}
+    // 1. localStorage 먼저
+    try{var s=localStorage.getItem('jb_v1');if(s) jbState=JSON.parse(s);}catch(e){}
+
+    // 2. Firebase에서 덮어쓰기 (항상 시도)
     if(typeof rtdb!=='undefined'&&rtdb){
       try{
         var snap=await rtdb.ref(JB_PATH).get();
-        if(snap.exists()&&snap.val()?.books?.length) jbState=snap.val();
-      }catch(e){}
+        if(snap.exists()){
+          var fbData=snap.val();
+          if(fbData && fbData.books && fbData.books.length>0){
+            jbState=fbData;
+          }
+        }
+      }catch(e){ console.log('jb firebase load error:',e); }
     }
-    // 구버전 상태값 마이그레이션
+
+    // 3. 구버전 상태값 마이그레이션
     (jbState.books||[]).forEach(b=>{
       (b.cells||[]).forEach(c=>{
         if(['slow','mistake','important'].includes(c.st)) c.st='review';
       });
     });
-    if(!jbState.books||!jbState.books.length) jbSeed();
+
+    // 4. 진짜 데이터가 없을 때만 seed
+    if(!jbState.books || jbState.books.length===0) jbSeed();
   }
   function jbSeed(){
     jbState={books:[
