@@ -583,7 +583,9 @@ function initFirebase() {
       if(remote.deductRate!==undefined) deductRate = remote.deductRate;
       try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
       setSyncDot('ok');
-      renderAll();
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.tagName==='SELECT');
+      if(!isTyping) renderAll();
     }, () => setSyncDot('err'));
   } catch(e) { setSyncDot('err'); console.error('Firebase init error:',e); }
 }
