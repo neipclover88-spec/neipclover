@@ -2478,31 +2478,53 @@ async function odapSave() {
     if(el) el.textContent='저장됨 ✓';
     setTimeout(()=>{if(el)el.textContent='자동 저장됨';},1500);
   }
+  // Firebase 객체→배열 재귀 변환
+  function fbToArr(data) {
+    if (!data || typeof data !== 'object') return data;
+    // 숫자키만 있는 객체는 배열로
+    var keys = Object.keys(data);
+    var isArr = keys.length > 0 && keys.every(k => /^\d+$/.test(k));
+    if (isArr) {
+      var arr = [];
+      keys.sort((a,b)=>Number(a)-Number(b)).forEach(k => arr.push(fbToArr(data[k])));
+      return arr;
+    }
+    var obj = {};
+    keys.forEach(k => obj[k] = fbToArr(data[k]));
+    return obj;
+  }
+
   async function jbLoad(){
     // 1. localStorage 먼저
     try{var s=localStorage.getItem('jb_v1');if(s) jbState=JSON.parse(s);}catch(e){}
 
-    // 2. Firebase에서 덮어쓰기 (항상 시도)
+    // 2. Firebase에서 덮어쓰기
     if(typeof rtdb!=='undefined'&&rtdb){
       try{
         var snap=await rtdb.ref(JB_PATH).get();
         if(snap.exists()){
-          var fbData=snap.val();
-          if(fbData && fbData.books && fbData.books.length>0){
-            jbState=fbData;
+          var raw = fbToArr(snap.val());
+          if(raw && raw.books && (Array.isArray(raw.books) ? raw.books.length : Object.keys(raw.books).length) > 0){
+            jbState = raw;
           }
         }
-      }catch(e){ console.log('jb firebase load error:',e); }
+      }catch(e){ console.log('jb load error:',e); }
     }
 
-    // 3. 구버전 상태값 마이그레이션
+    // 3. 배열 보정 (혹시 남아있는 객체 형태)
+    if(jbState.books && !Array.isArray(jbState.books)){
+      jbState.books = fbToArr(jbState.books);
+    }
+
+    // 4. 구버전 상태값 마이그레이션
     (jbState.books||[]).forEach(b=>{
-      (b.cells||[]).forEach(c=>{
-        if(['slow','mistake','important'].includes(c.st)) c.st='review';
-      });
+      if(b.cells && !Array.isArray(b.cells)) b.cells = fbToArr(b.cells);
+      if(b.items && !Array.isArray(b.items)) b.items = fbToArr(b.items);
+      if(b.pages && !Array.isArray(b.pages)) b.pages = fbToArr(b.pages);
+      (b.cells||[]).forEach(c=>{ if(['slow','mistake','important'].includes(c.st)) c.st='review'; });
     });
 
-    // 4. 진짜 데이터가 없을 때만 seed
+    // 5. 진짜 데이터 없을 때만 seed
     if(!jbState.books || jbState.books.length===0) jbSeed();
   }
   function jbSeed(){
