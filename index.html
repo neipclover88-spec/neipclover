@@ -2246,6 +2246,22 @@ initFirebase();
 
 <!-- 신발 관리 팝업 -->
 <div id="shoeBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)closeShoeModal()">
+  <div style="background:#0e1320;border:1px solid rgba(39,201,110,.3);border-radius:16px;width:300px;max-width:90vw;padding:16px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:13px;font-weight:700;color:#27c96e">👟 신발 관리</span>
+      <button onclick="closeShoeModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="shoeList2" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input id="shoeNameInp" type="text" placeholder="신발 이름"
+        style="flex:1;background:var(--s2);border:1px solid rgba(39,201,110,.3);border-radius:6px;color:var(--t);font-size:11px;padding:6px 8px;outline:none">
+      <input id="shoeBaseInp" type="number" placeholder="기초km" min="0"
+        style="width:72px;background:var(--s2);border:1px solid rgba(39,201,110,.2);border-radius:6px;color:var(--t);font-size:11px;padding:6px 8px;outline:none;text-align:center">
+      <button onclick="addShoe()" style="background:rgba(39,201,110,.2);border:1px solid rgba(39,201,110,.4);color:#27c96e;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">+</button>
+    </div>
+    <div style="font-size:8px;color:var(--m)">기초km = 이미 사용한 거리 (0이면 새 신발)</div>
+  </div>
+</div>
 
 <!-- 문법카드 팝업 -->
 <div id="grammarBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:12px" onclick="if(event.target===this)closeGrammarModal()">
@@ -2302,22 +2318,5 @@ initFirebase();
     </div>
   </div>
 </div>
-  <div style="background:#0e1320;border:1px solid rgba(39,201,110,.3);border-radius:16px;width:300px;max-width:90vw;padding:16px;max-height:80vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <span style="font-size:13px;font-weight:700;color:#27c96e">👟 신발 관리</span>
-      <button onclick="closeShoeModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
-    </div>
-    <div id="shoeList2" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
-    <div style="display:flex;gap:6px;margin-bottom:8px">
-      <input id="shoeNameInp" type="text" placeholder="신발 이름"
-        style="flex:1;background:var(--s2);border:1px solid rgba(39,201,110,.3);border-radius:6px;color:var(--t);font-size:11px;padding:6px 8px;outline:none">
-      <input id="shoeBaseInp" type="number" placeholder="기초km" min="0"
-        style="width:72px;background:var(--s2);border:1px solid rgba(39,201,110,.2);border-radius:6px;color:var(--t);font-size:11px;padding:6px 8px;outline:none;text-align:center">
-      <button onclick="addShoe()" style="background:rgba(39,201,110,.2);border:1px solid rgba(39,201,110,.4);color:#27c96e;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">+</button>
-    </div>
-    <div style="font-size:8px;color:var(--m)">기초km = 이미 사용한 거리 (0이면 새 신발)</div>
-  </div>
-</div>
-
 </body>
 </html>
