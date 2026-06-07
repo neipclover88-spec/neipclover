@@ -398,10 +398,17 @@ function totalStudyMins(dk) {
   return SUBJS.reduce((t,s)=>t+hmToMins(d.study[s]?.studyH,d.study[s]?.studyM),0);
 }
 const LIVING_BUDGET = 2_000_000;
-const EXP_CATS = ['식비','쇼핑','생활','업무','구독','학습','금융'];
+const EXP_CATS = ['식비','쇼핑','생활','업무','구독','학습','금융','수입'];
 
 function dayTotalExp(dk) {
-  return (db[dk]?.work?.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0);
+  return (db[dk]?.work?.expenses||[])
+    .filter(e=>e.cat!=='수입')
+    .reduce((t,e)=>t+(Number(e.amount)||0),0);
+}
+function dayExtraIncome(dk) {
+  return (db[dk]?.work?.expenses||[])
+    .filter(e=>e.cat==='수입')
+    .reduce((t,e)=>t+(Number(e.amount)||0),0);
 }
 function weekTotalExp(dates) {
   return dates.reduce((t,dk)=>t+dayTotalExp(dk),0);
@@ -519,12 +526,14 @@ function fmtMonth(ym) {
 }
 function weekStats(dates) {
   const gross = dates.reduce((t,k)=>t+(Number(db[k]?.work?.incomeAmount)||0),0);
+  const extra = dates.reduce((t,k)=>t+dayExtraIncome(k),0);
   const exp   = weekTotalExp(dates);
   return {
     income:     gross,
-    net:        Math.round(gross*(1-deductRate/100)),
+    extra,
+    net:        Math.round(gross*(1-deductRate/100)) + extra,
     expense:    exp,
-    balance:    Math.round(gross*(1-deductRate/100)) - exp,
+    balance:    Math.round(gross*(1-deductRate/100)) + extra - exp,
     deliveries: dates.reduce((t,k)=>t+(Number(db[k]?.work?.deliveries)||0),0),
     workMins:   dates.reduce((t,k)=>t+hmToMins(db[k]?.work?.workH,db[k]?.work?.workM),0),
   };
@@ -875,18 +884,24 @@ function renderWork() {
 
     ${(dd.work.expenses||[]).length>0?`
     <div style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;margin-bottom:4px">
-      ${(dd.work.expenses||[]).map((e,i)=>`
-      <div style="display:flex;align-items:center;gap:4px;background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.15);border-radius:5px;padding:4px 6px">
-        <span style="font-size:8px;color:#e74c3caa;background:rgba(231,76,60,.15);border-radius:3px;padding:1px 4px;flex-shrink:0">${e.cat}</span>
+      ${(dd.work.expenses||[]).map((e,i)=>{
+        const isIncome = e.cat==='수입';
+        const clr = isIncome ? '#27c96e' : '#e74c3c';
+        const bgClr = isIncome ? 'rgba(39,201,110,.06)' : 'rgba(231,76,60,.06)';
+        const borderClr = isIncome ? 'rgba(39,201,110,.15)' : 'rgba(231,76,60,.15)';
+        const tagClr = isIncome ? 'rgba(39,201,110,.2)' : 'rgba(231,76,60,.15)';
+        return `
+      <div style="display:flex;align-items:center;gap:4px;background:${bgClr};border:1px solid ${borderClr};border-radius:5px;padding:4px 6px">
+        <span style="font-size:8px;color:${clr};background:${tagClr};border-radius:3px;padding:1px 4px;flex-shrink:0">${e.cat}</span>
         ${e.memo?`<span style="font-size:9px;color:var(--m);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.memo)}</span>`:'<span style="flex:1"></span>'}
-        <span style="font-family:var(--bebas);font-size:13px;color:#e74c3c;flex-shrink:0">₩${Number(e.amount).toLocaleString()}</span>
+        <span style="font-family:var(--bebas);font-size:13px;color:${clr};flex-shrink:0">${isIncome?'+':''}₩${Number(e.amount).toLocaleString()}</span>
         <button onclick="delExpEntry(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:10px;padding:0;line-height:1;flex-shrink:0">✕</button>
-      </div>`).join('')}
+      </div>`}).join('')}
     </div>
-    ${todayNet>0?`
+    ${todayNet>0||dayExtraIncome(sel)>0?`
     <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid rgba(231,76,60,.2)">
-      <span style="font-size:9px;color:var(--m)">잔액 (실수령 - 지출)</span>
-      <span style="font-family:var(--bebas);font-size:15px;color:${todayNet-todayTotalExp>=0?'#27c96e':'#e74c3c'}">₩${(todayNet-todayTotalExp).toLocaleString()}</span>
+      <span style="font-size:9px;color:var(--m)">잔액 (수령+기타수입-지출)</span>
+      <span style="font-family:var(--bebas);font-size:15px;color:${todayNet+dayExtraIncome(sel)-todayTotalExp>=0?'#27c96e':'#e74c3c'}">₩${(todayNet+dayExtraIncome(sel)-todayTotalExp).toLocaleString()}</span>
     </div>`:''}
     `:''}
   </div>
