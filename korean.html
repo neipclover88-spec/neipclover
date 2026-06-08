@@ -4,208 +4,173 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>국어 학습</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:#080c18; --s1:#0e1320; --s2:#141928;
-    --b:rgba(255,255,255,.08); --t:#e8eaf0; --m:#6b7394; --m2:#3a4060;
-    --blue:#4f8ef7; --green:#27c96e; --amber:#f5a623; --red:#e74c3c;
-    --mono:'Barlow Condensed',sans-serif;
-    --sans:'Noto Sans KR',sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  body{background:var(--bg);color:var(--t);font-family:var(--sans);min-height:100vh;}
+:root{
+  --bg:#080c18;--s1:#0e1320;--s2:#141928;
+  --b:rgba(255,255,255,.08);--t:#e8eaf0;--m:#6b7394;--m2:#3a4060;
+  --blue:#4f8ef7;--green:#27c96e;--amber:#f5a623;--red:#e74c3c;
+  --sans:'Noto Sans KR',sans-serif;--mono:'Barlow Condensed',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--t);font-family:var(--sans);min-height:100vh;}
+button{font-family:var(--sans);cursor:pointer;}
 
-  /* ── 헤더 ── */
-  .hdr{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px;border-bottom:1px solid var(--b);
-    background:var(--s1);position:sticky;top:0;z-index:20;
-  }
-  .hdr-title{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--blue);}
-  .hdr-sub{font-size:11px;color:var(--m);}
+/* 헤더 */
+.hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:13px 16px;background:var(--s1);border-bottom:1px solid var(--b);
+  position:sticky;top:0;z-index:20;}
+.hdr-title{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--blue);}
+.hdr-sub{font-size:11px;color:var(--m);}
 
-  /* ── 메인 탭 ── */
-  .main-tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--b);position:sticky;top:49px;z-index:19;}
-  .main-tab{
-    flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--m);
-    background:none;border:none;cursor:pointer;
-    border-bottom:2px solid transparent;transition:all .2s;font-family:var(--sans);
-  }
-  .main-tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+/* 메인탭 */
+.main-tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--b);
+  position:sticky;top:48px;z-index:19;}
+.main-tab{flex:1;padding:11px;font-size:13px;font-weight:700;color:var(--m);
+  background:none;border:none;border-bottom:2px solid transparent;transition:all .2s;}
+.main-tab.on{color:var(--blue);border-bottom-color:var(--blue);}
 
-  /* ══════════════════════════════
-     문법카드 섹션
-  ══════════════════════════════ */
-  .cat-bar{
-    display:flex;gap:6px;padding:10px 16px;
-    overflow-x:auto;scrollbar-width:none;
-    background:var(--s1);border-bottom:1px solid var(--b);
-    position:sticky;top:98px;z-index:18;
-  }
-  .cat-bar::-webkit-scrollbar{display:none;}
-  .cat-chip{
-    flex-shrink:0;padding:4px 12px;border-radius:100px;
-    border:1px solid var(--b);background:var(--s2);
-    color:var(--m);font-size:11px;font-weight:700;
-    cursor:pointer;font-family:var(--sans);transition:all .15s;white-space:nowrap;
-  }
-  .cat-chip.active{border-color:var(--blue);background:rgba(79,142,247,.15);color:var(--blue);}
+/* 공통 칩 */
+.chip-bar{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;scrollbar-width:none;
+  background:var(--s1);border-bottom:1px solid var(--b);}
+.chip-bar::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;padding:4px 12px;border-radius:100px;border:1px solid var(--b);
+  background:var(--s2);color:var(--m);font-size:11px;font-weight:700;white-space:nowrap;}
+.chip.on{border-color:var(--blue);background:rgba(79,142,247,.15);color:var(--blue);}
+.chip-amber.on{border-color:var(--amber);background:rgba(245,166,35,.15);color:var(--amber);}
 
-  .gc-tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--b);}
-  .gc-tab{
-    flex:1;padding:9px;font-size:11px;font-weight:600;color:var(--m);
-    background:none;border:none;cursor:pointer;
-    border-bottom:2px solid transparent;transition:all .2s;font-family:var(--sans);
-  }
-  .gc-tab.active{color:var(--green);border-bottom-color:var(--green);}
+/* 서브탭 */
+.sub-tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--b);}
+.sub-tab{flex:1;padding:9px;font-size:12px;font-weight:600;color:var(--m);
+  background:none;border:none;border-bottom:2px solid transparent;transition:all .2s;}
+.sub-tab.on{color:var(--green);border-bottom-color:var(--green);}
 
-  #gcViewTab{padding:18px 16px;}
-  .card-wrap{perspective:800px;height:200px;cursor:pointer;margin-bottom:14px;}
-  .card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s ease;}
-  .card-inner.flipped{transform:rotateY(180deg);}
-  .card-face{
-    position:absolute;inset:0;backface-visibility:hidden;
-    border-radius:14px;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;padding:18px;text-align:center;gap:8px;
-  }
-  .card-front{background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(79,142,247,.06));border:1px solid rgba(79,142,247,.35);}
-  .card-back{background:linear-gradient(135deg,rgba(39,201,110,.15),rgba(39,201,110,.05));border:1px solid rgba(39,201,110,.3);transform:rotateY(180deg);}
-  .card-lbl{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;opacity:.5;}
-  .card-cat{font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;background:rgba(79,142,247,.2);color:var(--blue);}
-  .card-txt{font-size:17px;font-weight:700;line-height:1.5;}
-  .card-front .card-lbl{color:var(--blue);}
-  .card-back  .card-lbl{color:var(--green);}
-  .card-back  .card-txt{font-size:14px;font-weight:400;}
+/* 카드뷰 */
+.card-wrap{perspective:800px;height:200px;cursor:pointer;margin-bottom:14px;}
+.card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s;}
+.card-inner.flip{transform:rotateY(180deg);}
+.card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:18px;text-align:center;gap:8px;}
+.c-front{background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(79,142,247,.06));
+  border:1px solid rgba(79,142,247,.35);}
+.c-back{background:linear-gradient(135deg,rgba(39,201,110,.15),rgba(39,201,110,.05));
+  border:1px solid rgba(39,201,110,.3);transform:rotateY(180deg);}
+.c-lbl{font-size:9px;letter-spacing:1.5px;opacity:.5;}
+.c-cat{font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;
+  background:rgba(79,142,247,.2);color:var(--blue);}
+.c-txt{font-size:17px;font-weight:700;line-height:1.5;}
+.c-front .c-lbl{color:var(--blue);}
+.c-back  .c-lbl{color:var(--green);}
+.c-back  .c-txt{font-size:14px;font-weight:400;}
 
-  .nav-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
-  .nav-btn{background:var(--s2);border:1px solid var(--b);color:var(--t);border-radius:10px;padding:9px 18px;font-size:18px;cursor:pointer;}
-  .nav-cnt{font-family:var(--mono);font-size:13px;color:var(--m);}
-  .del-btn{width:100%;padding:9px;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.25);color:var(--red);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--sans);}
+.nav-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.nav-btn{background:var(--s2);border:1px solid var(--b);color:var(--t);
+  border-radius:10px;padding:9px 18px;font-size:18px;}
+.nav-cnt{font-family:var(--mono);font-size:13px;color:var(--m);}
 
-  #gcAddTab{padding:18px 16px;display:flex;flex-direction:column;gap:13px;}
-  .field-lbl{font-size:10px;color:var(--m);letter-spacing:.5px;margin-bottom:5px;}
-  textarea,select{
-    width:100%;background:var(--s2);border:1px solid var(--b);
-    border-radius:10px;color:var(--t);font-family:var(--sans);font-size:13px;
-    padding:11px;outline:none;resize:none;line-height:1.6;transition:border-color .2s;
-  }
-  textarea:focus,select:focus{border-color:rgba(79,142,247,.5);}
-  #gcFrontInp{border-color:rgba(79,142,247,.3);height:90px;}
-  #gcBackInp {border-color:rgba(39,201,110,.3);height:120px;}
-  .cat-sel-wrap{position:relative;}
-  .cat-sel-wrap select{appearance:none;padding-right:32px;}
-  .cat-sel-wrap::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--m);pointer-events:none;font-size:11px;}
-  .cat-add-row{display:flex;gap:7px;}
-  .cat-add-inp{
-    flex:1;background:var(--s2);border:1px solid var(--b);
-    border-radius:10px;color:var(--t);font-family:var(--sans);font-size:13px;padding:9px 11px;outline:none;
-  }
-  .cat-add-inp:focus{border-color:rgba(79,142,247,.5);}
-  .cat-add-btn{
-    background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:var(--blue);
-    border-radius:10px;padding:9px 13px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--sans);
-  }
-  .save-btn{
-    padding:13px;background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.4);
-    color:var(--blue);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);
-  }
+.action-btn{width:100%;padding:9px;border-radius:8px;font-size:12px;
+  background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);color:var(--blue);margin-bottom:7px;}
+.del-btn-sm{width:100%;padding:9px;border-radius:8px;font-size:12px;
+  background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.25);color:var(--red);}
 
-  #gcListTab{padding:12px 16px;display:flex;flex-direction:column;gap:7px;}
-  .gc-list-item{
-    background:var(--s2);border:1px solid var(--b);border-radius:10px;
-    padding:11px 13px;display:flex;align-items:flex-start;gap:9px;
-  }
-  .gc-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;background:rgba(79,142,247,.15);color:var(--blue);white-space:nowrap;flex-shrink:0;}
-  .gc-list-front{font-size:12px;font-weight:700;color:var(--t);margin-bottom:3px;}
-  .gc-list-back{font-size:11px;color:var(--m);line-height:1.5;}
-  .gc-list-del{background:none;border:none;color:var(--m2);cursor:pointer;font-size:13px;padding:0;flex-shrink:0;}
+/* 폼 */
+.pad{padding:16px;}
+.field-lbl{font-size:10px;color:var(--m);letter-spacing:.5px;margin-bottom:5px;}
+textarea,select,input[type=text]{
+  width:100%;background:var(--s2);border:1px solid var(--b);
+  border-radius:10px;color:var(--t);font-family:var(--sans);font-size:13px;
+  padding:11px;outline:none;resize:none;line-height:1.6;}
+textarea:focus,select:focus,input[type=text]:focus{border-color:rgba(79,142,247,.5);}
+.sel-wrap{position:relative;}
+.sel-wrap select{appearance:none;padding-right:30px;}
+.sel-wrap::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  color:var(--m);pointer-events:none;}
+.save-btn{width:100%;padding:13px;background:rgba(79,142,247,.2);
+  border:1px solid rgba(79,142,247,.4);color:var(--blue);border-radius:10px;
+  font-size:13px;font-weight:700;}
 
-  /* ══════════════════════════════
-     오답노트 섹션
-  ══════════════════════════════ */
-  #odapSection{padding:14px 16px;}
-  .od-filter-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:10px;}
-  .od-filter-row::-webkit-scrollbar{display:none;}
-  .od-chip{
-    flex-shrink:0;padding:4px 12px;border-radius:100px;
-    border:1px solid var(--b);background:var(--s2);
-    color:var(--m);font-size:11px;font-weight:700;
-    cursor:pointer;font-family:var(--sans);transition:all .15s;white-space:nowrap;
-  }
-  .od-chip.active{border-color:var(--amber);background:rgba(245,166,35,.15);color:var(--amber);}
-  .od-card{
-    background:var(--s2);border:1px solid var(--b);
-    border-radius:10px;margin-bottom:9px;overflow:hidden;cursor:pointer;
-    transition:border-color .2s;
-  }
-  .od-card-top{padding:11px 13px;display:flex;align-items:center;gap:9px;}
-  .od-accent{width:3px;height:34px;border-radius:2px;flex-shrink:0;}
-  .od-meta{display:flex;gap:5px;align-items:center;margin-bottom:3px;flex-wrap:wrap;}
-  .od-tag{font-size:10px;background:var(--s1);color:var(--m);padding:1px 6px;border-radius:3px;}
-  .od-preview{font-size:12px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .od-type-lbl{font-size:10px;font-weight:700;margin-left:auto;}
-  .od-expand{padding:11px 13px;border-top:1px solid var(--b);}
-  .od-row{margin-bottom:8px;}
-  .od-row-lbl{font-size:10px;font-weight:700;margin-bottom:2px;}
-  .od-row-val{font-size:12px;color:var(--m);line-height:1.5;}
-  .od-img{width:100%;border-radius:8px;margin-bottom:8px;max-height:240px;object-fit:contain;background:var(--s1);}
-  .od-chevron{color:var(--m2);font-size:11px;flex-shrink:0;}
+/* 목록 */
+.list-pad{padding:12px 16px;display:flex;flex-direction:column;gap:7px;}
+.list-card{background:var(--s2);border:1px solid var(--b);border-radius:10px;
+  padding:11px 13px;display:flex;align-items:flex-start;gap:9px;}
+.badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;
+  background:rgba(79,142,247,.15);color:var(--blue);white-space:nowrap;flex-shrink:0;}
+.list-del{background:none;border:none;color:var(--m2);font-size:13px;padding:0;flex-shrink:0;}
 
-  .empty-msg{text-align:center;padding:40px 0;color:var(--m);font-size:13px;}
+/* 오답노트 카드 */
+.od-card{background:var(--s2);border:1px solid var(--b);border-radius:10px;
+  margin-bottom:9px;cursor:pointer;overflow:hidden;}
+.od-top{padding:11px 13px;display:flex;align-items:center;gap:9px;}
+.od-accent{width:3px;height:34px;border-radius:2px;flex-shrink:0;}
+.od-meta{display:flex;gap:5px;align-items:center;margin-bottom:3px;flex-wrap:wrap;}
+.od-tag{font-size:10px;background:var(--s1);color:var(--m);padding:1px 6px;border-radius:3px;}
+.od-prev{font-size:12px;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.od-exp{padding:11px 13px;border-top:1px solid var(--b);}
+.od-row{margin-bottom:8px;}
+.od-rlbl{font-size:10px;font-weight:700;margin-bottom:2px;}
+.od-rval{font-size:12px;color:var(--m);line-height:1.5;}
+.od-img{width:100%;border-radius:8px;margin-bottom:8px;max-height:240px;object-fit:contain;background:var(--s1);}
 
-  /* ── 이미지 줌 ── */
-  #imgZoom{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.95);align-items:center;justify-content:center;}
-  #imgZoom img{max-width:100%;max-height:100%;object-fit:contain;}
+/* 모달 */
+.modal-bg{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:16px;}
+.modal-box{background:var(--s1);border:1px solid var(--b);border-radius:16px;
+  width:100%;max-width:480px;padding:20px;display:flex;flex-direction:column;gap:13px;}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;}
+.modal-close{background:none;border:none;color:var(--m);font-size:20px;padding:0;}
 
-  .toast{
-    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-    background:rgba(39,201,110,.9);color:#fff;font-size:12px;font-weight:700;
-    padding:8px 18px;border-radius:20px;z-index:999;
-    opacity:0;transition:opacity .3s;pointer-events:none;
-  }
-  .toast.show{opacity:1;}
+.empty{text-align:center;padding:40px 0;color:var(--m);font-size:13px;}
+.add-row{display:flex;gap:7px;margin-top:-7px;}
+.add-inp{flex:1;background:var(--s2);border:1px solid var(--b);border-radius:10px;
+  color:var(--t);font-family:var(--sans);font-size:13px;padding:9px 11px;outline:none;}
+.add-inp:focus{border-color:rgba(79,142,247,.5);}
+.add-btn{background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:var(--blue);
+  border-radius:10px;padding:9px 13px;font-size:11px;font-weight:700;white-space:nowrap;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:rgba(39,201,110,.9);color:#fff;font-size:12px;font-weight:700;
+  padding:8px 18px;border-radius:20px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+
+#imgZoom{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.95);
+  align-items:center;justify-content:center;}
+#imgZoom img{max-width:100%;max-height:100%;object-fit:contain;}
 </style>
 </head>
 <body>
 
 <div class="hdr">
   <span class="hdr-title">🇰🇷 국어</span>
-  <span class="hdr-sub" id="hdrSub">문법카드 0장 · 오답 0개</span>
+  <span class="hdr-sub" id="hdrSub">로딩 중...</span>
 </div>
-
-<!-- 메인 탭 -->
 <div class="main-tabs">
-  <button class="main-tab active" onclick="switchMain('grammar')">📋 문법카드</button>
-  <button class="main-tab" onclick="switchMain('odap')">✏️ 오답노트</button>
+  <button class="main-tab on" onclick="mainTab('gc')">📋 문법카드</button>
+  <button class="main-tab" onclick="mainTab('od')">✏️ 오답노트</button>
 </div>
 
-<!-- ══ 문법카드 섹션 ══ -->
-<div id="grammarSection">
-  <!-- 카테고리 필터 -->
-  <div class="cat-bar" id="catBar"></div>
-
-  <!-- 서브탭 -->
-  <div class="gc-tabs">
-    <button class="gc-tab active" onclick="switchGcTab('view')">카드 보기</button>
-    <button class="gc-tab" onclick="switchGcTab('add')">+ 추가</button>
-    <button class="gc-tab" onclick="switchGcTab('list')">목록</button>
+<!-- ===== 문법카드 ===== -->
+<div id="sec-gc">
+  <div class="chip-bar" id="catBar"></div>
+  <div class="sub-tabs">
+    <button class="sub-tab on" onclick="gcTab('view')">카드 보기</button>
+    <button class="sub-tab" onclick="gcTab('add')">+ 추가</button>
+    <button class="sub-tab" onclick="gcTab('list')">목록</button>
   </div>
 
-  <!-- 카드 보기 -->
-  <div id="gcViewTab">
-    <div id="gcEmpty" class="empty-msg">카드가 없어요.<br>+ 추가 탭에서 만들어 보세요!</div>
-    <div id="gcCardArea" style="display:none">
+  <div id="gc-view" class="pad">
+    <div id="gcEmpty" class="empty">카드가 없어요.<br>+ 추가 탭에서 만들어보세요!</div>
+    <div id="gcArea" style="display:none">
       <div class="card-wrap" onclick="flipCard()">
-        <div class="card-inner" id="cardInner">
-          <div class="card-face card-front">
-            <div class="card-cat" id="cardCat"></div>
-            <div class="card-lbl">앞면 · 탭하면 뒤집기</div>
-            <div class="card-txt" id="frontText"></div>
+        <div class="card-inner" id="ci">
+          <div class="card-face c-front">
+            <div class="c-cat" id="cCat"></div>
+            <div class="c-lbl">앞면 · 탭하면 뒤집기</div>
+            <div class="c-txt" id="cFront"></div>
           </div>
-          <div class="card-face card-back">
-            <div class="card-lbl">뒷면</div>
-            <div class="card-txt" id="backText"></div>
+          <div class="card-face c-back">
+            <div class="c-lbl">뒷면</div>
+            <div class="c-txt" id="cBack"></div>
           </div>
         </div>
       </div>
@@ -214,85 +179,73 @@
         <span class="nav-cnt" id="navCnt">1 / 1</span>
         <button class="nav-btn" onclick="nextCard()">›</button>
       </div>
-      <button class="del-btn" onclick="delCard()">이 카드 삭제</button>
-      <button class="del-btn" style="margin-top:6px;background:rgba(79,142,247,.1);border-color:rgba(79,142,247,.25);color:var(--blue);" onclick="editCard()">이 카드 수정</button>
+      <button class="action-btn" onclick="openEdit()">이 카드 수정</button>
+      <button class="del-btn-sm" onclick="delCard()">이 카드 삭제</button>
     </div>
   </div>
 
-  <!-- 추가 -->
-  <div id="gcAddTab" style="display:none">
-    <div>
+  <div id="gc-add" class="pad" style="display:none">
+    <div style="margin-bottom:13px;">
       <div class="field-lbl">카테고리</div>
-      <div class="cat-sel-wrap"><select id="catSel"></select></div>
+      <div class="sel-wrap"><select id="catSel"></select></div>
     </div>
-    <div>
+    <div style="margin-bottom:13px;">
       <div class="field-lbl">새 카테고리 추가</div>
-      <div class="cat-add-row">
-        <input class="cat-add-inp" id="newCatInp" placeholder="예) 높임법, 시제, 피동사동">
-        <button class="cat-add-btn" onclick="addCategory()">추가</button>
+      <div class="add-row">
+        <input class="add-inp" id="newCat" placeholder="예) 높임법, 시제">
+        <button class="add-btn" onclick="addCat()">추가</button>
       </div>
     </div>
-    <div>
-      <div class="field-lbl">앞면 — 문법 개념</div>
-      <textarea id="gcFrontInp" placeholder="예) 주체 높임법의 종류"></textarea>
+    <div style="margin-bottom:13px;">
+      <div class="field-lbl">앞면 — 개념</div>
+      <textarea id="gFront" style="height:90px;border-color:rgba(79,142,247,.3);" placeholder="예) 주체 높임법의 종류"></textarea>
     </div>
-    <div>
-      <div class="field-lbl">뒷면 — 설명 / 예시</div>
-      <textarea id="gcBackInp" placeholder="예) 선어말 어미 '-시-' 사용&#10;주어가 높임 대상일 때"></textarea>
+    <div style="margin-bottom:13px;">
+      <div class="field-lbl">뒷면 — 설명</div>
+      <textarea id="gBack" style="height:120px;border-color:rgba(39,201,110,.3);" placeholder="예) 선어말 어미 '-시-' 사용"></textarea>
     </div>
     <button class="save-btn" onclick="saveCard()">저장하기</button>
   </div>
 
-  <!-- 목록 -->
-  <div id="gcListTab" style="display:none"></div>
+  <div id="gc-list" class="list-pad" style="display:none"></div>
 </div>
 
-<!-- ══ 오답노트 섹션 ══ -->
-<div id="odapSection" style="display:none">
-  <div class="od-filter-row" id="odFilterRow"></div>
-  <div id="odList"></div>
+<!-- ===== 오답노트 ===== -->
+<div id="sec-od" style="display:none">
+  <div class="chip-bar" id="odChips"></div>
+  <div id="odList" class="pad"></div>
 </div>
 
-<!-- 이미지 줌 -->
-<div id="imgZoom" onclick="this.style.display='none'">
-  <img id="imgZoomSrc">
-</div>
-
-<!-- 카드 수정 모달 -->
-<div id="editModal" style="
-  display:none;position:fixed;inset:0;z-index:100;
-  background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px;
-" onclick="if(event.target===this)closeEdit()">
-  <div style="
-    background:var(--s1);border:1px solid var(--b);border-radius:16px;
-    width:100%;max-width:480px;padding:20px;display:flex;flex-direction:column;gap:13px;
-  " onclick="event.stopPropagation()">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
+<!-- 수정 모달 -->
+<div class="modal-bg" id="editModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
       <span style="font-size:14px;font-weight:700;color:var(--blue);">카드 수정</span>
-      <button onclick="closeEdit()" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer;">✕</button>
+      <button class="modal-close" onclick="closeEdit()">✕</button>
     </div>
     <div>
       <div class="field-lbl">카테고리</div>
-      <div class="cat-sel-wrap"><select id="editCatSel"></select></div>
+      <div class="sel-wrap"><select id="eCat"></select></div>
     </div>
     <div>
       <div class="field-lbl">앞면</div>
-      <textarea id="editFrontInp" style="height:80px;border-color:rgba(79,142,247,.3);"></textarea>
+      <textarea id="eFront" style="height:80px;border-color:rgba(79,142,247,.3);"></textarea>
     </div>
     <div>
       <div class="field-lbl">뒷면</div>
-      <textarea id="editBackInp" style="height:110px;border-color:rgba(39,201,110,.3);"></textarea>
+      <textarea id="eBack" style="height:110px;border-color:rgba(39,201,110,.3);"></textarea>
     </div>
     <button class="save-btn" onclick="saveEdit()">저장하기</button>
   </div>
 </div>
 
+<div id="imgZoom" onclick="this.style.display='none'"><img id="imgSrc"></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-const FB = {
+firebase.initializeApp({
   apiKey:"AIzaSyC9QBrj_8YSvT1Nk7CsTPu_vKk-zetdmnU",
   authDomain:"neipclover88-3db3f.firebaseapp.com",
   databaseURL:"https://neipclover88-3db3f-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -300,152 +253,182 @@ const FB = {
   storageBucket:"neipclover88-3db3f.firebasestorage.app",
   messagingSenderId:"419747329488",
   appId:"1:419747329488:web:a506aad1485222c548f5d5"
-};
-firebase.initializeApp(FB);
+});
 const db = firebase.database();
 
-const GC_PATH  = 'bdh3/grammar/국어/cards';
-const CAT_PATH = 'bdh3/grammar/국어/categories';
-const OD_PATH  = 'bdh3_t/timer/odap';
-const OD_TYPES_PATH = 'bdh3_t/timer/odapTypes';
+// ── 경로 ──
+const GC   = 'bdh3/grammar/korean/cards';
+const CATS = 'bdh3/grammar/korean/cats';
+const OD   = 'bdh3_t/timer/odap';
+const ODT  = 'bdh3_t/timer/odapTypes';
 
 // ── 상태 ──
-let gcCards    = [], gcCategories = ['음운','형태소','품사','단어','문장','높임법','시제','피동사동','기타'];
-let gcCatFilter= '전체', gcIdx = 0, gcFlipped = false;
-let odEntries  = [], odTypes = [], odFilter = '전체', odExpanded = null;
-let curMain    = 'grammar';
+let gcCards=[], gcCats=['음운','형태소','품사','단어','문장','높임법','시제','피동사동','기타'];
+let gcFilter='전체', gcIdx=0, gcFlip=false, editKey=null;
+let odAll=[], odTypes=[], odFilter='전체', odOpen=null;
+let curMain='gc', curGc='view';
 
-// ── Firebase 로드 ──
-db.ref(CAT_PATH).on('value', s => {
-  if(s.exists()){ const v=s.val(); gcCategories=Array.isArray(v)?v:Object.values(v); }
-  renderCatBar(); renderCatSel();
+// ── Firebase 리스너 ──
+db.ref(CATS).on('value', s=>{
+  if(s.exists()){
+    const v=s.val(); gcCats=Array.isArray(v)?v:Object.values(v);
+  }
+  buildCatBar(); buildCatSel();
 });
-db.ref(GC_PATH).on('value', s => {
-  gcCards = s.exists() ? Object.entries(s.val()).map(([k,v])=>({key:k,...v})) : [];
-  updateHdr(); renderCard(); renderGcList();
+
+db.ref(GC).on('value', s=>{
+  gcCards=[];
+  if(s.exists()){
+    Object.entries(s.val()).forEach(([k,v])=>gcCards.push({key:k,...v}));
+  }
+  updateHdr(); renderCard(); renderList();
 });
-db.ref(OD_PATH).on('value', s => {
+
+db.ref(OD).on('value', s=>{
+  odAll=[];
   if(s.exists()){
     const v=s.val();
-    let arr=Array.isArray(v)?v:Object.values(v);
-    odEntries=arr.filter(e=>e.subject==='국어').sort((a,b)=>b.id-a.id);
-  } else odEntries=[];
-  updateHdr(); renderOdFilter(); renderOdList();
+    const arr=Array.isArray(v)?v:Object.values(v);
+    odAll=arr.filter(e=>e&&e.subject==='국어').sort((a,b)=>(b.id||0)-(a.id||0));
+  }
+  updateHdr(); renderOdChips(); renderOdList();
 });
-db.ref(OD_TYPES_PATH).on('value', s => {
-  if(s.exists()){ const v=s.val(); odTypes=Array.isArray(v)?v:Object.values(v); }
-  renderOdFilter(); renderOdList();
+
+db.ref(ODT).on('value', s=>{
+  odTypes=[];
+  if(s.exists()){const v=s.val();odTypes=Array.isArray(v)?v:Object.values(v);}
+  renderOdChips(); renderOdList();
 });
 
 function updateHdr(){
-  document.getElementById('hdrSub').textContent =
-    '문법카드 '+gcCards.length+'장 · 오답 '+odEntries.length+'개';
+  document.getElementById('hdrSub').textContent='문법카드 '+gcCards.length+'장 · 오답 '+odAll.length+'개';
 }
 
-// ══ 메인 탭 ══
-function switchMain(name){
-  curMain=name;
-  document.getElementById('grammarSection').style.display=name==='grammar'?'':'none';
-  document.getElementById('odapSection').style.display=name==='odap'?'':'none';
-  document.querySelectorAll('.main-tab').forEach((el,i)=>{
-    el.classList.toggle('active',['grammar','odap'][i]===name);
-  });
+// ── 메인 탭 ──
+function mainTab(t){
+  curMain=t;
+  document.getElementById('sec-gc').style.display=t==='gc'?'':'none';
+  document.getElementById('sec-od').style.display=t==='od'?'':'none';
+  document.querySelectorAll('.main-tab').forEach((el,i)=>el.classList.toggle('on',['gc','od'][i]===t));
 }
 
-// ══ 문법카드 ══
-function switchGcTab(name){
-  ['view','add','list'].forEach(t=>{
-    document.getElementById('gc'+t.charAt(0).toUpperCase()+t.slice(1)+'Tab').style.display=t===name?'':'none';
-  });
-  document.querySelectorAll('.gc-tab').forEach((el,i)=>{
-    el.classList.toggle('active',['view','add','list'][i]===name);
-  });
-  if(name==='list') renderGcList();
-  if(name==='view') renderCard();
+// ── 문법카드 탭 ──
+function gcTab(t){
+  curGc=t;
+  document.getElementById('gc-view').style.display=t==='view'?'':'none';
+  document.getElementById('gc-add').style.display=t==='add'?'':'none';
+  document.getElementById('gc-list').style.display=t==='list'?'':'none';
+  document.querySelectorAll('.sub-tab').forEach((el,i)=>el.classList.toggle('on',['view','add','list'][i]===t));
+  if(t==='view') renderCard();
+  if(t==='list') renderList();
 }
 
-function renderCatBar(){
+// ── 카테고리 필터 ──
+function buildCatBar(){
   const bar=document.getElementById('catBar');
-  bar.innerHTML=['전체',...gcCategories].map(c=>`
-    <button class="cat-chip ${c===gcCatFilter?'active':''}" onclick="setCatFilter('${esc(c)}')">${esc(c)}</button>
-  `).join('');
+  bar.innerHTML=['전체',...gcCats].map(c=>
+    `<button class="chip ${c===gcFilter?'on':''}" onclick="setFilter('${esc(c)}')">${esc(c)}</button>`
+  ).join('');
 }
-function setCatFilter(cat){ gcCatFilter=cat; gcIdx=0; renderCatBar(); renderCard(); renderGcList(); }
+function setFilter(c){gcFilter=c;gcIdx=0;buildCatBar();renderCard();renderList();}
 
-function renderCatSel(){
-  const sel=document.getElementById('catSel');
-  if(!sel) return;
-  const cur=sel.value||gcCategories[0]||'';
-  sel.innerHTML=gcCategories.map(c=>`<option value="${esc(c)}" ${c===cur?'selected':''}>${esc(c)}</option>`).join('');
-}
-function addCategory(){
-  const inp=document.getElementById('newCatInp');
-  const name=inp.value.trim();
-  if(!name) return;
-  if(gcCategories.includes(name)){showToast('이미 있는 카테고리예요');return;}
-  gcCategories.push(name);
-  db.ref(CAT_PATH).set(gcCategories).then(()=>{
-    inp.value=''; showToast(name+' 추가됐어요 ✓');
-    renderCatSel();
-    document.getElementById('catSel').value=name;
+function buildCatSel(){
+  ['catSel','eCat'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const cur=el.value;
+    el.innerHTML=gcCats.map(c=>`<option value="${esc(c)}" ${c===cur?'selected':''}>${esc(c)}</option>`).join('');
   });
 }
 
-function gcFiltered(){ return gcCatFilter==='전체'?gcCards:gcCards.filter(c=>c.cat===gcCatFilter); }
+function addCat(){
+  const inp=document.getElementById('newCat');
+  const name=inp.value.trim();
+  if(!name)return;
+  if(gcCats.includes(name)){toast('이미 있어요');return;}
+  gcCats.push(name);
+  db.ref(CATS).set(gcCats).then(()=>{inp.value='';toast(name+' 추가됐어요 ✓');});
+}
+
+// ── 카드 렌더 ──
+function gcFiltered(){return gcFilter==='전체'?gcCards:gcCards.filter(c=>c.cat===gcFilter);}
 
 function renderCard(){
   const list=gcFiltered();
-  const empty=document.getElementById('gcEmpty');
-  const area=document.getElementById('gcCardArea');
-  if(!list.length){empty.style.display='block';area.style.display='none';return;}
-  empty.style.display='none'; area.style.display='block';
-  gcIdx=Math.min(gcIdx,list.length-1);
+  document.getElementById('gcEmpty').style.display=list.length?'none':'block';
+  document.getElementById('gcArea').style.display=list.length?'block':'none';
+  if(!list.length)return;
+  gcIdx=Math.max(0,Math.min(gcIdx,list.length-1));
   const c=list[gcIdx];
-  document.getElementById('frontText').textContent=c.front||'';
-  document.getElementById('backText').textContent=c.back||'';
+  document.getElementById('cCat').textContent=c.cat||'';
+  document.getElementById('cFront').textContent=c.front||'';
+  document.getElementById('cBack').textContent=c.back||'';
   document.getElementById('navCnt').textContent=(gcIdx+1)+' / '+list.length;
-  document.getElementById('cardCat').textContent=c.cat||'';
-  gcFlipped=false; document.getElementById('cardInner').classList.remove('flipped');
+  gcFlip=false; document.getElementById('ci').classList.remove('flip');
 }
-function flipCard(){ gcFlipped=!gcFlipped; document.getElementById('cardInner').classList.toggle('flipped',gcFlipped); }
-function prevCard(){ const l=gcFiltered(); if(!l.length)return; gcIdx=(gcIdx-1+l.length)%l.length; renderCard(); }
-function nextCard(){ const l=gcFiltered(); if(!l.length)return; gcIdx=(gcIdx+1)%l.length; renderCard(); }
+function flipCard(){gcFlip=!gcFlip;document.getElementById('ci').classList.toggle('flip',gcFlip);}
+function prevCard(){const l=gcFiltered();if(!l.length)return;gcIdx=(gcIdx-1+l.length)%l.length;renderCard();}
+function nextCard(){const l=gcFiltered();if(!l.length)return;gcIdx=(gcIdx+1)%l.length;renderCard();}
 function delCard(){
-  const l=gcFiltered(); if(!l.length)return;
-  if(!confirm('이 카드를 삭제할까요?'))return;
-  db.ref(GC_PATH+'/'+l[gcIdx].key).remove(); showToast('삭제됐어요');
+  const l=gcFiltered();if(!l.length){toast('카드가 없어요');return;}
+  if(!confirm('삭제할까요?'))return;
+  db.ref(GC+'/'+l[gcIdx].key).remove(); toast('삭제됐어요');
 }
 function saveCard(){
-  const front=document.getElementById('gcFrontInp').value.trim();
-  const back=document.getElementById('gcBackInp').value.trim();
+  const front=document.getElementById('gFront').value.trim();
+  const back=document.getElementById('gBack').value.trim();
   const cat=document.getElementById('catSel').value||'기타';
-  if(!front){showToast('앞면을 입력해주세요');return;}
-  db.ref(GC_PATH).push({front,back:back||'',cat}).then(()=>{
-    document.getElementById('gcFrontInp').value='';
-    document.getElementById('gcBackInp').value='';
-    showToast('저장됐어요 ✓'); switchGcTab('view');
+  if(!front){toast('앞면을 입력해주세요');return;}
+  db.ref(GC).push({front,back,cat}).then(()=>{
+    document.getElementById('gFront').value='';
+    document.getElementById('gBack').value='';
+    toast('저장됐어요 ✓'); gcTab('view');
   });
 }
-function renderGcList(){
-  const el=document.getElementById('gcListTab'); if(!el) return;
+
+function renderList(){
+  const el=document.getElementById('gc-list');
   const list=gcFiltered();
-  if(!list.length){el.innerHTML='<div class="empty-msg">카드가 없어요.</div>';return;}
+  if(!list.length){el.innerHTML='<div class="empty">카드가 없어요.</div>';return;}
   el.innerHTML=list.map(c=>`
-    <div class="gc-list-item">
-      <span class="gc-badge">${esc(c.cat||'기타')}</span>
+    <div class="list-card">
+      <span class="badge">${esc(c.cat||'기타')}</span>
       <div style="flex:1;min-width:0;">
-        <div class="gc-list-front">${esc(c.front)}</div>
-        <div class="gc-list-back">${esc(c.back)}</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:3px;">${esc(c.front)}</div>
+        <div style="font-size:11px;color:var(--m);line-height:1.5;">${esc(c.back)}</div>
       </div>
-      <button class="gc-list-del" onclick="delGcByKey('${c.key}')">✕</button>
+      <button class="list-del" onclick="delByKey('${c.key}')">✕</button>
     </div>`).join('');
 }
-function delGcByKey(key){
+function delByKey(key){
   if(!confirm('삭제할까요?'))return;
-  db.ref(GC_PATH+'/'+key).remove(); showToast('삭제됐어요');
+  db.ref(GC+'/'+key).remove(); toast('삭제됐어요');
 }
 
-// ══ 오답노트 ══
+// ── 수정 모달 ──
+function openEdit(){
+  const l=gcFiltered();
+  if(!l.length){toast('카드가 없어요');return;}
+  const c=l[gcIdx]; editKey=c.key;
+  const sel=document.getElementById('eCat');
+  sel.innerHTML=gcCats.map(cat=>`<option value="${esc(cat)}" ${cat===c.cat?'selected':''}>${esc(cat)}</option>`).join('');
+  document.getElementById('eFront').value=c.front||'';
+  document.getElementById('eBack').value=c.back||'';
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEdit(){document.getElementById('editModal').style.display='none';editKey=null;}
+function saveEdit(){
+  if(!editKey){toast('오류: 수정할 카드가 없어요');return;}
+  const front=document.getElementById('eFront').value.trim();
+  const back=document.getElementById('eBack').value.trim();
+  const cat=document.getElementById('eCat').value||'기타';
+  if(!front){toast('앞면을 입력해주세요');return;}
+  db.ref(GC+'/'+editKey).update({front,back,cat}).then(()=>{closeEdit();toast('수정됐어요 ✓');});
+}
+document.getElementById('editModal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('editModal')) closeEdit();
+});
+
+// ── 오답노트 ──
 const BASE_TYPES=[
   {id:'cond',label:'조건어 오독',color:'#f59e0b'},
   {id:'range',label:'적용 범위 오류',color:'#ef4444'},
@@ -454,88 +437,59 @@ const BASE_TYPES=[
   {id:'calc',label:'계산 오류',color:'#10b981'},
   {id:'other',label:'기타',color:'#6b7280'},
 ];
-function allTypes(){ return [...BASE_TYPES,...(odTypes||[])]; }
-function typeInfo(id){ return allTypes().find(t=>t.id===id)||{label:id,color:'#6b7280'}; }
+function allTypes(){return [...BASE_TYPES,...odTypes];}
+function typeInfo(id){return allTypes().find(t=>t.id===id)||{label:id,color:'#6b7280'};}
 
-function renderOdFilter(){
-  const row=document.getElementById('odFilterRow');
-  if(!row) return;
-  const types=['전체',...allTypes().map(t=>t.id)];
-  row.innerHTML=types.map(id=>{
-    const t=id==='전체'?{label:'전체',color:null}:typeInfo(id);
-    return `<button class="od-chip ${id===odFilter?'active':''}" onclick="setOdFilter('${id}')">${esc(t.label)}</button>`;
+function renderOdChips(){
+  const bar=document.getElementById('odChips');
+  bar.innerHTML=['전체',...allTypes().map(t=>t.id)].map(id=>{
+    const lbl=id==='전체'?'전체':typeInfo(id).label;
+    return `<button class="chip chip-amber ${id===odFilter?'on':''}" onclick="setOdFilter('${esc(id)}')">${esc(lbl)}</button>`;
   }).join('');
 }
-function setOdFilter(id){ odFilter=id; odExpanded=null; renderOdFilter(); renderOdList(); }
+function setOdFilter(f){odFilter=f;odOpen=null;renderOdChips();renderOdList();}
 
 function renderOdList(){
-  const el=document.getElementById('odList'); if(!el) return;
-  const list=odFilter==='전체'?odEntries:odEntries.filter(e=>e.errorType===odFilter);
-  if(!list.length){el.innerHTML='<div class="empty-msg">국어 오답이 없어요.</div>';return;}
+  const el=document.getElementById('odList');
+  const list=odFilter==='전체'?odAll:odAll.filter(e=>e.errorType===odFilter);
+  if(!list.length){
+    el.innerHTML='<div class="empty">국어 오답이 없어요.</div>';
+    return;
+  }
   el.innerHTML=list.map(e=>{
     const t=typeInfo(e.errorType);
-    const d=new Date(e.id);
-    const ds=`${d.getMonth()+1}/${d.getDate()}`;
-    const exp=odExpanded===e.id;
-    const expandHtml=exp?`
-      <div class="od-expand">
-        <div class="od-row"><div class="od-row-lbl" style="color:#ef4444">내가 읽은 것</div><div class="od-row-val">${esc(e.myRead)}</div></div>
-        <div class="od-row"><div class="od-row-lbl" style="color:#27c96e">실제 선지/지문</div><div class="od-row-val">${esc(e.actual)}</div></div>
-        ${e.memo?`<div class="od-row"><div class="od-row-lbl" style="color:var(--m)">메모</div><div class="od-row-val">${esc(e.memo)}</div></div>`:''}
-        ${e.imageUrl?`<img class="od-img" src="${e.imageUrl}" onclick="zoomImg('${e.imageUrl}')">`:''}
-      </div>`:'';
-    return `<div class="od-card" style="${exp?'border-color:'+t.color+'55':''}" onclick="toggleOd(${e.id})">
-      <div class="od-card-top">
+    const d=new Date(e.id||0);
+    const ds=(d.getMonth()+1)+'/'+(d.getDate());
+    const open=odOpen===e.id;
+    const exp=open?`<div class="od-exp">
+      <div class="od-row"><div class="od-rlbl" style="color:#ef4444">내가 읽은 것</div><div class="od-rval">${esc(e.myRead)}</div></div>
+      <div class="od-row"><div class="od-rlbl" style="color:#27c96e">실제 선지/지문</div><div class="od-rval">${esc(e.actual)}</div></div>
+      ${e.memo?`<div class="od-row"><div class="od-rlbl" style="color:var(--m)">메모</div><div class="od-rval">${esc(e.memo)}</div></div>`:''}
+      ${e.imageUrl?`<img class="od-img" src="${esc(e.imageUrl)}" onclick="event.stopPropagation();zoomImg('${esc(e.imageUrl)}')">`:''}
+    </div>`:'';
+    return `<div class="od-card" style="${open?'border-color:'+t.color+'55':''}" onclick="toggleOd(${e.id})">
+      <div class="od-top">
         <div class="od-accent" style="background:${t.color}"></div>
         <div style="flex:1;min-width:0;">
           <div class="od-meta">
             <span style="font-size:10px;color:var(--m)">${ds}</span>
-            ${e.problem?`<span class="od-tag">#${e.problem}</span>`:''}
-            <span class="od-type-lbl" style="color:${t.color}">${esc(t.label)}</span>
+            ${e.problem?`<span class="od-tag">#${esc(e.problem)}</span>`:''}
+            <span style="font-size:10px;font-weight:700;color:${t.color};margin-left:auto">${esc(t.label)}</span>
           </div>
-          <div class="od-preview">${esc(e.myRead)}</div>
+          <div class="od-prev">${esc(e.myRead||'')}</div>
         </div>
-        <span class="od-chevron">${exp?'▲':'▼'}</span>
-      </div>
-      ${expandHtml}
+        <span style="color:var(--m2);font-size:11px">${open?'▲':'▼'}</span>
+      </div>${exp}
     </div>`;
   }).join('');
 }
-function toggleOd(id){ odExpanded=odExpanded===id?null:id; renderOdList(); }
-function zoomImg(url){ document.getElementById('imgZoomSrc').src=url; document.getElementById('imgZoom').style.display='flex'; }
+function toggleOd(id){odOpen=odOpen===id?null:id;renderOdList();}
+function zoomImg(url){document.getElementById('imgSrc').src=url;document.getElementById('imgZoom').style.display='flex';}
 
-let editKey = null;
-
-function editCard(){
-  const l=gcFiltered();
-  if(!l.length){ showToast('카드가 없어요'); return; }
-  const c=l[gcIdx];
-  if(!c){ showToast('카드를 찾을 수 없어요'); return; }
-  editKey=c.key;
-  const sel=document.getElementById('editCatSel');
-  sel.innerHTML=gcCategories.map(cat=>`<option value="${esc(cat)}" ${cat===c.cat?'selected':''}>${esc(cat)}</option>`).join('');
-  document.getElementById('editFrontInp').value=c.front||'';
-  document.getElementById('editBackInp').value=c.back||'';
-  document.getElementById('editModal').style.display='flex';
-}
-function closeEdit(){
-  document.getElementById('editModal').style.display='none';
-  editKey=null;
-}
-function saveEdit(){
-  if(!editKey){ showToast('수정할 카드가 없어요'); return; }
-  const front=document.getElementById('editFrontInp').value.trim();
-  const back=document.getElementById('editBackInp').value.trim();
-  const cat=document.getElementById('editCatSel').value||'기타';
-  if(!front){ showToast('앞면을 입력해주세요'); return; }
-  db.ref(GC_PATH+'/'+editKey).update({front,back,cat}).then(()=>{
-    closeEdit();
-    showToast('수정됐어요 ✓');
-  });
-}
-function showToast(msg){
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(msg){
   const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
+  t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2000);
 }
 </script>
