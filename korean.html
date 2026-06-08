@@ -215,6 +215,7 @@
         <button class="nav-btn" onclick="nextCard()">›</button>
       </div>
       <button class="del-btn" onclick="delCard()">이 카드 삭제</button>
+      <button class="del-btn" style="margin-top:6px;background:rgba(79,142,247,.1);border-color:rgba(79,142,247,.25);color:var(--blue);" onclick="editCard()">이 카드 수정</button>
     </div>
   </div>
 
@@ -255,6 +256,35 @@
 <!-- 이미지 줌 -->
 <div id="imgZoom" onclick="this.style.display='none'">
   <img id="imgZoomSrc">
+</div>
+
+<!-- 카드 수정 모달 -->
+<div id="editModal" style="
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px;
+" onclick="closeEdit(event)">
+  <div style="
+    background:var(--s1);border:1px solid var(--b);border-radius:16px;
+    width:100%;max-width:480px;padding:20px;display:flex;flex-direction:column;gap:13px;
+  " onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:14px;font-weight:700;color:var(--blue);">카드 수정</span>
+      <button onclick="closeEdit()" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div>
+      <div class="field-lbl">카테고리</div>
+      <div class="cat-sel-wrap"><select id="editCatSel"></select></div>
+    </div>
+    <div>
+      <div class="field-lbl">앞면</div>
+      <textarea id="editFrontInp" style="height:80px;border-color:rgba(79,142,247,.3);"></textarea>
+    </div>
+    <div>
+      <div class="field-lbl">뒷면</div>
+      <textarea id="editBackInp" style="height:110px;border-color:rgba(39,201,110,.3);"></textarea>
+    </div>
+    <button class="save-btn" onclick="saveEdit()">저장하기</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -474,7 +504,35 @@ function renderOdList(){
 function toggleOd(id){ odExpanded=odExpanded===id?null:id; renderOdList(); }
 function zoomImg(url){ document.getElementById('imgZoomSrc').src=url; document.getElementById('imgZoom').style.display='flex'; }
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let editKey = null;
+
+function editCard(){
+  const l=gcFiltered(); if(!l.length) return;
+  const c=l[gcIdx]; editKey=c.key;
+  // 카테고리 셀렉트 채우기
+  const sel=document.getElementById('editCatSel');
+  sel.innerHTML=gcCategories.map(cat=>`<option value="${esc(cat)}" ${cat===c.cat?'selected':''}>${esc(cat)}</option>`).join('');
+  document.getElementById('editFrontInp').value=c.front||'';
+  document.getElementById('editBackInp').value=c.back||'';
+  document.getElementById('editModal').style.display='flex';
+}
+function closeEdit(e){
+  if(e && e.target!==document.getElementById('editModal')) return;
+  document.getElementById('editModal').style.display='none';
+  editKey=null;
+}
+function saveEdit(){
+  if(!editKey) return;
+  const front=document.getElementById('editFrontInp').value.trim();
+  const back=document.getElementById('editBackInp').value.trim();
+  const cat=document.getElementById('editCatSel').value||'기타';
+  if(!front){showToast('앞면을 입력해주세요');return;}
+  db.ref(GC_PATH+'/'+editKey).update({front,back,cat}).then(()=>{
+    document.getElementById('editModal').style.display='none';
+    editKey=null;
+    showToast('수정됐어요 ✓');
+  });
+}
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
