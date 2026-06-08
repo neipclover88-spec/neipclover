@@ -768,6 +768,14 @@ function renderStudy() {
       </div>
       </div>
     </div>`;
+
+    // 국어 전용 링크 버튼
+    if(s==='국어') {
+      h+=`<div style="display:flex;gap:5px;padding:6px 8px 4px">
+        <button onclick="window.open('korean.html','_blank')" style="flex:1;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.35);color:#4f8ef7;border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">📋 문법카드</button>
+        <button onclick="window.open('korean.html?tab=od','_blank')" style="flex:1;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.2);color:#7ab0ff;border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">✏️ 오답노트</button>
+      </div>`;
+    }
   }
 
   h+=`<div class="study-foot">
