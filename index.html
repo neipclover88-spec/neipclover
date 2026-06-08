@@ -284,9 +284,15 @@ const FB_PATH = "bdh3"; // Firebase Realtime DB 루트 경로
 // ─── CONSTANTS ───
 const SUBJS    = ["국어","수학","영어","사회","과학"];
 const SCLR     = {국어:"#4f8ef7",수학:"#27c96e",영어:"#f5a623",사회:"#e74c3c",과학:"#a855f7"};
-const SHOES    = ["젤카야노","글라이드","슈블2","엔스5","인빈서블","노바블라스트5"];
-// 슈블2: 80km, 엔스5: 60km, 인빈서블: 30km 기초 적재
-const SHOE_BASE = {젤카야노:0, 글라이드:0, 슈블2:80, 엔스5:60, 인빈서블:30, 노바블라스트5:0};
+const SHOES_DEFAULT = ["젤카야노","글라이드","슈블2","엔스5","인빈서블","노바블라스트5"];
+const SHOE_BASE_DEFAULT = {젤카야노:0, 글라이드:0, 슈블2:80, 엔스5:60, 인빈서블:30, 노바블라스트5:0};
+function getShoes() {
+  const s = db._shoes;
+  if(s && s.length) return s;
+  return SHOES_DEFAULT.map(name=>({name, baseKm: SHOE_BASE_DEFAULT[name]||0}));
+}
+function getShoeNames() { return getShoes().map(s=>s.name); }
+function getShoeBase()  { const m={}; getShoes().forEach(s=>m[s.name]=Number(s.baseKm)||0); return m; }
 const DAYS_KR  = ["일","월","화","수","목","금","토"];
 const LOANS = [
   {name:"현대카드론",   principal:3_000_000, rate:14.6,  type:'card'},
@@ -376,7 +382,7 @@ function dayData(k) {
     }
   }
   const h = d.health;
-  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0};
+  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0};
   if(!h.swimming) h.swimming = {laps:0,swimM:0};
   if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
@@ -392,10 +398,17 @@ function totalStudyMins(dk) {
   return SUBJS.reduce((t,s)=>t+hmToMins(d.study[s]?.studyH,d.study[s]?.studyM),0);
 }
 const LIVING_BUDGET = 2_000_000;
-const EXP_CATS = ['식비','쇼핑','생활','업무','구독'];
+const EXP_CATS = ['식비','쇼핑','생활','업무','구독','학습','금융','수입'];
 
 function dayTotalExp(dk) {
-  return (db[dk]?.work?.expenses||[]).reduce((t,e)=>t+(Number(e.amount)||0),0);
+  return (db[dk]?.work?.expenses||[])
+    .filter(e=>e.cat!=='수입')
+    .reduce((t,e)=>t+(Number(e.amount)||0),0);
+}
+function dayExtraIncome(dk) {
+  return (db[dk]?.work?.expenses||[])
+    .filter(e=>e.cat==='수입')
+    .reduce((t,e)=>t+(Number(e.amount)||0),0);
 }
 function weekTotalExp(dates) {
   return dates.reduce((t,dk)=>t+dayTotalExp(dk),0);
@@ -513,18 +526,20 @@ function fmtMonth(ym) {
 }
 function weekStats(dates) {
   const gross = dates.reduce((t,k)=>t+(Number(db[k]?.work?.incomeAmount)||0),0);
+  const extra = dates.reduce((t,k)=>t+dayExtraIncome(k),0);
   const exp   = weekTotalExp(dates);
   return {
     income:     gross,
-    net:        Math.round(gross*(1-deductRate/100)),
+    extra,
+    net:        Math.round(gross*(1-deductRate/100)) + extra,
     expense:    exp,
-    balance:    Math.round(gross*(1-deductRate/100)) - exp,
+    balance:    Math.round(gross*(1-deductRate/100)) + extra - exp,
     deliveries: dates.reduce((t,k)=>t+(Number(db[k]?.work?.deliveries)||0),0),
     workMins:   dates.reduce((t,k)=>t+hmToMins(db[k]?.work?.workH,db[k]?.work?.workM),0),
   };
 }
 function shoeStats() {
-  const s = {...SHOE_BASE};
+  const s = {...getShoeBase()};
   Object.values(db).forEach(d => {
     const r = d.health?.running;
     if(r?.km>0 && r?.shoe) s[r.shoe] = (s[r.shoe]||0) + Number(r.km);
@@ -577,7 +592,9 @@ function initFirebase() {
       if(remote.deductRate!==undefined) deductRate = remote.deductRate;
       try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
       setSyncDot('ok');
-      renderAll();
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.tagName==='SELECT');
+      if(!isTyping) renderAll();
     }, () => setSyncDot('err'));
   } catch(e) { setSyncDot('err'); console.error('Firebase init error:',e); }
 }
@@ -612,7 +629,8 @@ function renderCal() {
 
     // sleep tag in header
     const slp = db[dk]?.health?.sleep;
-    const slpStr = (slp?.sleepH||slp?.sleepM) ? fmtHM(slp.sleepH,slp.sleepM) : '';
+    const slpScore = Number(slp?.score)||0;
+    const slpTag = slpScore>0 ? slpScore+'점' : '';
 
     // study
     const stMin = totalStudyMins(dk);
@@ -643,7 +661,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpStr?('<span class="dsleep-tag">💤'+slpStr.replace(' ','')+'</span>'):''}
+        ${slpTag?('<span class="dsleep-tag" style="color:'+(slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':'#f5a623')+'">💤'+slpTag+'</span>'):''}
       </div>
       <div class="dbody">
         <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
@@ -766,16 +784,17 @@ function renderStudy() {
         </div>
         <button class="btn-sm" onclick="addGoal('${s}')">+ 목표 추가</button>
       </div>
-      </div>
-    </div>`;
+      </div>`; // scard-body 닫기
 
-    // 국어 전용 링크 버튼
+    // 국어 전용 버튼: 항상 노출
     if(s==='국어') {
-      h+=`<div style="display:flex;gap:5px;padding:6px 8px 4px">
-        <button onclick="window.open('korean.html','_blank')" style="flex:1;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.35);color:#4f8ef7;border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">📋 문법카드</button>
-        <button onclick="window.open('korean.html?tab=od','_blank')" style="flex:1;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.2);color:#7ab0ff;border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">✏️ 오답노트</button>
+      h+=`<div style="display:flex;gap:5px;padding:8px 10px 2px">
+        <button onclick="window.open('korean.html?tab=grammar','_blank')" style="flex:1;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.35);color:#4f8ef7;border-radius:7px;padding:7px 0;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px">📋 문법카드</button>
+        <button onclick="window.open('korean.html?tab=od','_blank')" style="flex:1;background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.25);color:#7ab0ff;border-radius:7px;padding:7px 0;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px">✏️ 오답노트</button>
       </div>`;
     }
+
+    h+=`</div>`; // scard 닫기
   }
 
   h+=`<div class="study-foot">
@@ -827,7 +846,7 @@ function renderWork() {
     <div class="wrow">
       <span class="wlbl">총수입</span>
       <input class="winp" type="number" value="${todayGross||''}" placeholder="0"
-        onchange="updWork('incomeAmount',this.value)">
+        oninput="updWorkSave('incomeAmount',this.value)" onblur="renderWork();renderCal()">
       <span class="wunit">원</span>
     </div>
     ${todayGross>0?`<div class="wrow" style="opacity:.7">
@@ -838,17 +857,17 @@ function renderWork() {
     <div class="wrow">
       <span class="wlbl">건수</span>
       <input class="winp" type="number" value="${dd.work.deliveries||''}" placeholder="0"
-        onchange="updWork('deliveries',this.value)">
+        oninput="updWorkSave('deliveries',this.value)" onblur="renderWork()">
       <span class="wunit">건</span>
     </div>
     <div class="wrow">
       <span class="wlbl">근무</span>
       <div class="tpair">
         <input type="number" class="ti" min="0" value="${dd.work.workH||''}" placeholder="0"
-          style="border-color:#f5a62340" onchange="updWork('workH',this.value)">
+          style="border-color:#f5a62340" oninput="updWorkSave('workH',this.value)" onblur="renderWork()">
         <span class="tu" style="color:#f5a623aa">시간</span>
         <input type="number" class="ti" min="0" max="59" value="${dd.work.workM||''}" placeholder="0"
-          style="border-color:#f5a62340" onchange="updWork('workM',this.value)">
+          style="border-color:#f5a62340" oninput="updWorkSave('workM',this.value)" onblur="renderWork()">
         <span class="tu" style="color:#f5a623aa">분</span>
       </div>
     </div>
@@ -861,11 +880,12 @@ function renderWork() {
     </div>
 
     <div style="display:flex;gap:3px;margin-bottom:5px">
-      <input id="expCatSel" type="text" placeholder="카테고리" list="expCatList"
-        style="flex:0 0 auto;width:68px;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 5px;outline:none">
-      <datalist id="expCatList">
-        ${EXP_CATS.map(c=>`<option value="${c}">`).join('')}
-      </datalist>
+      <select id="expCatSel"
+        style="flex:0 0 auto;width:72px;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 4px;outline:none;-webkit-appearance:none;appearance:none;text-align:center">
+        <option value="">카테고리</option>
+        ${EXP_CATS.map(c=>`<option value="${c}">${c}</option>`).join('')}
+        <option value="__custom__">직접입력</option>
+      </select>
       <input id="expAmtInp" type="number" placeholder="금액" style="flex:1;background:var(--s2);border:1px solid rgba(231,76,60,.35);border-radius:5px;color:var(--t);font-family:var(--bebas);font-size:14px;padding:4px 6px;outline:none;min-width:0">
       <input id="expMemoInp" type="text" placeholder="메모" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 5px;outline:none;min-width:0">
       <button onclick="addExpEntry()" style="background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);color:#e74c3c;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:12px;font-weight:700;flex-shrink:0">+</button>
@@ -873,18 +893,24 @@ function renderWork() {
 
     ${(dd.work.expenses||[]).length>0?`
     <div style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;margin-bottom:4px">
-      ${(dd.work.expenses||[]).map((e,i)=>`
-      <div style="display:flex;align-items:center;gap:4px;background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.15);border-radius:5px;padding:4px 6px">
-        <span style="font-size:8px;color:#e74c3caa;background:rgba(231,76,60,.15);border-radius:3px;padding:1px 4px;flex-shrink:0">${e.cat}</span>
+      ${(dd.work.expenses||[]).map((e,i)=>{
+        const isIncome = e.cat==='수입';
+        const clr = isIncome ? '#27c96e' : '#e74c3c';
+        const bgClr = isIncome ? 'rgba(39,201,110,.06)' : 'rgba(231,76,60,.06)';
+        const borderClr = isIncome ? 'rgba(39,201,110,.15)' : 'rgba(231,76,60,.15)';
+        const tagClr = isIncome ? 'rgba(39,201,110,.2)' : 'rgba(231,76,60,.15)';
+        return `
+      <div style="display:flex;align-items:center;gap:4px;background:${bgClr};border:1px solid ${borderClr};border-radius:5px;padding:4px 6px">
+        <span style="font-size:8px;color:${clr};background:${tagClr};border-radius:3px;padding:1px 4px;flex-shrink:0">${e.cat}</span>
         ${e.memo?`<span style="font-size:9px;color:var(--m);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.memo)}</span>`:'<span style="flex:1"></span>'}
-        <span style="font-family:var(--bebas);font-size:13px;color:#e74c3c;flex-shrink:0">₩${Number(e.amount).toLocaleString()}</span>
+        <span style="font-family:var(--bebas);font-size:13px;color:${clr};flex-shrink:0">${isIncome?'+':''}₩${Number(e.amount).toLocaleString()}</span>
         <button onclick="delExpEntry(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:10px;padding:0;line-height:1;flex-shrink:0">✕</button>
-      </div>`).join('')}
+      </div>`}).join('')}
     </div>
-    ${todayNet>0?`
+    ${todayNet>0||dayExtraIncome(sel)>0?`
     <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid rgba(231,76,60,.2)">
-      <span style="font-size:9px;color:var(--m)">잔액 (실수령 - 지출)</span>
-      <span style="font-family:var(--bebas);font-size:15px;color:${todayNet-todayTotalExp>=0?'#27c96e':'#e74c3c'}">₩${(todayNet-todayTotalExp).toLocaleString()}</span>
+      <span style="font-size:9px;color:var(--m)">잔액 (수령+기타수입-지출)</span>
+      <span style="font-family:var(--bebas);font-size:15px;color:${todayNet+dayExtraIncome(sel)-todayTotalExp>=0?'#27c96e':'#e74c3c'}">₩${(todayNet+dayExtraIncome(sel)-todayTotalExp).toLocaleString()}</span>
     </div>`:''}
     `:''}
   </div>
@@ -988,6 +1014,64 @@ function renderWork() {
     </div>
   </div>`;
 
+  // 🏍️ 정비 기록
+  const moto = db._moto || {};
+  const curKm = Number(moto.curKm)||0;
+  const parts = moto.parts || [];
+  h += `<div style="background:linear-gradient(135deg,rgba(100,100,255,.08),rgba(100,100,255,.02));border-top:1px solid var(--b);padding:8px 9px">
+    <button onclick="toggleMoto()" style="background:none;border:none;color:#8888ffaa;font-size:9px;cursor:pointer;padding:0;letter-spacing:.5px;text-transform:uppercase;width:100%;text-align:left">🏍️ 오토바이 정비 기록</button>
+    <div id="motoBox" style="display:none;margin-top:8px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:var(--m);flex-shrink:0">현재 주행거리</span>
+        <input type="text" inputmode="numeric" value="${curKm?curKm.toLocaleString('ko-KR'):''}" placeholder="0"
+          style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.35);border-radius:5px;color:#a0a0ff;font-family:var(--bebas);font-size:14px;padding:3px 7px;outline:none;min-width:0"
+          oninput="fmtComma(this)" onchange="updMotoKm(unComma(this.value))">
+        <span style="font-size:9px;color:var(--m)">km</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${parts.map((p,i)=>{
+          const lastKm = Number(p.lastKm)||0;
+          const cycle  = Number(p.cycle)||0;
+          const nextKm = lastKm + cycle;
+          const remain = nextKm - curKm;
+          const pct    = cycle>0 ? Math.min(100,Math.round((curKm-lastKm)/cycle*100)) : 0;
+          const clr    = remain<=0?'#e74c3c':remain<=500?'#f5a623':'#a0a0ff';
+          return `<div style="background:rgba(100,100,255,.06);border:1px solid rgba(100,100,255,.2);border-radius:6px;padding:6px 8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:11px;font-weight:700;color:#c0c0ff;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px">${esc(p.name)}</span>
+              <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                <span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:${clr};white-space:nowrap">${remain<=0?'⚠ 교체필요':remain.toLocaleString()+'km 남음'}</span>
+                <button onclick="delMotoPart(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:10px;padding:0;line-height:1">✕</button>
+              </div>
+            </div>
+            <div style="height:4px;background:var(--b);border-radius:2px;overflow:hidden;margin-bottom:5px">
+              <div style="height:100%;width:${pct}%;background:${clr};border-radius:2px;transition:width .4s"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+              <div style="display:flex;align-items:center;gap:3px">
+                <span style="font-size:8px;color:var(--m);flex-shrink:0">교체 km</span>
+                <input type="text" inputmode="numeric" value="${lastKm?lastKm.toLocaleString('ko-KR'):''}" placeholder="0"
+                  style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.25);border-radius:4px;color:#a0a0ff;font-family:var(--bebas);font-size:11px;padding:2px 4px;outline:none;min-width:0"
+                  oninput="fmtComma(this)" onchange="updMotoPart(${i},'lastKm',unComma(this.value))">
+              </div>
+              <div style="display:flex;align-items:center;gap:3px">
+                <span style="font-size:8px;color:var(--m);flex-shrink:0">교체 주기</span>
+                <input type="text" inputmode="numeric" value="${cycle?cycle.toLocaleString('ko-KR'):''}" placeholder="km"
+                  style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.25);border-radius:4px;color:#a0a0ff;font-family:var(--bebas);font-size:11px;padding:2px 4px;outline:none;min-width:0"
+                  oninput="fmtComma(this)" onchange="updMotoPart(${i},'cycle',unComma(this.value))">
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div style="display:flex;gap:4px;margin-top:2px">
+          <input id="motoPartName" type="text" placeholder="부품명 (예: 엔진오일)"
+            style="flex:1;background:var(--s2);border:1px solid rgba(100,100,255,.25);border-radius:5px;color:var(--t);font-family:var(--sans);font-size:10px;padding:4px 7px;outline:none;min-width:0">
+          <button onclick="addMotoPart()" style="background:rgba(100,100,255,.2);border:1px solid rgba(100,100,255,.4);color:#a0a0ff;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;flex-shrink:0">+ 추가</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
   document.getElementById('pWork').innerHTML = h;
 }
 
@@ -1003,10 +1087,12 @@ function renderHealth() {
   // calc display values
   const slpH = Number(h.sleep.sleepH)||0;
   const slpM = Number(h.sleep.sleepM)||0;
+  const slpScore = Number(h.sleep.score)||0;
   const slpTotalMins = slpH*60+slpM;
   const slpStr = fmtHM(slpH,slpM)||'';
-  const slpClr = slpTotalMins>=7*60?'#27c96e':slpTotalMins>=6*60?'#f5a623':slpTotalMins>0?'#e74c3c':'var(--m)';
-  const slpMsg = slpTotalMins>=7*60?'✓ 충분':slpTotalMins>=6*60?'⚡ 부족':slpTotalMins>0?'⚠ 매우 부족':'';
+  const slpClr = slpScore>0?(slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':'#f5a623'):(slpTotalMins>=7*60?'#27c96e':slpTotalMins>=6*60?'#f5a623':slpTotalMins>0?'#e74c3c':'var(--m)');
+  const slpMsg = slpScore>0?(slpScore>=85?'매우 좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심 필요'):(slpTotalMins>=7*60?'✓ 충분':slpTotalMins>=6*60?'⚡ 부족':slpTotalMins>0?'⚠ 매우 부족':'');
+  const scoreClr = slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':slpScore>0?'#f5a623':'var(--m2)';
 
   const swimLaps = Number(h.swimming.laps)||0;
   const swimM    = Number(h.swimming.swimM)||0;
@@ -1063,18 +1149,39 @@ function renderHealth() {
     <div class="hact-hdr">
       <span class="hico">😴</span>
       <span class="hact-name">수면</span>
-      <span class="hact-val" style="color:${slpClr};font-size:16px">${slpStr}</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        ${slpScore>0?`<span style="font-family:var(--bebas);font-size:14px;color:${scoreClr}">${slpScore}점</span>`:''}
+        <span class="hact-val" style="color:${slpClr};font-size:16px">${slpStr}</span>
+      </div>
     </div>
     <div class="hact-body">
       <div class="hrow">
         <span class="hlbl">시간</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${slpH||''}" placeholder="0"
-            style="border-color:#a855f740" onchange="updH('sleep','sleepH',this.value)">
+            style="border-color:#a855f740" oninput="updHSave('sleep','sleepH',this.value)" onblur="renderHealth();renderCal()">
           <span class="tu" style="color:#a855f7aa">시간</span>
           <input type="number" class="ti" min="0" max="59" value="${slpM||''}" placeholder="0"
-            style="border-color:#a855f740" onchange="updH('sleep','sleepM',this.value)">
+            style="border-color:#a855f740" oninput="updHSave('sleep','sleepM',this.value)" onblur="renderHealth();renderCal()">
           <span class="tu" style="color:#a855f7aa">분</span>
+        </div>
+      </div>
+      <div class="hrow">
+        <span class="hlbl" style="color:#a855f7aa">점수</span>
+        <input type="number" class="hinp" min="0" max="100" value="${slpScore||''}" placeholder="삼성헬스 점수"
+          style="border-color:#a855f740;color:${scoreClr}"
+          oninput="updHSave('sleep','score',this.value)" onblur="renderHealth();renderCal()">
+        ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=85?'매우좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심필요'}</span>`:''}
+      </div>
+      <div class="hrow">
+        <span class="hlbl" style="color:#a855f766;font-size:8px">낮잠</span>
+        <div class="tpair">
+          <input type="number" class="ti" min="0" value="${Number(h.sleep.napH)||''}" placeholder="0"
+            style="border-color:#a855f720" oninput="updHSave('sleep','napH',this.value)" onblur="renderHealth();renderCal()">
+          <span class="tu" style="color:#a855f766">시간</span>
+          <input type="number" class="ti" min="0" max="59" value="${Number(h.sleep.napM)||''}" placeholder="0"
+            style="border-color:#a855f720" oninput="updHSave('sleep','napM',this.value)" onblur="renderHealth();renderCal()">
+          <span class="tu" style="color:#a855f766">분</span>
         </div>
       </div>
       ${slpTotalMins>0?`<div class="sleep-status" style="color:${slpClr}">${slpMsg} (권장 7–9h)</div>`:''}
@@ -1086,13 +1193,13 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">바퀴</span>
         <input class="hinp" type="number" min="0" value="${swimLaps||''}" placeholder="0"
-          onchange="updH('swimming','laps',this.value)">
+          oninput="updHSave('swimming','laps',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">바퀴</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
         <input class="hinp" type="number" min="0" value="${swimM||''}" placeholder="0"
-          onchange="updH('swimming','swimM',this.value)">
+          oninput="updHSave('swimming','swimM',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">분</span>
       </div>
       ${swimLaps>0?`<div class="hcalc" style="color:#27c96e">= ${swimLaps*50}m · ${(swimLaps*50/1000).toFixed(2)}km</div>`:''}`
@@ -1103,34 +1210,37 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">거리</span>
         <input class="hinp" type="number" step="0.1" min="0" value="${runKm||''}" placeholder="0"
-          onchange="updH('running','km',this.value)">
+          oninput="updHSave('running','km',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">km</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${runM||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('running','runM',this.value)">
+            style="border-color:#27c96e40" oninput="updHSave('running','runM',this.value)" onblur="renderHealth();renderCal()">
           <span class="tu" style="color:#27c96eaa">분</span>
           <input type="number" class="ti" min="0" max="59" value="${runS||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('running','runS',this.value)">
+            style="border-color:#27c96e40" oninput="updHSave('running','runS',this.value)" onblur="renderHealth();renderCal()">
           <span class="tu" style="color:#27c96eaa">초</span>
         </div>
       </div>
       <div class="hrow">
         <span class="hlbl">신발</span>
-        <select class="hinp" onchange="updH('running','shoe',this.value)">
-          ${SHOES.map(sn=>`<option value="${sn}"${h.running.shoe===sn?' selected':''}>${sn}</option>`).join('')}
+        <select class="hinp" oninput="updHSave('running','shoe',this.value)" onblur="renderHealth();renderCal()">
+          ${getShoeNames().map(sn=>`<option value="${sn}"${h.running.shoe===sn?' selected':''}>${sn}</option>`).join('')}
         </select>
       </div>
       ${pace?`<div class="hcalc" style="color:#27c96e">⚡ 평균 페이스 ${pace}</div>`:''}
       <div class="shoe-box">
         <div class="shoe-toggle" onclick="toggleShoe()">
           <span class="shoe-hdr">신발별 누적 거리 (기초km 포함)</span>
-          <span class="shoe-chev${openShoe?' op':''}" id="shoeChev">▼</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="event.stopPropagation();openShoeModal()" style="background:rgba(39,201,110,.15);border:1px solid rgba(39,201,110,.3);color:#27c96e;border-radius:4px;font-size:9px;padding:2px 6px;cursor:pointer">관리</button>
+            <span class="shoe-chev${openShoe?' op':''}" id="shoeChev">▼</span>
+          </div>
         </div>
         <div class="shoe-list${openShoe?' op':''}" id="shoeList">
-          ${SHOES.map(sn=>`<div class="shoe-row">
+          ${getShoeNames().map(sn=>`<div class="shoe-row">
             <span class="shoe-nm">${sn}</span>
             <div class="shoe-bw"><div class="shoe-bf" style="width:${Math.round(ss[sn]/maxKm*100)}%"></div></div>
             <span class="shoe-km">${ss[sn]>0?(ss[sn]%1===0?ss[sn]:(ss[sn]).toFixed(1)):'0'}km</span>
@@ -1144,17 +1254,17 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">거리</span>
         <input class="hinp" type="number" step="0.1" min="0" value="${cycKm||''}" placeholder="0"
-          onchange="updH('cycling','km',this.value)">
+          oninput="updHSave('cycling','km',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">km</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${cycH||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('cycling','cycH',this.value)">
+            style="border-color:#27c96e40" oninput="updHSave('cycling','cycH',this.value)" onblur="renderHealth();renderCal()">
           <span class="tu" style="color:#27c96eaa">시간</span>
           <input type="number" class="ti" min="0" max="59" value="${cycM||''}" placeholder="0"
-            style="border-color:#27c96e40" onchange="updH('cycling','cycM',this.value)">
+            style="border-color:#27c96e40" oninput="updHSave('cycling','cycM',this.value)" onblur="renderHealth();renderCal()">
           <span class="tu" style="color:#27c96eaa">분</span>
         </div>
       </div>
@@ -1166,7 +1276,7 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">횟수</span>
         <input class="hinp" type="number" min="0" value="${pushReps||''}" placeholder="0"
-          onchange="updH('pushup','reps',this.value)">
+          oninput="updHSave('pushup','reps',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">회</span>
       </div>`
   );
@@ -1176,7 +1286,7 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">횟수</span>
         <input class="hinp" type="number" min="0" value="${pullReps||''}" placeholder="0"
-          onchange="updH('pullup','reps',this.value)">
+          oninput="updHSave('pullup','reps',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">회</span>
       </div>`
   );
@@ -1188,7 +1298,7 @@ function renderHealth() {
     `<div class="hrow">
         <span class="hlbl">횟수</span>
         <input class="hinp" type="number" min="0" value="${legReps||''}" placeholder="0"
-          onchange="updH('legraise','reps',this.value)">
+          oninput="updHSave('legraise','reps',this.value)" onblur="renderHealth();renderCal()">
         <span class="hunit">회</span>
       </div>`
   );
@@ -1278,6 +1388,35 @@ function updLoanData(idx, field, val) {
   save(); renderWork();
 }
 
+function toggleMoto() {
+  const el = document.getElementById('motoBox');
+  if(!el) return;
+  el.style.display = el.style.display==='none'?'flex':'none';
+}
+function updMotoKm(val) {
+  if(!db._moto) db._moto = {};
+  db._moto.curKm = Number(val)||0;
+  save(); renderWork();
+}
+function addMotoPart() {
+  const nm = document.getElementById('motoPartName')?.value.trim();
+  if(!nm) return;
+  if(!db._moto) db._moto = {};
+  if(!db._moto.parts) db._moto.parts = [];
+  db._moto.parts.push({name:nm, lastKm:0, cycle:0});
+  save(); renderWork();
+}
+function delMotoPart(idx) {
+  if(!db._moto?.parts) return;
+  db._moto.parts.splice(idx,1);
+  save(); renderWork();
+}
+function updMotoPart(idx, field, val) {
+  if(!db._moto?.parts?.[idx]) return;
+  db._moto.parts[idx][field] = Number(val)||0;
+  save(); renderWork();
+}
+
 function shiftMonth(dir) {
   selMonth = dir<0 ? prevMonth(selMonth) : nextMonth(selMonth);
   renderModalWork();
@@ -1292,7 +1431,11 @@ function toggleDebtDetail() {
 }
 
 function addExpEntry() {
-  const cat = (document.getElementById('expCatSel')?.value||'').trim();
+  let cat = (document.getElementById('expCatSel')?.value||'').trim();
+  if(cat==='__custom__') {
+    cat = prompt('카테고리 직접 입력:')||'';
+    cat = cat.trim();
+  }
   const amt = Number(document.getElementById('expAmtInp')?.value)||0;
   const memo= document.getElementById('expMemoInp')?.value.trim()||'';
   if(!cat || !amt) return;
@@ -1312,16 +1455,33 @@ function updWork(fld, val) {
   dayData(sel).work[fld] = Number(val)||0;
   save(); renderCal();
   clearTimeout(_workTimer);
-  _workTimer = setTimeout(() => renderWork(), 600);
+  _workTimer = setTimeout(() => {
+    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='SELECT'||document.activeElement?.tagName==='TEXTAREA') return;
+    renderWork();
+  }, 800);
+}
+// 저장만 하고 렌더링 안 함 (입력 중 사용)
+function updWorkSave(fld, val) {
+  dayData(sel).work[fld] = Number(val)||0;
+  save();
 }
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','reps'];
+  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
-  _healthTimer = setTimeout(() => renderHealth(), 600);
+  _healthTimer = setTimeout(() => {
+    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='SELECT'||document.activeElement?.tagName==='TEXTAREA') return;
+    renderHealth();
+  }, 800);
+}
+// 저장만 하고 렌더링 안 함
+function updHSave(cat, fld, val) {
+  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
+  save();
 }
 
 function toggleH(key) {
@@ -1330,6 +1490,174 @@ function toggleH(key) {
   const chev = document.getElementById(`hchev-${key}`);
   if(body) body.style.display = openH[key] ? 'flex' : 'none';
   if(chev) chev.style.transform = `rotate(${openH[key]?180:0}deg)`;
+}
+
+function openShoeModal() {
+  renderShoeModal();
+  document.getElementById('shoeBg').style.display='flex';
+}
+function closeShoeModal() {
+  document.getElementById('shoeBg').style.display='none';
+  renderHealth();
+}
+function renderShoeModal() {
+  const shoes = getShoes();
+  const list  = document.getElementById('shoeList2');
+  if(!list) return;
+  list.innerHTML = shoes.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(39,201,110,.05);border:1px solid rgba(39,201,110,.15);border-radius:8px;padding:7px 10px">
+      <span style="flex:1;font-size:12px;font-weight:600;color:var(--t)">${esc(s.name)}</span>
+      <span style="font-size:9px;color:var(--m)">기초</span>
+      <input type="number" value="${s.baseKm||0}" min="0"
+        style="width:54px;background:var(--s2);border:1px solid rgba(39,201,110,.25);border-radius:4px;color:#27c96e;font-family:var(--bebas);font-size:12px;padding:2px 5px;outline:none;text-align:center"
+        onchange="updShoeBase(${i},this.value)">
+      <span style="font-size:9px;color:var(--m)">km</span>
+      <button onclick="delShoe(${i})" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:12px;padding:0;line-height:1">✕</button>
+    </div>`).join('');
+}
+function addShoe() {
+  const nm  = document.getElementById('shoeNameInp')?.value.trim();
+  const bkm = Number(document.getElementById('shoeBaseInp')?.value)||0;
+  if(!nm) return;
+  if(!db._shoes) db._shoes = getShoes();
+  db._shoes.push({name:nm, baseKm:bkm});
+  save(); renderShoeModal();
+}
+function delShoe(idx) {
+  if(!db._shoes) db._shoes = getShoes();
+  db._shoes.splice(idx,1);
+  save(); renderShoeModal();
+}
+function updShoeBase(idx, val) {
+  if(!db._shoes) db._shoes = getShoes();
+  db._shoes[idx].baseKm = Number(val)||0;
+  save();
+}
+
+// ─── 문법카드 ───
+let grammarCards = [];
+let grammarIdx   = 0;
+let grammarFlipped = false;
+
+function openGrammarModal() {
+  document.getElementById('grammarBg').style.display='flex';
+  grammarIdx = 0; grammarFlipped = false;
+  loadGrammarCards();
+}
+function closeGrammarModal() {
+  document.getElementById('grammarBg').style.display='none';
+  closeAddGrammar();
+}
+function loadGrammarCards() {
+  if(!fbApp) { renderGrammarCard(); return; }
+  firebase.database().ref('bdh3/grammar/국어').once('value').then(snap=>{
+    const val = snap.val();
+    grammarCards = val ? Object.entries(val).map(([k,v])=>({key:k,...v})) : [];
+    grammarIdx = 0; grammarFlipped = false;
+    renderGrammarCard();
+  });
+}
+function renderGrammarCard() {
+  const total = grammarCards.length;
+  document.getElementById('grammarCounter').textContent = total>0?(grammarIdx+1)+' / '+total:'카드 없음';
+  const delBtn = document.getElementById('grammarDelBtn');
+  if(total===0) {
+    document.getElementById('grammarFrontText').textContent = '카드를 추가해 주세요';
+    document.getElementById('grammarBackText').textContent  = '';
+    if(delBtn) delBtn.style.display='none';
+    return;
+  }
+  const c = grammarCards[grammarIdx];
+  document.getElementById('grammarFrontText').textContent = c.front||'';
+  document.getElementById('grammarBackText').textContent  = c.back||'';
+  if(delBtn) delBtn.style.display='block';
+  // reset flip
+  grammarFlipped = false;
+  document.getElementById('grammarCardInner').style.transform='rotateY(0deg)';
+}
+function flipGrammarCard() {
+  grammarFlipped = !grammarFlipped;
+  document.getElementById('grammarCardInner').style.transform = grammarFlipped?'rotateY(180deg)':'rotateY(0deg)';
+}
+function prevGrammarCard() {
+  if(!grammarCards.length) return;
+  grammarIdx = (grammarIdx-1+grammarCards.length)%grammarCards.length;
+  grammarFlipped=false; renderGrammarCard();
+}
+function nextGrammarCard() {
+  if(!grammarCards.length) return;
+  grammarIdx = (grammarIdx+1)%grammarCards.length;
+  grammarFlipped=false; renderGrammarCard();
+}
+function delGrammarCard() {
+  if(!grammarCards.length) return;
+  const c = grammarCards[grammarIdx];
+  if(!c?.key) return;
+  firebase.database().ref('bdh3/grammar/국어/'+c.key).remove().then(()=>{
+    grammarIdx = Math.max(0,grammarIdx-1);
+    loadGrammarCards();
+  });
+}
+function openAddGrammar() {
+  document.getElementById('grammarCardView').style.display='none';
+  document.getElementById('grammarAddView').style.display='flex';
+  document.getElementById('grammarFrontInp').value='';
+  document.getElementById('grammarBackInp').value='';
+}
+function closeAddGrammar() {
+  document.getElementById('grammarCardView').style.display='block';
+  document.getElementById('grammarAddView').style.display='none';
+}
+function saveGrammarCard() {
+  const front = document.getElementById('grammarFrontInp')?.value.trim();
+  const back  = document.getElementById('grammarBackInp')?.value.trim();
+  if(!front) return;
+  firebase.database().ref('bdh3/grammar/국어').push({front, back:back||''}).then(()=>{
+    closeAddGrammar();
+    loadGrammarCards();
+  });
+}
+
+// ─── 오답노트 ───
+function openOdapModal() {
+  document.getElementById('odapBg').style.display='flex';
+  loadOdapList();
+}
+function closeOdapModal() {
+  document.getElementById('odapBg').style.display='none';
+}
+function loadOdapList() {
+  const el = document.getElementById('odapList');
+  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">불러오는 중...</div>';
+  if(!fbApp) { el.innerHTML='<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">Firebase 연결 필요</div>'; return; }
+  firebase.database().ref('bdh3_t/timer/odap').once('value').then(snap=>{
+    const val = snap.val();
+    if(!val) { el.innerHTML='<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">오답 기록 없음</div>'; return; }
+    const items = Object.entries(val)
+      .map(([k,v])=>({key:k,...v}))
+      .filter(v=>(v.subject||v.subj||'').includes('국어'))
+      .sort((a,b)=>(b.date||b.ts||'').localeCompare(a.date||a.ts||''));
+    if(!items.length) { el.innerHTML='<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">국어 오답 없음</div>'; return; }
+    el.innerHTML = items.map(item=>`
+      <div style="background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.2);border-radius:10px;overflow:hidden">
+        <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"
+          style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--t)">${esc(item.title||item.question||'(제목 없음)')}</div>
+            <div style="font-size:9px;color:var(--m);margin-top:2px">${item.date||item.ts||''}</div>
+          </div>
+          <span style="font-size:10px;color:var(--m)">▼</span>
+        </div>
+        <div style="display:none;padding:10px;border-top:1px solid rgba(79,142,247,.15);display:flex;flex-direction:column;gap:6px">
+          ${item.read?`<div><div style="font-size:8px;color:#4f8ef7aa;margin-bottom:3px">내가 읽은 것</div><div style="font-size:11px;color:var(--t)">${esc(item.read)}</div></div>`:''}
+          ${item.choices||item.answer?`<div><div style="font-size:8px;color:#f5a623aa;margin-bottom:3px">실제 선지</div><div style="font-size:11px;color:var(--t)">${esc(item.choices||item.answer)}</div></div>`:''}
+          ${item.memo?`<div><div style="font-size:8px;color:#27c96eaa;margin-bottom:3px">메모</div><div style="font-size:11px;color:var(--t)">${esc(item.memo)}</div></div>`:''}
+          ${item.imageUrl?`<img src="${item.imageUrl}" style="width:100%;border-radius:6px;margin-top:4px">`:''}
+        </div>
+      </div>`).join('');
+    // fix: make detail panels start closed
+    el.querySelectorAll('div[style*="display:none;padding"]').forEach(d=>d.style.display='none');
+  });
 }
 
 function toggleShoe() {
@@ -1532,21 +1860,48 @@ function renderModalWork() {
 
   // ② 지출 카테고리 바
   if(totalCatExp>0) {
+    // 카테고리별 항목 수집
+    const catItems = {}; // {cat: [{date, memo, amount}]}
+    [...mKeys].sort().forEach(dk=>{
+      for(const e of (db[dk]?.work?.expenses||[])) {
+        if(!catItems[e.cat]) catItems[e.cat]=[];
+        const dd=Number(dk.slice(8));
+        catItems[e.cat].push({dd, memo:e.memo||'', amount:Number(e.amount)||0});
+      }
+    });
+
     b += `<div style="background:#090d1a;border:1px solid rgba(231,76,60,.25);border-radius:12px;padding:14px">
       <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">카테고리별 지출</div>
-      <div style="display:flex;flex-direction:column;gap:6px">`;
+      <div style="display:flex;flex-direction:column;gap:5px">`;
     Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([c,v])=>{
       const pct=Math.round(v/totalCatExp*100);
+      const uid='cat_'+c.replace(/[^a-z0-9가-힣]/gi,'_');
+      const items=catItems[c]||[];
       b+=`<div>
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-          <span style="font-size:11px;color:var(--t)">${c}</span>
+        <div onclick="const d=this.parentNode.querySelector('.cat-detail');d.style.display=d.style.display==='flex'?'none':'flex'"
+          style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:4px 0">
+          <div style="display:flex;align-items:center;gap:6px;flex:1">
+            <span style="font-size:11px;color:var(--t)">${c}</span>
+            <span style="font-size:8px;color:var(--m)">${items.length}건</span>
+          </div>
           <div style="display:flex;align-items:baseline;gap:5px">
             <span style="font-size:9px;color:var(--m)">${pct}%</span>
             <span style="font-family:var(--bebas);font-size:15px;color:#e74c3c">${(v/10000).toFixed(1)+'만'}</span>
+            <span style="font-size:10px;color:var(--m)">▼</span>
           </div>
         </div>
-        <div style="height:7px;background:var(--b);border-radius:4px;overflow:hidden">
+        <div style="height:6px;background:var(--b);border-radius:4px;overflow:hidden;margin-bottom:4px">
           <div style="height:100%;width:${pct}%;background:#e74c3c;border-radius:4px;opacity:.85"></div>
+        </div>
+        <div class="cat-detail" style="display:none;flex-direction:column;gap:2px;margin-bottom:4px;padding:4px;background:rgba(231,76,60,.05);border-radius:6px">
+          ${items.map(it=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.04)">
+            <div style="display:flex;align-items:center;gap:5px">
+              <span style="font-family:var(--mono);font-size:9px;color:var(--m);width:20px;flex-shrink:0">${it.dd}일</span>
+              <span style="font-size:10px;color:var(--t)">${esc(it.memo)||'–'}</span>
+            </div>
+            <span style="font-family:var(--bebas);font-size:13px;color:#e74c3c;flex-shrink:0">₩${it.amount.toLocaleString()}</span>
+          </div>`).join('')}
         </div>
       </div>`;
     });
@@ -1648,7 +2003,7 @@ function renderModalHealth() {
   const maxKm  = Math.max(1,...Object.values(ss));
   const [,m0,d0]=dates[0].split('-'), [,m1,d1]=dates[6].split('-');
 
-  let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0;
+  let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0,totalNapMins=0;
   let totalPushup=0, totalPullup=0, totalLegraise=0;
   const dailySleep=[],dailyRun=[],dailyCyc=[],dailyPush=[],dailyPull=[],dailyLeg=[];
   for(const dk of dates) {
@@ -1663,7 +2018,9 @@ function renderModalHealth() {
     totalPullup    += Number(h.pullup?.reps)||0;
     totalLegraise  += Number(h.legraise?.reps)||0;
     const slp=hmToMins(h.sleep?.sleepH,h.sleep?.sleepM);
+    const nap=hmToMins(h.sleep?.napH,h.sleep?.napM);
     totalSleepMins+=slp;
+    totalNapMins+=nap;
     dailySleep.push(slp);
     dailyRun.push(Number(h.running?.km)||0);
     dailyCyc.push(Number(h.cycling?.km)||0);
@@ -1672,7 +2029,9 @@ function renderModalHealth() {
     dailyLeg.push(Number(h.legraise?.reps)||0);
   }
   const avgSleepMins=Math.round(totalSleepMins/7);
+  const avgNapMins=Math.round(totalNapMins/7);
   const {h:asH,m:asM}=minsToHM(avgSleepMins);
+  const {h:anH,m:anM}=minsToHM(avgNapMins);
   const slpClr=avgSleepMins>=7*60?'#a855f7':avgSleepMins>=6*60?'#f5a623':'#e74c3c';
   const maxSleep=Math.max(1,...dailySleep);
   const maxRun=Math.max(1,...dailyRun);
@@ -1696,7 +2055,7 @@ function renderModalHealth() {
     <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
       <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">평균 수면</div>
       <div style="font-family:var(--bebas);font-size:20px;color:${slpClr};line-height:1.1">${fmtHM(asH,asM)||'–'}</div>
-      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${avgSleepMins>=7*60?'✓충분':avgSleepMins>=6*60?'⚡부족':'⚠매우부족'}</div>
+      <div style="font-size:7px;color:#27c96e88;margin-top:2px">${avgSleepMins>=7*60?'✓충분':avgSleepMins>=6*60?'⚡부족':'⚠매우부족'}${avgNapMins>0?' + 낮잠 '+fmtHM(anH,anM):''}</div>
     </div>
     <div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center">
       <div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">총 운동</div>
@@ -1727,10 +2086,13 @@ function renderModalHealth() {
     const pct=Math.round(m/maxSleep*100);
     const {h:sh,m:sm}=minsToHM(m);
     const str=m>0?(sm?sh+'h'+sm:''+sh+'h'):'';
-    const clr=m>=7*60?'#a855f7':m>=6*60?'#f5a623':m>0?'#e74c3c':'var(--b)';
+    const score=Number(db[dates[i]]?.health?.sleep?.score)||0;
+    const clr=m>=7*60?'#4f8ef7':m>=6*60?'#27c96e':m>=5*60?'#f5c200':m>0?'#f5a623':'var(--b)';
+    const sClr=score>=90?'#27c96e':score>=70?'#4f8ef7':score>=50?'#f5a623':score>0?'#e74c3c':'transparent';
     const isT=dates[i]===todayStr();
-    b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%">
-      <div style="font-family:var(--mono);font-size:10px;color:${clr};font-weight:700">${str}</div>
+    b+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%">
+      ${score>0?`<div style="font-family:var(--bebas);font-size:10px;color:${sClr};font-weight:700">${score}</div>`:'<div style="height:14px"></div>'}
+      <div style="font-family:var(--mono);font-size:9px;color:${clr};font-weight:700">${str}</div>
       <div style="flex:1;display:flex;align-items:flex-end;width:100%">
         <div style="width:100%;height:${pct||2}%;background:${clr};border-radius:3px 3px 0 0;opacity:${isT?1:.7};min-height:2px;${isT?'box-shadow:0 0 6px '+clr+'88':''}"></div>
       </div>
@@ -1824,7 +2186,8 @@ function renderModalHealth() {
   b += `<div style="background:#090d1a;border:1px solid var(--b);border-radius:12px;padding:14px">
     <div style="font-size:9px;color:var(--m);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">👟 신발별 누적 거리</div>
     <div style="display:flex;flex-direction:column;gap:8px">`;
-  for(const sn of SHOES) {
+  const SHOE_BASE=getShoeBase();
+  for(const sn of getShoeNames()) {
     const km=ss[sn]||0;
     const pct=Math.round(km/maxKm*100);
     const isBase=SHOE_BASE[sn]>0;
@@ -1881,5 +2244,79 @@ initFirebase();
   </div>
 </div>
 
+<!-- 신발 관리 팝업 -->
+<div id="shoeBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)closeShoeModal()">
+  <div style="background:#0e1320;border:1px solid rgba(39,201,110,.3);border-radius:16px;width:300px;max-width:90vw;padding:16px;max-height:80vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:13px;font-weight:700;color:#27c96e">👟 신발 관리</span>
+      <button onclick="closeShoeModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="shoeList2" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <input id="shoeNameInp" type="text" placeholder="신발 이름"
+        style="flex:1;background:var(--s2);border:1px solid rgba(39,201,110,.3);border-radius:6px;color:var(--t);font-size:11px;padding:6px 8px;outline:none">
+      <input id="shoeBaseInp" type="number" placeholder="기초km" min="0"
+        style="width:72px;background:var(--s2);border:1px solid rgba(39,201,110,.2);border-radius:6px;color:var(--t);font-size:11px;padding:6px 8px;outline:none;text-align:center">
+      <button onclick="addShoe()" style="background:rgba(39,201,110,.2);border:1px solid rgba(39,201,110,.4);color:#27c96e;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">+</button>
+    </div>
+    <div style="font-size:8px;color:var(--m)">기초km = 이미 사용한 거리 (0이면 새 신발)</div>
+  </div>
+</div>
+
+<!-- 문법카드 팝업 -->
+<div id="grammarBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;align-items:center;justify-content:center;flex-direction:column;gap:12px" onclick="if(event.target===this)closeGrammarModal()">
+  <div style="background:#0e1320;border:1px solid rgba(79,142,247,.35);border-radius:16px;width:320px;max-width:92vw;padding:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span style="font-size:13px;font-weight:700;color:#4f8ef7">📋 문법카드</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="openAddGrammar()" style="background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.3);color:#4f8ef7;border-radius:6px;font-size:10px;padding:3px 8px;cursor:pointer">+ 추가</button>
+        <button onclick="closeGrammarModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+      </div>
+    </div>
+    <!-- 카드 뷰 -->
+    <div id="grammarCardView" style="display:block">
+      <div style="position:relative;height:180px;perspective:600px;cursor:pointer;margin-bottom:10px" onclick="flipGrammarCard()">
+        <div id="grammarCardInner" style="position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s">
+          <div id="grammarFront" style="position:absolute;inset:0;backface-visibility:hidden;background:linear-gradient(135deg,rgba(79,142,247,.15),rgba(79,142,247,.05));border:1px solid rgba(79,142,247,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;gap:8px">
+            <div style="font-size:8px;color:#4f8ef7aa;letter-spacing:1px;text-transform:uppercase">앞면 · 탭하면 뒤집기</div>
+            <div id="grammarFrontText" style="font-size:16px;font-weight:700;color:var(--t);line-height:1.5"></div>
+          </div>
+          <div id="grammarBack" style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,rgba(39,201,110,.12),rgba(39,201,110,.03));border:1px solid rgba(39,201,110,.3);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;gap:8px">
+            <div style="font-size:8px;color:#27c96eaa;letter-spacing:1px;text-transform:uppercase">뒷면</div>
+            <div id="grammarBackText" style="font-size:14px;color:var(--t);line-height:1.6"></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <button onclick="prevGrammarCard()" style="background:var(--s2);border:1px solid var(--b);color:var(--t);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:16px">‹</button>
+        <span id="grammarCounter" style="font-size:11px;color:var(--m)">0 / 0</span>
+        <button onclick="nextGrammarCard()" style="background:var(--s2);border:1px solid var(--b);color:var(--t);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:16px">›</button>
+      </div>
+      <button id="grammarDelBtn" onclick="delGrammarCard()" style="display:none;margin-top:10px;width:100%;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);color:#e74c3c;border-radius:6px;padding:6px;cursor:pointer;font-size:11px">이 카드 삭제</button>
+    </div>
+    <!-- 추가 폼 -->
+    <div id="grammarAddView" style="display:none;flex-direction:column;gap:8px">
+      <textarea id="grammarFrontInp" placeholder="앞면 (문법 개념)" style="background:var(--s2);border:1px solid rgba(79,142,247,.3);border-radius:8px;color:var(--t);font-size:12px;padding:8px;outline:none;resize:none;height:70px;font-family:var(--sans)"></textarea>
+      <textarea id="grammarBackInp" placeholder="뒷면 (설명/예시)" style="background:var(--s2);border:1px solid rgba(39,201,110,.3);border-radius:8px;color:var(--t);font-size:12px;padding:8px;outline:none;resize:none;height:70px;font-family:var(--sans)"></textarea>
+      <div style="display:flex;gap:6px">
+        <button onclick="saveGrammarCard()" style="flex:1;background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.4);color:#4f8ef7;border-radius:7px;padding:8px;cursor:pointer;font-size:12px;font-weight:700">저장</button>
+        <button onclick="closeAddGrammar()" style="flex:1;background:var(--s2);border:1px solid var(--b);color:var(--m);border-radius:7px;padding:8px;cursor:pointer;font-size:12px">취소</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 오답노트 팝업 -->
+<div id="odapBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;align-items:center;justify-content:center" onclick="if(event.target===this)closeOdapModal()">
+  <div style="background:#0e1320;border:1px solid rgba(79,142,247,.25);border-radius:16px;width:340px;max-width:92vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--b)">
+      <span style="font-size:13px;font-weight:700;color:#7ab0ff">✏️ 오답노트 <span style="font-size:9px;color:var(--m);font-weight:400">국어 필터</span></span>
+      <button onclick="closeOdapModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="odapList" style="flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+      <div style="text-align:center;padding:20px;color:var(--m);font-size:11px">불러오는 중...</div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
