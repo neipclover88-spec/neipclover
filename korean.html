@@ -262,7 +262,7 @@
 <div id="editModal" style="
   display:none;position:fixed;inset:0;z-index:100;
   background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px;
-" onclick="closeEdit(event)">
+" onclick="if(event.target===this)closeEdit()">
   <div style="
     background:var(--s1);border:1px solid var(--b);border-radius:16px;
     width:100%;max-width:480px;padding:20px;display:flex;flex-direction:column;gap:13px;
@@ -507,29 +507,29 @@ function zoomImg(url){ document.getElementById('imgZoomSrc').src=url; document.g
 let editKey = null;
 
 function editCard(){
-  const l=gcFiltered(); if(!l.length) return;
-  const c=l[gcIdx]; editKey=c.key;
-  // 카테고리 셀렉트 채우기
+  const l=gcFiltered();
+  if(!l.length){ showToast('카드가 없어요'); return; }
+  const c=l[gcIdx];
+  if(!c){ showToast('카드를 찾을 수 없어요'); return; }
+  editKey=c.key;
   const sel=document.getElementById('editCatSel');
   sel.innerHTML=gcCategories.map(cat=>`<option value="${esc(cat)}" ${cat===c.cat?'selected':''}>${esc(cat)}</option>`).join('');
   document.getElementById('editFrontInp').value=c.front||'';
   document.getElementById('editBackInp').value=c.back||'';
   document.getElementById('editModal').style.display='flex';
 }
-function closeEdit(e){
-  if(e && e.target!==document.getElementById('editModal')) return;
+function closeEdit(){
   document.getElementById('editModal').style.display='none';
   editKey=null;
 }
 function saveEdit(){
-  if(!editKey) return;
+  if(!editKey){ showToast('수정할 카드가 없어요'); return; }
   const front=document.getElementById('editFrontInp').value.trim();
   const back=document.getElementById('editBackInp').value.trim();
   const cat=document.getElementById('editCatSel').value||'기타';
-  if(!front){showToast('앞면을 입력해주세요');return;}
+  if(!front){ showToast('앞면을 입력해주세요'); return; }
   db.ref(GC_PATH+'/'+editKey).update({front,back,cat}).then(()=>{
-    document.getElementById('editModal').style.display='none';
-    editKey=null;
+    closeEdit();
     showToast('수정됐어요 ✓');
   });
 }
