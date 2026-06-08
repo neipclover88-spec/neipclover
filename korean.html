@@ -120,7 +120,16 @@ textarea:focus,select:focus,input[type=text]:focus{border-color:rgba(79,142,247,
 .modal-hdr{display:flex;justify-content:space-between;align-items:center;}
 .modal-close{background:none;border:none;color:var(--m);font-size:20px;padding:0;}
 
-.empty{text-align:center;padding:40px 0;color:var(--m);font-size:13px;}
+.type-btn{flex:1;padding:9px;background:var(--s2);border:1px solid var(--b);
+  color:var(--m);border-radius:10px;font-size:12px;font-weight:700;transition:all .15s;}
+.type-btn.on{background:rgba(79,142,247,.15);border-color:var(--blue);color:var(--blue);}
+.ox-ans-btn{flex:1;padding:10px;border-radius:10px;font-size:14px;font-weight:700;
+  background:var(--s2);border:1.5px solid var(--b);color:var(--m);transition:all .15s;}
+.ox-ans-btn.on-o{background:rgba(39,201,110,.15);border-color:#27c96e;color:#27c96e;}
+.ox-ans-btn.on-x{background:rgba(239,68,68,.12);border-color:#ef4444;color:#ef4444;}
+.ox-pick-btn{flex:1;padding:14px;border-radius:12px;font-size:18px;font-weight:700;
+  border:1.5px solid;transition:all .15s;}
+.ox-pick-btn:active{opacity:.7;}
 .add-row{display:flex;gap:7px;margin-top:-7px;}
 .add-inp{flex:1;background:var(--s2);border:1px solid var(--b);border-radius:10px;
   color:var(--t);font-family:var(--sans);font-size:13px;padding:9px 11px;outline:none;}
@@ -161,11 +170,11 @@ textarea:focus,select:focus,input[type=text]:focus{border-color:rgba(79,142,247,
   <div id="gc-view" class="pad">
     <div id="gcEmpty" class="empty">카드가 없어요.<br>+ 추가 탭에서 만들어보세요!</div>
     <div id="gcArea" style="display:none">
-      <div class="card-wrap" onclick="flipCard()">
+      <div class="card-wrap" onclick="cardTap()">
         <div class="card-inner" id="ci">
           <div class="card-face c-front">
             <div class="c-cat" id="cCat"></div>
-            <div class="c-lbl">앞면 · 탭하면 뒤집기</div>
+            <div class="c-lbl" id="cFrontLbl">앞면 · 탭하면 뒤집기</div>
             <div class="c-txt" id="cFront"></div>
           </div>
           <div class="card-face c-back">
@@ -174,6 +183,16 @@ textarea:focus,select:focus,input[type=text]:focus{border-color:rgba(79,142,247,
           </div>
         </div>
       </div>
+      <!-- OX 버튼 (OX 카드일 때만) -->
+      <div id="oxBtns" style="display:none;margin-bottom:12px;">
+        <div id="oxFeedback" style="display:none;text-align:center;font-size:20px;font-weight:700;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:10px;">
+          <button class="ox-pick-btn" style="background:rgba(39,201,110,.15);border-color:rgba(39,201,110,.4);color:#27c96e;" onclick="pickOX('o')">⭕ O</button>
+          <button class="ox-pick-btn" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ef4444;" onclick="pickOX('x')">❌ X</button>
+        </div>
+      </div>
+      <!-- 세션 점수 -->
+      <div id="sessionScore" style="text-align:center;font-size:12px;color:var(--m);margin-bottom:10px;display:none;"></div>
       <div class="nav-row">
         <button class="nav-btn" onclick="prevCard()">‹</button>
         <span class="nav-cnt" id="navCnt">1 / 1</span>
@@ -185,6 +204,20 @@ textarea:focus,select:focus,input[type=text]:focus{border-color:rgba(79,142,247,
   </div>
 
   <div id="gc-add" class="pad" style="display:none">
+    <div style="margin-bottom:13px;">
+      <div class="field-lbl">카드 유형</div>
+      <div style="display:flex;gap:8px;">
+        <button id="typeCard" class="type-btn on" onclick="setCardType('card')">📝 일반카드</button>
+        <button id="typeOX"   class="type-btn"    onclick="setCardType('ox')">⭕ OX 문제</button>
+      </div>
+    </div>
+    <div id="oxAnswerWrap" style="display:none;margin-bottom:13px;">
+      <div class="field-lbl">정답</div>
+      <div style="display:flex;gap:8px;">
+        <button id="ansO" class="ox-ans-btn" onclick="setAns('o')">⭕ O</button>
+        <button id="ansX" class="ox-ans-btn" onclick="setAns('x')">❌ X</button>
+      </div>
+    </div>
     <div style="margin-bottom:13px;">
       <div class="field-lbl">카테고리</div>
       <div class="sel-wrap"><select id="catSel"></select></div>
@@ -323,7 +356,21 @@ function gcTab(t){
   if(t==='list') renderList();
 }
 
-// ── 카테고리 필터 ──
+// ── 카드 추가 폼 상태 ──
+let addCardType='card', addAns='o';
+let sessionCorrect=0, sessionTotal=0, oxAnswered=false;
+
+function setCardType(t){
+  addCardType=t;
+  document.getElementById('typeCard').classList.toggle('on',t==='card');
+  document.getElementById('typeOX').classList.toggle('on',t==='ox');
+  document.getElementById('oxAnswerWrap').style.display=t==='ox'?'block':'none';
+}
+function setAns(a){
+  addAns=a;
+  document.getElementById('ansO').className='ox-ans-btn'+(a==='o'?' on-o':'');
+  document.getElementById('ansX').className='ox-ans-btn'+(a==='x'?' on-x':'');
+}
 function buildCatBar(){
   const bar=document.getElementById('catBar');
   bar.innerHTML=['전체',...gcCats].map(c=>
@@ -359,28 +406,72 @@ function renderCard(){
   if(!list.length)return;
   gcIdx=Math.max(0,Math.min(gcIdx,list.length-1));
   const c=list[gcIdx];
+  const isOX=c.cardType==='ox';
   document.getElementById('cCat').textContent=c.cat||'';
   document.getElementById('cFront').textContent=c.front||'';
-  document.getElementById('cBack').textContent=c.back||'';
+  document.getElementById('cBack').textContent=isOX?(c.correctAnswer==='o'?'⭕ O':'❌ X')+(c.back?'\n'+c.back:''):c.back||'';
+  document.getElementById('cFrontLbl').textContent=isOX?'OX 문제 · O 또는 X 선택':'앞면 · 탭하면 뒤집기';
   document.getElementById('navCnt').textContent=(gcIdx+1)+' / '+list.length;
-  gcFlip=false; document.getElementById('ci').classList.remove('flip');
+  document.getElementById('oxBtns').style.display=isOX?'block':'none';
+  document.getElementById('oxFeedback').style.display='none';
+  gcFlip=false; oxAnswered=false;
+  document.getElementById('ci').classList.remove('flip');
+  updateScore();
+}
+function cardTap(){
+  const list=gcFiltered();
+  if(!list.length)return;
+  const c=list[gcIdx];
+  if(c.cardType==='ox') return; // OX는 버튼으로만
+  flipCard();
 }
 function flipCard(){gcFlip=!gcFlip;document.getElementById('ci').classList.toggle('flip',gcFlip);}
-function prevCard(){const l=gcFiltered();if(!l.length)return;gcIdx=(gcIdx-1+l.length)%l.length;renderCard();}
-function nextCard(){const l=gcFiltered();if(!l.length)return;gcIdx=(gcIdx+1)%l.length;renderCard();}
+
+function pickOX(ans){
+  if(oxAnswered)return;
+  const list=gcFiltered();
+  if(!list.length)return;
+  const c=list[gcIdx];
+  oxAnswered=true;
+  sessionTotal++;
+  const correct=ans===c.correctAnswer;
+  if(correct)sessionCorrect++;
+  const fb=document.getElementById('oxFeedback');
+  fb.style.display='block';
+  fb.textContent=correct?'✅ 정답!':'❌ 오답! 정답: '+(c.correctAnswer==='o'?'O':'X');
+  fb.style.color=correct?'#27c96e':'#ef4444';
+  // 카드 뒤집어서 해설 보여주기
+  setTimeout(()=>{gcFlip=true;document.getElementById('ci').classList.add('flip');},400);
+  updateScore();
+}
+function updateScore(){
+  const el=document.getElementById('sessionScore');
+  const list=gcFiltered();
+  const hasOX=list.some(c=>c.cardType==='ox');
+  if(!hasOX||sessionTotal===0){el.style.display='none';return;}
+  el.style.display='block';
+  el.textContent=`이번 세션: ${sessionCorrect}/${sessionTotal}개 정답 (${Math.round(sessionCorrect/sessionTotal*100)}%)`;
+  el.style.color=sessionCorrect/sessionTotal>=0.8?'#27c96e':sessionCorrect/sessionTotal>=0.5?'#f5a623':'#ef4444';
+}
 function delCard(){
   const l=gcFiltered();if(!l.length){toast('카드가 없어요');return;}
   if(!confirm('삭제할까요?'))return;
   db.ref(GC+'/'+l[gcIdx].key).remove(); toast('삭제됐어요');
 }
+function prevCard(){const l=gcFiltered();if(!l.length)return;gcIdx=(gcIdx-1+l.length)%l.length;renderCard();}
+function nextCard(){const l=gcFiltered();if(!l.length)return;gcIdx=(gcIdx+1)%l.length;renderCard();}
+
 function saveCard(){
   const front=document.getElementById('gFront').value.trim();
   const back=document.getElementById('gBack').value.trim();
   const cat=document.getElementById('catSel').value||'기타';
   if(!front){toast('앞면을 입력해주세요');return;}
-  db.ref(GC).push({front,back,cat}).then(()=>{
+  const data={front,back,cat,cardType:addCardType};
+  if(addCardType==='ox') data.correctAnswer=addAns;
+  db.ref(GC).push(data).then(()=>{
     document.getElementById('gFront').value='';
     document.getElementById('gBack').value='';
+    setCardType('card'); setAns('o');
     toast('저장됐어요 ✓'); gcTab('view');
   });
 }
@@ -492,6 +583,12 @@ function toast(msg){
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2000);
 }
+
+// URL 파라미터로 탭 초기 설정
+(function(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('tab')==='od') mainTab('od');
+})();
 </script>
 </body>
 </html>
