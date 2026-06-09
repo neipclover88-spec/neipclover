@@ -1514,6 +1514,7 @@ function resumeTimer() {
     timerSec++;
     $('timerDigits').textContent = fmtSec(timerSec);
   }, 1000);
+  schedLiveStart();
 }
 async function handleStop() {
   if (!running && !paused) return;
@@ -1528,6 +1529,7 @@ async function handleStop() {
   $('btnStop').disabled = true;
 
   if (dur >= 10 && selSub) await saveSession(selSub, dur);
+  if (dur >= 10 && selSub) await schedLiveEnd(dur);
   selSubCat = null;
   updateBadge();
   releaseWakeLock();
@@ -3175,6 +3177,38 @@ function checkDateChange() {
   }
 }
 // 1분마다 + 화면 포커스 시 날짜 체크
+const SUBJ_TO_KEY = {'국어':'korean','수학':'math','영어':'eng','사회':'social','과학':'science'};
+let _liveSchedKey=null,_liveSchedDate=null,_liveSchedTick=null;
+async function schedLiveStart(){
+  if(!rtdb||!selSub)return;
+  const subjKey=SUBJ_TO_KEY[selSub.name];if(!subjKey)return;
+  const now=new Date();_liveSchedDate=ds(now);
+  const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');
+  try{
+    const r=rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${_liveSchedDate}`).push();
+    _liveSchedKey=r.key;
+    await r.set({subject:subjKey,start:`${hh}:${mm}`,end:`${hh}:${mm}`,live:true,duration:0,memo:''});
+    _liveSchedTick=setInterval(async()=>{
+      if(!_liveSchedKey)return;
+      const n=new Date(),eh=String(n.getHours()).padStart(2,'0'),em=String(n.getMinutes()).padStart(2,'0');
+      try{await rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${_liveSchedDate}/${_liveSchedKey}`).update(
+        {end:`${eh}:${em}`,duration:Math.floor((n-sessionStart)/1000)});}catch(e){}
+    },10000);
+  }catch(e){}
+}
+async function schedLiveEnd(durationSec){
+  clearInterval(_liveSchedTick);_liveSchedTick=null;
+  if(!rtdb||!_liveSchedKey)return;
+  try{await rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${_liveSchedDate}/${_liveSchedKey}`).remove();}catch(e){}
+  _liveSchedKey=null;
+  if(!selSub||!SUBJ_TO_KEY[selSub.name])return;
+  const end=new Date(),start=new Date(end.getTime()-durationSec*1000);
+  const sh=String(start.getHours()).padStart(2,'0'),sm=String(start.getMinutes()).padStart(2,'0');
+  const eh=String(end.getHours()).padStart(2,'0'),em=String(end.getMinutes()).padStart(2,'0');
+  try{await rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${_liveSchedDate}`).push(
+    {subject:SUBJ_TO_KEY[selSub.name],start:`${sh}:${sm}`,end:`${eh}:${em}`,duration:durationSec,memo:'',live:false});}catch(e){}
+}
+
 setInterval(checkDateChange, 60000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) checkDateChange();
