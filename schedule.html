@@ -525,7 +525,46 @@ function render(){
 }
 
 // ── Firebase ──
-onValue(ref(db,'bdh3_t/schedule/sessions'),snap=>{sessions=snap.val()||{};render();});
+// schedule/sessions (직접 추가분)
+onValue(ref(db,'bdh3_t/schedule/sessions'),snap=>{
+  sessions = snap.val()||{};
+  render();
+});
+
+// timer/sessions (열공타이머) 병합
+const SUBJ_NAME_TO_KEY = {'국어':'korean','수학':'math','영어':'eng','사회':'social','과학':'science'};
+onValue(ref(db,'bdh3_t/timer/sessions'),snap=>{
+  if(!snap.exists()) return;
+  const timerData = snap.val();
+  // 날짜별로 변환해서 sessions에 병합
+  Object.entries(timerData).forEach(([date, daySessions])=>{
+    if(!daySessions) return;
+    Object.entries(daySessions).forEach(([key, s])=>{
+      if(!s.startTime||!s.endTime) return;
+      const startD = new Date(s.startTime);
+      const endD   = new Date(s.endTime);
+      const subjKey = SUBJ_NAME_TO_KEY[s.subjectName];
+      if(!subjKey) return; // 연동 안되는 과목 스킵
+      const sh = String(startD.getHours()).padStart(2,'0');
+      const sm = String(startD.getMinutes()).padStart(2,'0');
+      const eh = String(endD.getHours()).padStart(2,'0');
+      const em = String(endD.getMinutes()).padStart(2,'0');
+      // schedule/sessions에 없는 것만 추가 (중복 방지)
+      if(!sessions[date]) sessions[date] = {};
+      const mergeKey = 'timer_'+key;
+      sessions[date][mergeKey] = {
+        subject: subjKey,
+        start: `${sh}:${sm}`,
+        end: `${eh}:${em}`,
+        duration: s.durationSec||0,
+        memo: s.subCategoryName||'',
+        live: false,
+        _fromTimer: true,
+      };
+    });
+  });
+  render();
+});
 onValue(ref(db,'bdh3/db/_goals'),snap=>{
   const raw=snap.val()||{};
   Object.keys(raw).forEach(k=>{goals[k]=Array.isArray(raw[k])?raw[k]:Object.values(raw[k]);});
