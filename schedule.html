@@ -27,7 +27,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .time-axis{width:30px;flex-shrink:0;position:relative}
 .time-tick{position:absolute;right:4px;font-size:9px;color:var(--text3);line-height:1;transform:translateY(-50%);white-space:nowrap}
 .cal-inner{flex:1;min-width:0}
-.day-headers{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;height:32px}
+.day-headers{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:2px;height:32px}
 .dh{text-align:center;font-size:10px;color:var(--text2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
 .dh .dn{font-size:13px;font-weight:500}
 .dh.today{color:var(--accent)}
@@ -35,7 +35,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 
 /* 구역 */
 .zone-wrap{display:flex;flex-direction:column;gap:2px}
-.zone-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;border-radius:6px;overflow:hidden}
+.zone-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;border-radius:6px;overflow:hidden}
 
 /* 셀 */
 .zcell{padding:4px 3px;position:relative;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:0}
@@ -43,7 +43,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .zcell-hint{font-size:8px;color:var(--text3);text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1.7;pointer-events:none;white-space:pre}
 
 /* 세션 블록 — 목업 스타일 */
-.sblock{border-radius:6px;padding:7px 8px 6px;cursor:pointer;width:100%;flex-shrink:0;border:none}
+.sblock{border-radius:6px;padding:7px 8px 6px;cursor:pointer;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box}
 .sblock:active{opacity:0.7}
 .sblock.live{animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
@@ -202,11 +202,11 @@ const db = getDatabase(initializeApp(FB));
 
 // ── 상수 ──
 const SUBJ = {
-  korean:  {label:'국어', color:'#1a5cbf', bg:'#c8dffb', dashKey:'국어'},
-  math:    {label:'수학', color:'#0a5c38', bg:'#b8f0d8', dashKey:'수학'},
-  eng:     {label:'영어', color:'#7a4a00', bg:'#fde8b0', dashKey:'영어'},
-  social:  {label:'사회', color:'#5a1a8a', bg:'#e8d0fa', dashKey:'사회'},
-  science: {label:'과학', color:'#8a1040', bg:'#fac8dc', dashKey:'과학'},
+  korean:  {label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.18)',  dashKey:'국어'},
+  math:    {label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.18)',  dashKey:'수학'},
+  eng:     {label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.18)',  dashKey:'영어'},
+  social:  {label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.18)',  dashKey:'사회'},
+  science: {label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.18)', dashKey:'과학'},
 };
 const ZONES = [
   {key:'am',   hrs:5, start:6,  end:11, bg:'rgba(239,159,39,0.05)'},
@@ -307,13 +307,12 @@ function render(){
           block.className='sblock'+(s.live?' live':'');
           // 목업처럼 밝은 배경
           block.style.cssText=`background:${subj.bg};`;
-          const barBg = subj.color + '33';
-          const fillClr = pct>=100 ? '#1a7a3a' : subj.color;
+          const fillClr = pct>=100 ? '#27c96e' : subj.color;
           block.innerHTML=`
             <div class="sblock-label" style="color:${subj.color}">
               ${subj.label}<span class="sblock-time">${fmtMin(min)}</span>
             </div>
-            <div class="sblock-bar" style="background:${barBg}">
+            <div class="sblock-bar" style="background:rgba(255,255,255,0.1)">
               <div class="sblock-fill" style="width:${pct}%;background:${fillClr}"></div>
             </div>`;
 
@@ -323,44 +322,48 @@ function render(){
               remove(ref(db,`bdh3_t/schedule/sessions/${key}/${sid}`));
           });
 
-          // ── 길게 눌러 드래그 이동 ──
+          // ── 길게 눌러 드래그 이동 (10분 스냅) ──
           let dragTimer=null, isDragging=false, ghost=null;
+          function snap10(totalMin){ return Math.round(totalMin/10)*10; }
+
           block.addEventListener('pointerdown', e=>{
             e.stopPropagation();
             dragTimer = setTimeout(()=>{
               isDragging = true;
-              block.style.opacity='0.4';
+              block.style.opacity='0.35';
               ghost = document.createElement('div');
               ghost.className = 'drag-ghost';
-              ghost.style.cssText = `background:${subj.bg};color:${subj.color};width:${block.offsetWidth}px`;
+              ghost.style.cssText = `background:${subj.bg};color:${subj.color};min-width:70px;font-size:12px;font-weight:700;padding:6px 10px;border-left:3px solid ${subj.color}`;
               ghost.textContent = subj.label + ' ' + fmtMin(min);
               document.body.appendChild(ghost);
-              ghost.style.left = (e.clientX - ghost.offsetWidth/2) + 'px';
-              ghost.style.top  = (e.clientY - ghost.offsetHeight/2) + 'px';
+              ghost.style.left = (e.clientX - 35) + 'px';
+              ghost.style.top  = (e.clientY - 20) + 'px';
             }, 500);
           });
+
           block.addEventListener('pointermove', e=>{
             if(!isDragging) return;
             e.preventDefault();
-            ghost.style.left = (e.clientX - ghost.offsetWidth/2) + 'px';
-            ghost.style.top  = (e.clientY - ghost.offsetHeight/2) + 'px';
-            // 호버 셀 하이라이트
+            ghost.style.left = (e.clientX - 35) + 'px';
+            ghost.style.top  = (e.clientY - 20) + 'px';
             document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
             const el = document.elementFromPoint(e.clientX, e.clientY);
-            const targetCell = el?.closest('.zcell');
-            if(targetCell && targetCell !== cell) targetCell.classList.add('drag-over');
+            const tc = el?.closest('.zcell');
+            if(tc && tc !== cell) tc.classList.add('drag-over');
           });
+
           block.addEventListener('pointerup', e=>{
             clearTimeout(dragTimer);
             if(!isDragging){ block.style.opacity=''; return; }
-            isDragging=false; block.style.opacity='';
+            isDragging=false; block.style.opacity='1';
             if(ghost){ghost.remove();ghost=null;}
             document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
-            // 놓은 위치의 셀 찾기
+
             const el = document.elementFromPoint(e.clientX, e.clientY);
             const targetCell = el?.closest('.zcell');
             if(!targetCell || targetCell===cell) return;
-            // 타겟 셀의 zone 찾기
+
+            // 타겟 구역 찾기
             const targetRow = targetCell.closest('.zone-row');
             if(!targetRow) return;
             const allRows = [...document.querySelectorAll('.zone-row')];
@@ -368,34 +371,40 @@ function render(){
             if(zoneIdx<0) return;
             const targetZone = ZONES[zoneIdx];
             if(!targetZone) return;
+
             // 타겟 날짜 찾기
             const allCells = [...targetRow.querySelectorAll('.zcell')];
             const colIdx = allCells.indexOf(targetCell);
             const targetDates = weekDates(weekOff);
             if(colIdx<0||colIdx>=targetDates.length) return;
             const targetDateKey = dk(targetDates[colIdx]);
-            // 새 시작 시간: 타겟 구역 시작 + 기존 offset
-            const origStartH = parseInt(s.start.split(':')[0]);
-            const origStartM = parseInt(s.start.split(':')[1]);
-            const offsetH = origStartH - zone.start;
-            const newStartH = Math.min(targetZone.start + Math.max(0,offsetH), targetZone.end-1);
-            const newStartM = origStartM;
+
+            // 셀 안 Y 위치 → 시간 계산 (10분 스냅)
+            const cellRect = targetCell.getBoundingClientRect();
+            const yRatio = Math.max(0, Math.min(1, (e.clientY - cellRect.top) / cellRect.height));
+            const zoneMinutes = (targetZone.end - targetZone.start) * 60;
+            const rawMin = targetZone.start * 60 + yRatio * zoneMinutes;
+            const snappedMin = snap10(rawMin);
+            const newStartH = Math.floor(snappedMin / 60);
+            const newStartM = snappedMin % 60;
             const durMin = sesMin(s);
-            const newEndTotalMin = newStartH*60+newStartM+durMin;
-            const newEndH = Math.min(Math.floor(newEndTotalMin/60), targetZone.end);
-            const newEndM = newEndTotalMin%60;
+            const endTotalMin = Math.min(snappedMin + durMin, targetZone.end * 60);
+            const newEndH = Math.floor(endTotalMin / 60);
+            const newEndM = endTotalMin % 60;
+
             const newStart = `${String(newStartH).padStart(2,'0')}:${String(newStartM).padStart(2,'0')}`;
             const newEnd   = `${String(newEndH).padStart(2,'0')}:${String(newEndM).padStart(2,'0')}`;
-            // Firebase: 기존 삭제 + 새 위치에 추가
+
             remove(ref(db,`bdh3_t/schedule/sessions/${key}/${sid}`));
             push(ref(db,`bdh3_t/schedule/sessions/${targetDateKey}`),{
               subject:s.subject, start:newStart, end:newEnd,
-              duration:s.duration, memo:s.memo||''
+              duration:s.duration||0, memo:s.memo||''
             });
-            toast(`${subj.label} → ${targetZone.label===undefined?'':''} ${targetDateKey.slice(5)} ${newStart}`);
+            toast(`${subj.label} → ${targetDateKey.slice(5)} ${newStart}`);
           });
+
           block.addEventListener('pointercancel',()=>{
-            clearTimeout(dragTimer); isDragging=false; block.style.opacity='';
+            clearTimeout(dragTimer); isDragging=false; block.style.opacity='1';
             if(ghost){ghost.remove();ghost=null;}
             document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
           });
