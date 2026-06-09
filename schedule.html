@@ -34,12 +34,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .cal-wrap{display:flex;padding:6px 6px 0;gap:0}
 
 /* ── 시간 축 (왼쪽) ── */
-.time-col{display:flex;flex-direction:column;width:30px;flex-shrink:0;padding-top:28px;gap:0}
-.zone-time{display:flex;flex-direction:column;align-items:flex-end;padding-right:4px;justify-content:space-between}
-.zone-time-inner{display:flex;flex-direction:column;gap:1px;align-items:flex-end}
-.t-label{font-size:9px;color:var(--text3);line-height:1;white-space:nowrap}
-.zone-icon{font-size:11px;margin-bottom:2px;text-align:right}
-.zone-name{font-size:8px;color:var(--text3);font-weight:500}
+.time-col{position:relative;width:28px;flex-shrink:0;margin-top:28px}
+.t-tick{position:absolute;right:4px;font-size:9px;color:var(--text3);line-height:1;transform:translateY(-50%);white-space:nowrap}
 
 /* ── 오른쪽 그리드 ── */
 .grid-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -55,19 +51,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .zone-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 
 /* 셀 */
-.zone-cell{background:var(--bg2);border-radius:6px;border:0.5px solid var(--border);min-height:80px;padding:4px;position:relative;cursor:pointer;transition:background 0.1s;display:flex;flex-direction:column;gap:3px}
+.zone-cell{background:var(--bg2);border-radius:6px;border:0.5px solid var(--border);min-height:0;padding:4px;position:relative;cursor:pointer;transition:background 0.1s;display:flex;flex-direction:column;gap:3px}
 .zone-cell:active{background:var(--bg3)}
 .zone-cell.today{border-color:var(--accent-border);background:rgba(79,142,247,0.05)}
 .zone-cell.empty-hint::after{content:'길게 눌러\A추가';white-space:pre;font-size:8px;color:var(--text3);text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1.6;pointer-events:none}
 
 /* 세션 블록 */
-.sblock{border-radius:4px;padding:4px 5px 3px;cursor:pointer;transition:opacity 0.15s;flex-shrink:0}
-.sblock:active{opacity:0.7}
-.sblock.live{border:1px dashed;animation:pulse 1.5s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.55}}
-.sblock-label{font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-.sblock-time{font-size:9px;opacity:0.7;line-height:1.2}
-.sblock-bar-wrap{height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-top:3px}
+.sblock{border-radius:6px;padding:6px 8px 5px;cursor:pointer;transition:opacity 0.15s;flex-shrink:0;border:none}
+.sblock:active{opacity:0.75}
+.sblock.live{outline:1.5px dashed rgba(255,255,255,0.4);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.sblock-label{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.sblock-bar-wrap{height:4px;background:rgba(0,0,0,0.12);border-radius:2px;overflow:hidden;margin-top:5px}
 .sblock-bar-fill{height:100%;border-radius:2px;transition:width .3s}
 
 /* ── 구분선 ── */
@@ -241,11 +236,11 @@ const db = getDatabase(app);
 
 // ── 상수 ──
 const SUBJECTS = {
-  korean:  { label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.20)' },
-  math:    { label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.20)' },
-  eng:     { label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.20)' },
-  social:  { label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.20)' },
-  science: { label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.20)' },
+  korean:  { label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.18)' },
+  math:    { label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.18)' },
+  eng:     { label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.18)' },
+  social:  { label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.18)' },
+  science: { label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.18)' },
 };
 const ZONES = [
   { key:'am',   label:'아침', icon:'☀️', sub:'6~11시',  start:6,  end:11, bg:'rgba(239,159,39,0.06)' },
@@ -330,20 +325,22 @@ function renderCalendar() {
     headers.appendChild(div);
   });
 
-  // 시간 축
+  // 시간 축 (6~23시 눈금)
   const timeCol = document.getElementById('timeCol');
   timeCol.innerHTML = '';
-  ZONES.forEach(z => {
-    const wrap = document.createElement('div');
-    wrap.className = 'zone-time';
-    wrap.style.flex = (z.end - z.start).toString();
-    wrap.innerHTML = `<div class="zone-time-inner">
-      <span class="zone-icon">${z.icon}</span>
-      <span class="zone-name">${z.label}</span>
-      <span class="t-label">${z.start}시</span>
-    </div>
-    <span class="t-label">${z.end === 23 ? '23시' : ''}</span>`;
-    timeCol.appendChild(wrap);
+  // zoneRows가 렌더된 뒤 높이를 맞춰야 해서 requestAnimationFrame 사용
+  requestAnimationFrame(() => {
+    const zoneRows = document.getElementById('zoneRows');
+    const totalH = zoneRows.offsetHeight;
+    timeCol.style.height = totalH + 'px';
+    const TOTAL_HOURS = 17; // 6~23
+    for (let h = 6; h <= 23; h++) {
+      const tick = document.createElement('div');
+      tick.className = 't-tick';
+      tick.style.top = ((h - 6) / TOTAL_HOURS * 100) + '%';
+      tick.textContent = h + '시';
+      timeCol.appendChild(tick);
+    }
   });
 
   // 구역 행들
@@ -358,6 +355,9 @@ function renderCalendar() {
     row.className = 'zone-row';
     row.style.background = zone.bg;
     row.style.borderRadius = '6px';
+    const zoneH = ZONE_HOURS[zone.key] || 5;
+    row.style.flex = zoneH.toString();
+    row.style.minHeight = (zoneH * 22) + 'px';
 
     dates.forEach(d => {
       const dk = dateKey(d);
@@ -384,10 +384,11 @@ function renderCalendar() {
 
         const block = document.createElement('div');
         block.className = 'sblock' + (s.live ? ' live' : '');
-        block.style.cssText = `background:${subj.bg};border-left:2.5px solid ${subj.color}`;
+        const blockBg = subj.color + '30';
+        block.style.cssText = `background:${blockBg};border-left:3px solid ${subj.color};width:100%`;
         block.innerHTML = `
-          <div class="sblock-label" style="color:${subj.color}">${subj.label} <span style="font-weight:400;opacity:0.8">${timeStr}</span></div>
-          <div class="sblock-bar-wrap"><div class="sblock-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>`;
+          <div style="font-size:11px;font-weight:700;color:${subj.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4">${subj.label} <span style="font-size:10px;font-weight:500;opacity:0.85">${timeStr}</span></div>
+          <div style="height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:2px;transition:width .3s"></div></div>`;
         block.addEventListener('click', e => {
           e.stopPropagation();
           if (confirm(`세션 삭제?\n${subj.label} ${s.start}~${s.end}`)) {
