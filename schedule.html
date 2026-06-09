@@ -42,12 +42,12 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .zcell.today-cell{outline:1.5px solid var(--accent-bd);outline-offset:-1px;border-radius:2px}
 
 /* 세션 블록 — 목업 스타일 */
-.sblock{border-radius:6px;padding:7px 8px 6px;cursor:pointer;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box}
+.sblock{border-radius:5px;padding:5px 6px 4px;cursor:pointer;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box}
 .sblock:active{opacity:0.7}
 .sblock.live{animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-.sblock-label{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;display:flex;align-items:baseline;gap:4px}
-.sblock-time{font-size:11px;font-weight:500;opacity:0.85}
+.sblock-label{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;display:flex;align-items:baseline;gap:3px}
+.sblock-time{font-size:9px;font-weight:500;opacity:0.85}
 .sblock-bar{height:4px;border-radius:2px;overflow:hidden;margin-top:6px}
 .sblock-fill{height:100%;border-radius:2px;transition:width .4s}
 
@@ -346,7 +346,7 @@ function render(){
             document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
             const el = document.elementFromPoint(e.clientX, e.clientY);
             const tc = el?.closest('.zcell');
-            if(tc && tc !== cell) tc.classList.add('drag-over');
+            if(tc) tc.classList.add('drag-over');
           });
 
           block.addEventListener('pointerup', e=>{
@@ -358,7 +358,7 @@ function render(){
 
             const el = document.elementFromPoint(e.clientX, e.clientY);
             const targetCell = el?.closest('.zcell');
-            if(!targetCell || targetCell===cell) return;
+            if(!targetCell) return;
 
             // 타겟 구역 찾기
             const targetRow = targetCell.closest('.zone-row');
@@ -391,6 +391,9 @@ function render(){
 
             const newStart = `${String(newStartH).padStart(2,'0')}:${String(newStartM).padStart(2,'0')}`;
             const newEnd   = `${String(newEndH).padStart(2,'0')}:${String(newEndM).padStart(2,'0')}`;
+
+            // 같은 위치면 이동 안 함
+            if(targetDateKey===key && newStart===s.start) return;
 
             remove(ref(db,`bdh3_t/schedule/sessions/${key}/${sid}`));
             push(ref(db,`bdh3_t/schedule/sessions/${targetDateKey}`),{
