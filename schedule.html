@@ -61,6 +61,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .pill{font-size:12px;padding:5px 12px;border-radius:99px;border:0.5px solid var(--border2);color:var(--text2);background:var(--bg2);cursor:pointer;transition:all .15s}
 .pill:active{transform:scale(.95)}
+.pill.sel-exercise{background:rgba(249,115,22,0.18);color:#f97316;border-color:#f97316}
 .timer-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:14px;padding:14px}
 .timer-status{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .zone-badge{font-size:11px;padding:3px 10px;border-radius:99px;background:var(--bg3);color:var(--text2);border:0.5px solid var(--border)}
@@ -174,7 +175,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
       <select id="mSubject">
         <option value="korean">국어</option><option value="math">수학</option>
         <option value="eng">영어</option><option value="social">사회</option>
-        <option value="science">과학</option>
+        <option value="science">과학</option><option value="exercise">운동</option>
       </select>
     </div>
     <div class="mrow"><span class="mlbl">시작</span><input type="time" id="mStart" value="09:00"></div>
@@ -210,6 +211,7 @@ const SUBJ = {
   eng:     {label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.18)',  dashKey:'영어'},
   social:  {label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.18)',  dashKey:'사회'},
   science: {label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.18)', dashKey:'과학'},
+  exercise:{label:'운동', color:'#f97316', bg:'rgba(249,115,22,0.18)',  dashKey:null},
 };
 const ZONES = [
   {key:'am',   hrs:5, start:6,  end:11, bg:'rgba(239,159,39,0.05)'},
