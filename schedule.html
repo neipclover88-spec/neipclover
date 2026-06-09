@@ -22,45 +22,42 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .week-nav{background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:2px 6px}
 .week-label{font-size:12px;color:var(--text2);min-width:80px;text-align:center}
 
-/* ── 캘린더 ── */
+/* 캘린더 */
 .cal-outer{display:flex;padding:6px 4px 0;gap:0}
-
-/* 시간축 */
 .time-axis{width:30px;flex-shrink:0;position:relative}
 .time-tick{position:absolute;right:4px;font-size:9px;color:var(--text3);line-height:1;transform:translateY(-50%);white-space:nowrap}
-
-/* 그리드 영역 */
-.cal-inner{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
-.day-headers{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;height:30px}
+.cal-inner{flex:1;min-width:0}
+.day-headers{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:2px;height:32px}
 .dh{text-align:center;font-size:10px;color:var(--text2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
 .dh .dn{font-size:13px;font-weight:500}
 .dh.today{color:var(--accent)}
 .dh.today .dn{background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px}
 
-/* 구역 행 */
+/* 구역 */
 .zone-wrap{display:flex;flex-direction:column;gap:2px}
 .zone-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;border-radius:6px;overflow:hidden}
 
 /* 셀 */
-.zcell{padding:4px;position:relative;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:0}
-.zcell.today-cell{outline:1.5px solid var(--accent-bd);outline-offset:-1px}
-.zcell-hint{font-size:8px;color:var(--text3);text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1.6;pointer-events:none;white-space:pre}
+.zcell{padding:5px 4px;position:relative;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:0}
+.zcell.today-cell{outline:1.5px solid var(--accent-bd);outline-offset:-1px;border-radius:2px}
+.zcell-hint{font-size:8px;color:var(--text3);text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1.7;pointer-events:none;white-space:pre}
 
-/* 세션 블록 */
-.sblock{border-radius:5px;padding:5px 7px 4px;cursor:pointer;flex-shrink:0;width:100%}
-.sblock:active{opacity:0.7}
+/* 세션 블록 — 목업 스타일 */
+.sblock{border-radius:6px;padding:6px 8px 5px;cursor:pointer;width:100%;flex-shrink:0}
+.sblock:active{opacity:0.75}
 .sblock.live{animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-.sblock-top{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
-.sblock-bar{height:4px;background:rgba(0,0,0,0.15);border-radius:2px;overflow:hidden;margin-top:4px}
-.sblock-fill{height:100%;border-radius:2px;transition:width .3s}
+.sblock-label{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;display:flex;align-items:baseline;gap:4px}
+.sblock-time{font-size:10px;font-weight:500;opacity:0.8}
+.sblock-bar{height:4px;border-radius:2px;overflow:hidden;margin-top:5px}
+.sblock-fill{height:100%;border-radius:2px;transition:width .4s}
 
-/* ── 구분선 ── */
+/* 구분선 */
 .divider{display:flex;align-items:center;gap:8px;padding:10px 12px 6px}
 .divider span{font-size:11px;color:var(--text3);font-weight:500}
 .divider::after{content:'';flex:1;height:0.5px;background:var(--border)}
 
-/* ── 타이머 ── */
+/* 타이머 */
 .timer-sec{padding:0 10px 10px}
 .pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .pill{font-size:12px;padding:5px 12px;border-radius:99px;border:0.5px solid var(--border2);color:var(--text2);background:var(--bg2);cursor:pointer;transition:all .15s}
@@ -82,12 +79,12 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .tbtn.stop{background:rgba(226,75,74,.12);border-color:rgba(226,75,74,.3);color:var(--red)}
 .tbtn:disabled{opacity:.35;pointer-events:none}
 
-/* ── 링크 ── */
+/* 링크 */
 .qlinks{display:flex;gap:8px;padding:0 10px 16px}
 .qlink{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);font-size:12px;text-decoration:none}
 .qlink:active{background:var(--bg3)}
 
-/* ── 모달 ── */
+/* 모달 */
 .mback{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:flex-end;justify-content:center}
 .mback.open{display:flex}
 .modal{background:var(--bg2);border-radius:16px 16px 0 0;border-top:0.5px solid var(--border2);padding:16px 16px 32px;width:100%;max-width:600px}
@@ -203,39 +200,49 @@ const db = getDatabase(initializeApp(FB));
 
 // ── 상수 ──
 const SUBJ = {
-  korean:  {label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.22)'},
-  math:    {label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.22)'},
-  eng:     {label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.22)'},
-  social:  {label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.22)'},
-  science: {label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.22)'},
+  korean:  {label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.22)',  dashKey:'국어'},
+  math:    {label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.22)',  dashKey:'수학'},
+  eng:     {label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.22)',  dashKey:'영어'},
+  social:  {label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.22)',  dashKey:'사회'},
+  science: {label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.22)', dashKey:'과학'},
 };
 const ZONES = [
-  {key:'am',   hrs:5, start:6,  end:11, bg:'rgba(239,159,39,0.06)',   label:'아침'},
-  {key:'noon', hrs:6, start:11, end:17, bg:'rgba(29,158,117,0.06)',   label:'점심'},
-  {key:'pm',   hrs:6, start:17, end:23, bg:'rgba(120,100,220,0.06)',  label:'저녁'},
+  {key:'am',   hrs:5, start:6,  end:11, bg:'rgba(239,159,39,0.05)'},
+  {key:'noon', hrs:6, start:11, end:17, bg:'rgba(29,158,117,0.05)'},
+  {key:'pm',   hrs:6, start:17, end:23, bg:'rgba(120,100,220,0.05)'},
 ];
-const TOTAL_HRS = 17; // 6~23
-const GOAL_MIN = 120;
+const TOTAL_HRS = 17;
 const DAYS = ['일','월','화','수','목','금','토'];
 
 // ── 상태 ──
-let weekOff = 0, sessions = {};
+let weekOff=0, sessions={}, goals={};
 let tInterval=null, tStart=null, tElapsed=0, tRunning=false, tPaused=false;
-let selSubj=null, modalDate=null, modalZone=null;
+let selSubj=null, modalDate=null;
 
 // ── 유틸 ──
 function weekDates(off=0){
-  const t=new Date(), dow=t.getDay();
-  const mon=new Date(t); mon.setDate(t.getDate()-((dow+6)%7)+off*7);
+  const t=new Date(),dow=t.getDay();
+  const mon=new Date(t);mon.setDate(t.getDate()-((dow+6)%7)+off*7);
   return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
 }
-function dk(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function dk(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function isToday(d){const t=new Date();return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth()&&d.getDate()===t.getDate();}
 function zoneName(h){return h<11?'아침':h<17?'점심':'저녁';}
 function sesMin(s){const[sh,sm]=s.start.split(':').map(Number),[eh,em]=s.end.split(':').map(Number);return(eh*60+em)-(sh*60+sm);}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;}
 function fmtMin(m){return m>=60?(m%60===0?`${m/60}h`:`${Math.floor(m/60)}h${m%60}m`):`${m}m`;}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+
+// ── 목표 진척도 계산 (bdh3/db/_goals) ──
+function getGoalPct(subjKey) {
+  const g = goals[subjKey];
+  if (!g || !g.length) return null;
+  const arr = Array.isArray(g) ? g : Object.values(g);
+  const tot = arr.reduce((a,x)=>a+(Number(x.targetVal)||0),0);
+  const comp= arr.reduce((a,x)=>a+(Number(x.completedVal)||0),0);
+  if (!tot) return null;
+  return Math.min(100, Math.round(comp/tot*100));
+}
 
 // ── 캘린더 렌더 ──
 function render(){
@@ -257,9 +264,7 @@ function render(){
   // 구역 행
   const wrap=document.getElementById('zoneWrap');
   wrap.innerHTML='';
-
-  // 전체 높이: 화면 높이에서 topbar(50) + dayheader(32) + padding(8) 빼기
-  const totalH=Math.max(window.innerHeight*0.55, 300);
+  const totalH=Math.max(window.innerHeight*0.62,320);
 
   ZONES.forEach(zone=>{
     const row=document.createElement('div');
@@ -271,9 +276,7 @@ function render(){
       const key=dk(d);
       const cell=document.createElement('div');
       cell.className='zcell'+(isToday(d)?' today-cell':'');
-      cell.style.background='transparent';
 
-      // 이 구역에 해당하는 세션
       const daySes=Object.entries(sessions[key]||{})
         .filter(([,s])=>{const h=parseInt(s.start);return h>=zone.start&&h<zone.end;});
 
@@ -286,23 +289,36 @@ function render(){
         daySes.forEach(([sid,s])=>{
           const subj=SUBJ[s.subject]||SUBJ.korean;
           const min=sesMin(s);
+
+          // 진척도: 대시보드 목표에서 가져옴
+          const goalPct = getGoalPct(subj.dashKey);
+          // 오늘 해당 과목 누적 시간 기반 진척도 (목표 없을 때 fallback: 120분 기준)
           const dayTotal=Object.values(sessions[key]||{})
             .filter(x=>x.subject===s.subject)
             .reduce((a,x)=>a+sesMin(x),0);
-          const pct=Math.min(100,Math.round(dayTotal/GOAL_MIN*100));
-          const barClr=pct>=100?'#27c96e':subj.color;
+          const timePct=Math.min(100,Math.round(dayTotal/120*100));
 
-          const b=document.createElement('div');
-          b.className='sblock'+(s.live?' live':'');
-          b.style.cssText=`background:${subj.bg};border-left:3px solid ${subj.color}`;
-          b.innerHTML=`<div class="sblock-top" style="color:${subj.color}">${subj.label} <span style="font-weight:500;font-size:10px">${fmtMin(min)}</span></div>
-            <div class="sblock-bar"><div class="sblock-fill" style="width:${pct}%;background:${barClr}"></div></div>`;
-          b.addEventListener('click',e=>{
+          const pct = goalPct !== null ? goalPct : timePct;
+          const barClr = pct>=100?'#27c96e':subj.color;
+
+          const block=document.createElement('div');
+          block.className='sblock'+(s.live?' live':'');
+          // 목업처럼 밝은 배경
+          block.style.cssText=`background:${subj.bg};`;
+          block.innerHTML=`
+            <div class="sblock-label" style="color:${subj.color}">
+              ${subj.label}<span class="sblock-time">${fmtMin(min)}</span>
+            </div>
+            <div class="sblock-bar" style="background:rgba(0,0,0,0.15)">
+              <div class="sblock-fill" style="width:${pct}%;background:${barClr}"></div>
+            </div>`;
+
+          block.addEventListener('click',e=>{
             e.stopPropagation();
             if(confirm(`세션 삭제?\n${subj.label} ${s.start}~${s.end}`))
               remove(ref(db,`bdh3_t/schedule/sessions/${key}/${sid}`));
           });
-          cell.appendChild(b);
+          cell.appendChild(block);
         });
       }
 
@@ -311,7 +327,7 @@ function render(){
         const now=new Date();
         if(now.getHours()>=zone.start&&now.getHours()<zone.end){
           const dot=document.createElement('div');
-          dot.style.cssText='position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:#e24b4a';
+          dot.style.cssText='position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:#e24b4a;pointer-events:none';
           cell.appendChild(dot);
         }
       }
@@ -322,7 +338,7 @@ function render(){
         pt=setTimeout(()=>{
           document.getElementById('mStart').value=`${String(zone.start).padStart(2,'0')}:00`;
           document.getElementById('mEnd').value=`${String(Math.min(zone.start+1,zone.end-1)).padStart(2,'0')}:00`;
-          modalDate=key; modalZone=zone;
+          modalDate=key;
           document.getElementById('mback').classList.add('open');
         },600);
       });
@@ -334,11 +350,10 @@ function render(){
     wrap.appendChild(row);
   });
 
-  // 시간축 — zoneWrap 높이 기반
+  // 시간축
   const axis=document.getElementById('timeAxis');
   axis.innerHTML='';
-  axis.style.height=totalH+'px';
-  axis.style.marginTop='32px';
+  axis.style.cssText=`height:${totalH}px;margin-top:34px;position:relative`;
   for(let h=6;h<=23;h++){
     const tick=document.createElement('div');
     tick.className='time-tick';
@@ -348,15 +363,25 @@ function render(){
   }
 }
 
-// ── Firebase ──
+// ── Firebase 세션 로드 ──
 onValue(ref(db,'bdh3_t/schedule/sessions'),snap=>{
   sessions=snap.val()||{};
   render();
 });
 
-// ── 타이머 UI ──
+// ── Firebase 목표 로드 (bdh3/db/_goals) ──
+onValue(ref(db,'bdh3/db/_goals'),snap=>{
+  const raw=snap.val()||{};
+  // 과목명 → 배열 보정
+  Object.keys(raw).forEach(k=>{
+    goals[k]=Array.isArray(raw[k])?raw[k]:Object.values(raw[k]);
+  });
+  render();
+});
+
+// ── 타이머 ──
 function updTimer(){
-  const el=timerRunning?tElapsed+Math.floor((Date.now()-tStart)/1000):tElapsed;
+  const el=tRunning?tElapsed+Math.floor((Date.now()-tStart)/1000):tElapsed;
   document.getElementById('ttime').textContent=fmtSec(el);
   const now=new Date();
   document.getElementById('timerZone').textContent=zoneName(now.getHours())+' 구역';
@@ -420,7 +445,7 @@ function renderPills(){
   Object.entries(SUBJ).forEach(([key,s])=>{
     const p=document.createElement('div');
     p.className='pill';
-    if(selSubj===key) p.style.cssText=`background:${s.bg};color:${s.color};border-color:${s.color}`;
+    if(selSubj===key)p.style.cssText=`background:${s.bg};color:${s.color};border-color:${s.color}`;
     p.textContent=s.label;
     p.onclick=()=>{selSubj=key;renderPills();updTimer();};
     w.appendChild(p);
@@ -451,7 +476,6 @@ document.getElementById('btnPause').onclick=pauseTimer;
 document.getElementById('btnStop').onclick=stopTimer;
 window.addEventListener('resize',render);
 
-// ── 초기화 ──
 renderPills();updTimer();
 </script>
 </body>
