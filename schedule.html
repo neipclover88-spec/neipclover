@@ -17,11 +17,11 @@
     --text: #f0f0f2;
     --text2: #9898a6;
     --text3: #55555f;
-    --accent: #7f77dd;
-    --accent-bg: rgba(127,119,221,0.15);
-    --accent-border: rgba(127,119,221,0.35);
-    --korean: #7f77dd;
-    --korean-bg: rgba(127,119,221,0.18);
+    --accent: #4f8ef7;
+    --accent-bg: rgba(79,142,247,0.15);
+    --accent-border: rgba(79,142,247,0.35);
+    --korean: #4f8ef7;
+    --korean-bg: rgba(79,142,247,0.18);
     --math: #1d9e75;
     --math-bg: rgba(29,158,117,0.18);
     --eng: #ef9f27;
@@ -486,7 +486,7 @@ const HOUR_START = 6;
 const HOUR_END = 23;
 const TOTAL_HOURS = HOUR_END - HOUR_START;
 const SUBJECTS = {
-  korean:  { label: '국어', color: '#7f77dd', bg: 'rgba(127,119,221,0.22)' },
+  korean:  { label: '국어', color: '#4f8ef7', bg: 'rgba(79,142,247,0.22)' },
   math:    { label: '수학', color: '#1d9e75', bg: 'rgba(29,158,117,0.22)' },
   eng:     { label: '영어', color: '#ef9f27', bg: 'rgba(239,159,39,0.22)' },
   social:  { label: '사회', color: '#378add', bg: 'rgba(55,138,221,0.22)' },
@@ -564,7 +564,7 @@ function calcColHeight() {
   const calPad = 8;
   const headerH = 28;
   const available = vh - topbarH - calPad - headerH;
-  colHeight = Math.max(available * 0.52, 280);
+  colHeight = Math.max(available * 0.72, 380);
 }
 
 // ── 시간축 렌더 ──
@@ -644,9 +644,27 @@ function renderCalendar() {
       const block = document.createElement('div');
       block.className = 'session-block' + (s.live ? ' live' : '');
       block.style.cssText = `top:${top}px;height:${height}px;background:${subj.bg};border-left:2.5px solid ${subj.color};`;
+      // 하루 누적 공부시간 계산 (같은 날, 같은 과목)
+      const dayAllSessions = sessions[dk] || {};
+      const dayTotalMin = Object.values(dayAllSessions)
+        .filter(x => x.subject === s.subject)
+        .reduce((acc, x) => {
+          const [xsh, xsm] = x.start.split(':').map(Number);
+          const [xeh, xem] = x.end.split(':').map(Number);
+          return acc + (xeh * 60 + xem) - (xsh * 60 + xsm);
+        }, 0);
+      // 목표: 과목별 하루 목표 180분 기준으로 진척도
+      const DAILY_GOAL_MIN = 120;
+      const progressPct = Math.min(100, Math.round(dayTotalMin / DAILY_GOAL_MIN * 100));
+      const barColor = progressPct >= 100 ? '#27c96e' : subj.color;
+
       block.innerHTML = `
         <div class="sb-label" style="color:${subj.color}">${subj.label}</div>
         ${height > 22 ? `<div class="sb-time" style="color:${subj.color}">${totalMin}분</div>` : ''}
+        ${height > 28 ? `
+        <div style="position:absolute;bottom:3px;left:3px;right:3px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${progressPct}%;background:${barColor};border-radius:2px;transition:width .3s;"></div>
+        </div>` : ''}
       `;
       block.addEventListener('click', (e) => {
         e.stopPropagation();
