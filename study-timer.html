@@ -1445,7 +1445,7 @@ function renderRecent(list) {
         <div class="s-dur">${fmtMin(mins)}</div>
         <div class="s-time">${fmtTime(s.endTime)}</div>
       </div>
-      <button class="session-del-btn" onclick="delSession('${todayStr()}','${s._key}',${s.durationSec})">×</button>
+      <button class="session-del-btn" onclick="delSession('${s.startTime ? ds(new Date(s.startTime)) : todayStr()}','${s._key}',${s.durationSec})">×</button>
     </div>`;
   }).join('');
 }
@@ -1494,6 +1494,7 @@ function startTimer() {
   timerTick = setInterval(() => {
     timerSec++;
     $('timerDigits').textContent = fmtSec(timerSec);
+    if (timerSec % 10 === 0) { updateGoalUI(); }
   }, 1000);
   schedLiveStart();
 }
@@ -1514,6 +1515,7 @@ function resumeTimer() {
   timerTick = setInterval(() => {
     timerSec++;
     $('timerDigits').textContent = fmtSec(timerSec);
+    if (timerSec % 10 === 0) { updateGoalUI(); }
   }, 1000);
 }
 async function handleStop() {
@@ -1537,8 +1539,10 @@ async function handleStop() {
 
 /* ── GOAL UI ── */
 function updateGoalUI() {
-  const pct = Math.min(100, Math.round((todayMins / (goalHours*60)) * 100));
-  $('todayVal').textContent = fmtMin(todayMins);
+  const liveMins = running ? timerSec / 60 : 0;
+  const totalMins = todayMins + liveMins;
+  const pct = Math.min(100, Math.round((totalMins / (goalHours*60)) * 100));
+  $('todayVal').textContent = fmtMin(Math.floor(totalMins));
   $('goalLbl').textContent  = `${goalHours}시간`;
   $('goalPct').textContent  = pct;
   $('goalFill').style.width = pct + '%';
