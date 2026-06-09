@@ -6,67 +6,83 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>연우 스케줄</title>
 <style>
-:root {
-  --bg:#0f0f11;--bg2:#17171a;--bg3:#1e1e22;--bg4:#26262b;
-  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
-  --text:#f0f0f2;--text2:#9898a6;--text3:#55555f;
+:root{
+  --bg:#0f0f11;--bg2:#17171a;--bg3:#1e1e22;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0f0f2;--text2:#9898a6;--text3:#44444e;
   --accent:#4f8ef7;--accent-bg:rgba(79,142,247,0.15);--accent-bd:rgba(79,142,247,0.4);
   --red:#e24b4a;
+  --pxh:44px; /* 1시간 픽셀 높이 */
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pretendard',sans-serif;overscroll-behavior:none}
 
+/* ── 상단 네비 ── */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px;border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:100;background:var(--bg)}
 .back-btn{font-size:18px;color:var(--text2);text-decoration:none}
 .topbar-title{font-size:15px;font-weight:600;margin-left:8px}
 .week-nav{background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:2px 6px}
 .week-label{font-size:12px;color:var(--text2);min-width:80px;text-align:center}
 
-/* 캘린더 */
-.cal-outer{display:flex;padding:6px 4px 0;gap:0}
-.time-axis{width:30px;flex-shrink:0;position:relative}
-.time-tick{position:absolute;right:4px;font-size:9px;color:var(--text3);line-height:1;transform:translateY(-50%);white-space:nowrap}
-.cal-inner{flex:1;min-width:0}
-.day-headers{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;margin-bottom:2px;height:32px}
-.dh{text-align:center;font-size:10px;color:var(--text2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-.dh .dn{font-size:13px;font-weight:500}
+/* ── 캘린더 ── */
+.cal-scroll{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.cal-inner{display:flex}
+
+/* 시간축 */
+.time-col{width:32px;flex-shrink:0;position:relative}
+.time-lbl{position:absolute;right:4px;font-size:9px;color:var(--text3);line-height:1;transform:translateY(-50%);white-space:nowrap;pointer-events:none}
+
+/* 요일 헤더 */
+.day-headers{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;position:sticky;top:0;z-index:50;background:var(--bg);padding:0 0 4px 0}
+.dh{text-align:center;font-size:10px;color:var(--text2);padding:4px 0 2px;line-height:1.3}
+.dh .dn{font-size:13px;font-weight:500;display:block;margin-top:1px}
 .dh.today{color:var(--accent)}
-.dh.today .dn{background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.dh.today .dn{background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
 
-/* 구역 */
-.zone-wrap{display:flex;flex-direction:column;gap:2px}
-.zone-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;border-radius:6px;overflow:hidden}
+/* 타임라인 그리드 */
+.tl-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;flex:1;position:relative}
+.tl-col{position:relative;border-left:0.5px solid var(--border)}
+.tl-col:first-child{border-left:none}
 
-/* 셀 */
-.zcell{padding:4px 3px;position:relative;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:0}
-.zcell.today-cell{outline:1.5px solid var(--accent-bd);outline-offset:-1px;border-radius:2px}
+/* 시간 수평선 */
+.h-line{position:absolute;left:0;right:0;height:0.5px;pointer-events:none}
+.h-line.major{background:rgba(255,255,255,0.07)}
+.h-line.minor{background:rgba(255,255,255,0.03)}
+.h-line.zone{background:rgba(255,255,255,0.18);height:1px}
 
-/* 세션 블록 — 목업 스타일 */
+/* 구역 배경 */
+.zone-bg{position:absolute;left:0;right:0;pointer-events:none}
 
-.sblock:active{opacity:0.7}
-.sblock.live{animation:pulse 1.5s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-.sblock-label{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;display:flex;align-items:baseline;gap:3px}
-.sblock-time{font-size:9px;font-weight:500;opacity:0.85}
-.sblock-bar{height:4px;border-radius:2px;overflow:hidden;margin-top:6px}
-.sblock-fill{height:100%;border-radius:2px;transition:width .4s}
-.sblock-handle{position:absolute;left:0;right:0;height:8px;cursor:ns-resize;z-index:10;display:flex;align-items:center;justify-content:center}
-.sblock-handle::after{content:'';width:20px;height:2px;border-radius:1px;background:rgba(255,255,255,0.3)}
-.sblock-handle.top{top:0}
-.sblock-handle.bottom{bottom:0}
-.sblock{border-radius:5px;padding:5px 6px 4px;cursor:grab;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box;position:relative}
+/* 현재시각 선 */
+.now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:30;pointer-events:none}
+.now-dot{position:absolute;left:-3px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
 
-/* 구분선 */
+/* 세션 블록 */
+.sblock{position:absolute;left:2px;right:2px;border-radius:4px;border-left:3px solid;overflow:hidden;cursor:grab;user-select:none;touch-action:none;z-index:10}
+.sblock.dragging{opacity:0.5;z-index:50;cursor:grabbing}
+.sblock-inner{padding:3px 5px 2px;height:100%}
+.sblock-label{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.sblock-time{font-size:9px;opacity:0.75;line-height:1.2}
+.sblock-bar-wrap{height:3px;border-radius:2px;overflow:hidden;margin-top:3px;background:rgba(0,0,0,0.2)}
+.sblock-bar-fill{height:100%;border-radius:2px}
+/* 리사이즈 핸들 */
+.resize-handle{position:absolute;left:0;right:0;height:8px;z-index:20;cursor:ns-resize;opacity:0}
+.resize-handle.top{top:0}
+.resize-handle.bot{bottom:0}
+
+/* 드래그 고스트 */
+.drag-ghost{position:fixed;pointer-events:none;z-index:999;border-radius:4px;border-left:3px solid;padding:4px 6px;font-size:10px;font-weight:700;opacity:0.9;box-shadow:0 4px 16px rgba(0,0,0,0.5)}
+
+/* ── 구분선 ── */
 .divider{display:flex;align-items:center;gap:8px;padding:10px 12px 6px}
 .divider span{font-size:11px;color:var(--text3);font-weight:500}
 .divider::after{content:'';flex:1;height:0.5px;background:var(--border)}
 
-/* 타이머 */
+/* ── 타이머 ── */
 .timer-sec{padding:0 10px 10px}
 .pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .pill{font-size:12px;padding:5px 12px;border-radius:99px;border:0.5px solid var(--border2);color:var(--text2);background:var(--bg2);cursor:pointer;transition:all .15s}
 .pill:active{transform:scale(.95)}
-.pill.sel-exercise{background:rgba(249,115,22,0.18);color:#f97316;border-color:#f97316}
 .timer-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:14px;padding:14px}
 .timer-status{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .zone-badge{font-size:11px;padding:3px 10px;border-radius:99px;background:var(--bg3);color:var(--text2);border:0.5px solid var(--border)}
@@ -84,12 +100,11 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .tbtn.stop{background:rgba(226,75,74,.12);border-color:rgba(226,75,74,.3);color:var(--red)}
 .tbtn:disabled{opacity:.35;pointer-events:none}
 
-/* 링크 */
+/* ── 링크 ── */
 .qlinks{display:flex;gap:8px;padding:0 10px 16px}
 .qlink{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text2);font-size:12px;text-decoration:none}
-.qlink:active{background:var(--bg3)}
 
-/* 모달 */
+/* ── 모달 ── */
 .mback{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:flex-end;justify-content:center}
 .mback.open{display:flex}
 .modal{background:var(--bg2);border-radius:16px 16px 0 0;border-top:0.5px solid var(--border2);padding:16px 16px 32px;width:100%;max-width:600px}
@@ -103,9 +118,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .mbtn{padding:12px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer}
 .mbtn.ok{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent)}
 
-.drag-ghost{position:fixed;z-index:500;pointer-events:none;opacity:0.85;border-radius:6px;padding:7px 8px 6px;font-size:12px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,0.4);transform:scale(1.05)}
-.zcell.drag-over{outline:2px solid var(--accent);outline-offset:-2px;border-radius:3px;background:rgba(79,142,247,0.08)}
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg4);color:var(--text);border:0.5px solid var(--border2);border-radius:99px;padding:8px 18px;font-size:13px;opacity:0;transition:all .25s;z-index:300;white-space:nowrap}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);color:var(--text);border:0.5px solid var(--border2);border-radius:99px;padding:8px 18px;font-size:13px;opacity:0;transition:all .25s;z-index:300;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
@@ -123,11 +136,17 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
   </div>
 </div>
 
-<div class="cal-outer">
-  <div class="time-axis" id="timeAxis"></div>
-  <div class="cal-inner">
-    <div class="day-headers" id="dayHeaders"></div>
-    <div class="zone-wrap" id="zoneWrap"></div>
+<!-- 요일 헤더 (시간축 너비 맞춤) -->
+<div style="display:flex;padding:0 4px">
+  <div style="width:32px;flex-shrink:0"></div>
+  <div class="day-headers" id="dayHeaders" style="flex:1"></div>
+</div>
+
+<!-- 타임라인 -->
+<div class="cal-scroll" id="calScroll">
+  <div class="cal-inner" style="padding:0 4px">
+    <div class="time-col" id="timeCol"></div>
+    <div class="tl-grid" id="tlGrid"></div>
   </div>
 </div>
 
@@ -153,7 +172,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
       </button>
     </div>
   </div>
-  <button onclick="openAddModal()" style="width:100%;margin-top:8px;padding:10px;background:var(--bg2);border:0.5px dashed var(--border2);border-radius:10px;color:var(--text2);font-size:12px;cursor:pointer;">+ 과거 세션 직접 추가</button>
+  <button onclick="openAddModal()" style="width:100%;margin-top:8px;padding:10px;background:var(--bg2);border:0.5px dashed var(--border2);border-radius:10px;color:var(--text2);font-size:12px;cursor:pointer">+ 과거 세션 직접 추가</button>
 </div>
 
 <div class="divider"><span>바로가기</span></div>
@@ -169,13 +188,12 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
   </a>
 </div>
 
+<!-- 세션 추가 모달 -->
 <div class="mback" id="mback">
   <div class="modal">
     <div class="mhandle"></div>
     <div class="mtitle">세션 추가</div>
-    <div class="mrow"><span class="mlbl">날짜</span>
-      <input type="date" id="mDate">
-    </div>
+    <div class="mrow"><span class="mlbl">날짜</span><input type="date" id="mDate"></div>
     <div class="mrow"><span class="mlbl">과목</span>
       <select id="mSubject">
         <option value="korean">국어</option><option value="math">수학</option>
@@ -196,7 +214,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, remove, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const FB = {
   apiKey:"AIzaSyC9QBrj_8YSvT1Nk7CsTPu_vKk-zetdmnU",
@@ -210,53 +228,57 @@ const FB = {
 const db = getDatabase(initializeApp(FB));
 
 // ── 상수 ──
-const SUBJ = {
-  korean:  {label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.18)',  dashKey:'국어'},
-  math:    {label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.18)',  dashKey:'수학'},
-  eng:     {label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.18)',  dashKey:'영어'},
-  social:  {label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.18)',  dashKey:'사회'},
-  science: {label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.18)', dashKey:'과학'},
-  exercise:{label:'운동', color:'#f97316', bg:'rgba(249,115,22,0.18)',  dashKey:null},
-};
-const ZONES = [
-  {key:'am',   hrs:5, start:6,  end:11, bg:'rgba(239,159,39,0.05)'},
-  {key:'noon', hrs:6, start:11, end:17, bg:'rgba(29,158,117,0.05)'},
-  {key:'pm',   hrs:6, start:17, end:23, bg:'rgba(120,100,220,0.05)'},
-];
-const TOTAL_HRS = 17;
+const H_START = 6, H_END = 23, TOTAL_H = H_END - H_START;
+const PX_PER_MIN = () => PX_PER_H / 60;
+let PX_PER_H = 44;
 const DAYS = ['일','월','화','수','목','금','토'];
+const SUBJ = {
+  korean:  {label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.18)', dashKey:'국어'},
+  math:    {label:'수학', color:'#1d9e75', bg:'rgba(29,158,117,0.18)', dashKey:'수학'},
+  eng:     {label:'영어', color:'#ef9f27', bg:'rgba(239,159,39,0.18)', dashKey:'영어'},
+  social:  {label:'사회', color:'#a855f7', bg:'rgba(168,85,247,0.18)', dashKey:'사회'},
+  science: {label:'과학', color:'#d4537e', bg:'rgba(212,83,126,0.18)', dashKey:'과학'},
+  exercise:{label:'운동', color:'#f97316', bg:'rgba(249,115,22,0.18)', dashKey:null},
+};
+// 구역: 배경색만 (11시, 17시 구분선)
+const ZONES = [
+  {start:6,  end:11, bg:'rgba(239,159,39,0.04)'},
+  {start:11, end:17, bg:'rgba(29,158,117,0.04)'},
+  {start:17, end:23, bg:'rgba(120,100,220,0.04)'},
+];
 
 // ── 상태 ──
 let weekOff=0, sessions={}, goals={};
 let tInterval=null, tStart=null, tElapsed=0, tRunning=false, tPaused=false;
-let selSubj=null, modalDate=null;
+let selSubj=null;
 
 // ── 유틸 ──
 function weekDates(off=0){
-  const t=new Date(),dow=t.getDay();
-  const mon=new Date(t);mon.setDate(t.getDate()-((dow+6)%7)+off*7);
+  const t=new Date(), dow=t.getDay();
+  const mon=new Date(t); mon.setDate(t.getDate()-((dow+6)%7)+off*7);
   return Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
 }
 function dk(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function isToday(d){const t=new Date();return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth()&&d.getDate()===t.getDate();}
+function toMin(timeStr){const[h,m]=timeStr.split(':').map(Number);return h*60+m;}
+function fromMin(totalMin){const h=Math.floor(totalMin/60),m=totalMin%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}
+function snap10(m){return Math.round(m/10)*10;}
+function minToPx(min){return(min-H_START*60)*PX_PER_MIN();}
+function pxToMin(px){return px/PX_PER_MIN()+H_START*60;}
+function clampMin(m){return Math.max(H_START*60, Math.min(H_END*60, m));}
 function zoneName(h){return h<11?'아침':h<17?'점심':'저녁';}
-function sesMin(s){const[sh,sm]=s.start.split(':').map(Number),[eh,em]=s.end.split(':').map(Number);return(eh*60+em)-(sh*60+sm);}
 function fmtSec(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;}
 function fmtMin(m){return m>=60?(m%60===0?`${m/60}h`:`${Math.floor(m/60)}h${m%60}m`):`${m}m`;}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
-
-// ── 목표 진척도 계산 (bdh3/db/_goals) ──
-function getGoalPct(subjKey) {
-  const g = goals[subjKey];
-  if (!g || !g.length) return null;
-  const arr = Array.isArray(g) ? g : Object.values(g);
-  const tot = arr.reduce((a,x)=>a+(Number(x.targetVal)||0),0);
-  const comp= arr.reduce((a,x)=>a+(Number(x.completedVal)||0),0);
-  if (!tot) return null;
-  return Math.min(100, Math.round(comp/tot*100));
+function getGoalPct(dashKey){
+  if(!dashKey||!goals[dashKey]) return null;
+  const arr=Array.isArray(goals[dashKey])?goals[dashKey]:Object.values(goals[dashKey]);
+  const tot=arr.reduce((a,x)=>a+(Number(x.targetVal)||0),0);
+  const comp=arr.reduce((a,x)=>a+(Number(x.completedVal)||0),0);
+  return tot>0?Math.min(100,Math.round(comp/tot*100)):null;
 }
 
-// ── 캘린더 렌더 ──
+// ── 렌더 ──
 function render(){
   const dates=weekDates(weekOff);
   const d0=dates[0],d6=dates[6];
@@ -273,253 +295,248 @@ function render(){
     hdr.appendChild(div);
   });
 
-  // 구역 행
-  const wrap=document.getElementById('zoneWrap');
-  wrap.innerHTML='';
-  const totalH=Math.max(window.innerHeight*0.85,400);
-
-  ZONES.forEach(zone=>{
-    const row=document.createElement('div');
-    row.className='zone-row';
-    const zoneH=Math.round(totalH*(zone.hrs/TOTAL_HRS));
-    row.style.cssText=`background:${zone.bg};height:${zoneH}px`;
-
-    dates.forEach(d=>{
-      const key=dk(d);
-      const cell=document.createElement('div');
-      cell.className='zcell'+(isToday(d)?' today-cell':'');
-
-      const daySes=Object.entries(sessions[key]||{})
-        .filter(([,s])=>{const h=parseInt(s.start);return h>=zone.start&&h<zone.end;});
-
-      daySes.forEach(([sid,s])=>{
-          const subj=SUBJ[s.subject]||SUBJ.korean;
-          const min=sesMin(s);
-
-          // 진척도: 대시보드 목표에서 가져옴
-          const goalPct = getGoalPct(subj.dashKey);
-          // 오늘 해당 과목 누적 시간 기반 진척도 (목표 없을 때 fallback: 120분 기준)
-          const dayTotal=Object.values(sessions[key]||{})
-            .filter(x=>x.subject===s.subject)
-            .reduce((a,x)=>a+sesMin(x),0);
-          const timePct=Math.min(100,Math.round(dayTotal/120*100));
-
-          const pct = goalPct !== null ? goalPct : timePct;
-          const barClr = pct>=100?'#27c96e':subj.color;
-
-          const block=document.createElement('div');
-          block.className='sblock'+(s.live?' live':'');
-          // 목업처럼 밝은 배경
-          block.style.cssText=`background:${subj.bg};`;
-          const fillClr = pct>=100 ? '#27c96e' : subj.color;
-          block.innerHTML=`
-            <div class="sblock-handle top" data-handle="top"></div>
-            <div class="sblock-label" style="color:${subj.color}">
-              ${subj.label}<span class="sblock-time">${fmtMin(min)}</span>
-            </div>
-            <div class="sblock-bar" style="background:rgba(255,255,255,0.1)">
-              <div class="sblock-fill" style="width:${pct}%;background:${fillClr}"></div>
-            </div>
-            <div class="sblock-handle bottom" data-handle="bottom"></div>`;
-
-          // ── 리사이즈 핸들 ──
-          ['top','bottom'].forEach(hType => {
-            const handle = block.querySelector(`.sblock-handle.${hType}`);
-            let resizing = false, startY = 0;
-            const origStart = s.start, origEnd = s.end;
-
-            handle.addEventListener('pointerdown', ev => {
-              ev.stopPropagation();
-              ev.preventDefault();
-              resizing = true;
-              startY = ev.clientY;
-              handle.setPointerCapture(ev.pointerId);
-            });
-
-            handle.addEventListener('pointermove', ev => {
-              if (!resizing) return;
-              ev.preventDefault();
-              const cellRect = cell.getBoundingClientRect();
-              const zoneMinutes = (zone.end - zone.start) * 60;
-              const pxPerMin = cellRect.height / zoneMinutes;
-              const deltaMin = Math.round((ev.clientY - startY) / pxPerMin / 10) * 10;
-
-              if (hType === 'top') {
-                const origStartMin = parseInt(s.start.split(':')[0])*60 + parseInt(s.start.split(':')[1]);
-                const newStartMin = Math.max(zone.start*60, Math.min(origStartMin + deltaMin, parseInt(s.end.split(':')[0])*60 + parseInt(s.end.split(':')[1]) - 10));
-                const nh = Math.floor(newStartMin/60), nm = newStartMin%60;
-                block.querySelector('.sblock-time').textContent = fmtMin((parseInt(s.end.split(':')[0])*60+parseInt(s.end.split(':')[1])) - newStartMin);
-                block._previewStart = `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
-              } else {
-                const origEndMin = parseInt(s.end.split(':')[0])*60 + parseInt(s.end.split(':')[1]);
-                const origStartMin2 = parseInt(s.start.split(':')[0])*60 + parseInt(s.start.split(':')[1]);
-                const newEndMin = Math.min(zone.end*60, Math.max(origEndMin + deltaMin, origStartMin2 + 10));
-                const nh = Math.floor(newEndMin/60), nm = newEndMin%60;
-                block.querySelector('.sblock-time').textContent = fmtMin(newEndMin - origStartMin2);
-                block._previewEnd = `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
-              }
-            });
-
-            handle.addEventListener('pointerup', ev => {
-              if (!resizing) return;
-              resizing = false;
-              const newStart = block._previewStart || s.start;
-              const newEnd   = block._previewEnd   || s.end;
-              if (newStart === s.start && newEnd === s.end) return;
-              const [sh2,sm2] = newStart.split(':').map(Number);
-              const [eh2,em2] = newEnd.split(':').map(Number);
-              remove(ref(db, `bdh3_t/schedule/sessions/${key}/${sid}`));
-              push(ref(db, `bdh3_t/schedule/sessions/${key}`), {
-                subject: s.subject, start: newStart, end: newEnd,
-                duration: (eh2*60+em2 - sh2*60-sm2)*60, memo: s.memo||''
-              });
-              toast(`${subj.label} ${newStart}~${newEnd}`);
-            });
-          });
-
-          block.addEventListener('click',e=>{
-            e.stopPropagation();
-            if(confirm(`세션 삭제?\n${subj.label} ${s.start}~${s.end}`))
-              remove(ref(db,`bdh3_t/schedule/sessions/${key}/${sid}`));
-          });
-
-          // ── 길게 눌러 드래그 이동 (10분 스냅) ──
-          let dragTimer=null, isDragging=false, ghost=null;
-          function snap10(totalMin){ return Math.round(totalMin/10)*10; }
-
-          block.addEventListener('pointerdown', e=>{
-            e.stopPropagation();
-            dragTimer = setTimeout(()=>{
-              isDragging = true;
-              block.style.opacity='0.35';
-              ghost = document.createElement('div');
-              ghost.className = 'drag-ghost';
-              ghost.style.cssText = `background:${subj.bg};color:${subj.color};min-width:70px;font-size:12px;font-weight:700;padding:6px 10px;border-left:3px solid ${subj.color};pointer-events:none`;
-              ghost.textContent = subj.label + ' ' + fmtMin(min);
-              document.body.appendChild(ghost);
-              ghost.style.left = (e.clientX - 35) + 'px';
-              ghost.style.top  = (e.clientY - 20) + 'px';
-            }, 500);
-          });
-
-          block.addEventListener('pointermove', e=>{
-            if(!isDragging) return;
-            e.preventDefault();
-            ghost.style.left = (e.clientX - 35) + 'px';
-            ghost.style.top  = (e.clientY - 20) + 'px';
-            document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
-            const el = document.elementFromPoint(e.clientX, e.clientY);
-            const tc = el?.closest('.zcell');
-            if(tc) tc.classList.add('drag-over');
-          });
-
-          block.addEventListener('pointerup', e=>{
-            clearTimeout(dragTimer);
-            if(!isDragging){ block.style.opacity=''; return; }
-            isDragging=false; block.style.opacity='1';
-            if(ghost){ghost.remove();ghost=null;}
-            document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
-
-            const el = document.elementFromPoint(e.clientX, e.clientY);
-            const targetCell = el?.closest('.zcell');
-            if(!targetCell) return;
-
-            // 타겟 구역 찾기
-            const targetRow = targetCell.closest('.zone-row');
-            if(!targetRow) return;
-            const allRows = [...document.querySelectorAll('.zone-row')];
-            const zoneIdx = allRows.indexOf(targetRow);
-            if(zoneIdx<0) return;
-            const targetZone = ZONES[zoneIdx];
-            if(!targetZone) return;
-
-            // 타겟 날짜 찾기
-            const allCells = [...targetRow.querySelectorAll('.zcell')];
-            const colIdx = allCells.indexOf(targetCell);
-            const targetDates = weekDates(weekOff);
-            if(colIdx<0||colIdx>=targetDates.length) return;
-            const targetDateKey = dk(targetDates[colIdx]);
-
-            // 셀 안 Y 위치 → 시간 계산 (10분 스냅)
-            const cellRect = targetCell.getBoundingClientRect();
-            const yRatio = Math.max(0, Math.min(1, (e.clientY - cellRect.top) / cellRect.height));
-            const zoneMinutes = (targetZone.end - targetZone.start) * 60;
-            const rawMin = targetZone.start * 60 + yRatio * zoneMinutes;
-            const snappedMin = snap10(rawMin);
-            const newStartH = Math.floor(snappedMin / 60);
-            const newStartM = snappedMin % 60;
-            const durMin = sesMin(s);
-            const endTotalMin = Math.min(snappedMin + durMin, targetZone.end * 60);
-            const newEndH = Math.floor(endTotalMin / 60);
-            const newEndM = endTotalMin % 60;
-
-            const newStart = `${String(newStartH).padStart(2,'0')}:${String(newStartM).padStart(2,'0')}`;
-            const newEnd   = `${String(newEndH).padStart(2,'0')}:${String(newEndM).padStart(2,'0')}`;
-
-            // 같은 위치면 이동 안 함
-            if(targetDateKey===key && newStart===s.start) return;
-
-            remove(ref(db,`bdh3_t/schedule/sessions/${key}/${sid}`));
-            push(ref(db,`bdh3_t/schedule/sessions/${targetDateKey}`),{
-              subject:s.subject, start:newStart, end:newEnd,
-              duration:s.duration||0, memo:s.memo||''
-            });
-            toast(`${subj.label} → ${targetDateKey.slice(5)} ${newStart}`);
-          });
-
-          block.addEventListener('pointercancel',()=>{
-            clearTimeout(dragTimer); isDragging=false; block.style.opacity='1';
-            if(ghost){ghost.remove();ghost=null;}
-            document.querySelectorAll('.zcell').forEach(c=>c.classList.remove('drag-over'));
-          });
-          block.style.touchAction='none';
-
-          cell.appendChild(block);
-      });
-
-      // 오늘 현재 구역 빨간점
-      if(isToday(d)){
-        const now=new Date();
-        if(now.getHours()>=zone.start&&now.getHours()<zone.end){
-          const dot=document.createElement('div');
-          dot.style.cssText='position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:#e24b4a;pointer-events:none';
-          cell.appendChild(dot);
-        }
-      }
-
-
-
-      row.appendChild(cell);
-    });
-    wrap.appendChild(row);
-  });
+  const totalPx = TOTAL_H * PX_PER_H;
 
   // 시간축
-  const axis=document.getElementById('timeAxis');
-  axis.innerHTML='';
-  axis.style.cssText=`height:${totalH}px;margin-top:34px;position:relative`;
-  for(let h=6;h<=23;h++){
-    const tick=document.createElement('div');
-    tick.className='time-tick';
-    tick.style.top=((h-6)/TOTAL_HRS*100)+'%';
-    tick.textContent=h+'시';
-    axis.appendChild(tick);
+  const tc=document.getElementById('timeCol');
+  tc.innerHTML=''; tc.style.height=totalPx+'px';
+  for(let h=H_START;h<=H_END;h++){
+    const lbl=document.createElement('div');
+    lbl.className='time-lbl';
+    lbl.style.top=((h-H_START)*PX_PER_H)+'px';
+    lbl.textContent=h+'시';
+    tc.appendChild(lbl);
   }
+
+  // 타임라인 그리드
+  const grid=document.getElementById('tlGrid');
+  grid.innerHTML=''; grid.style.height=totalPx+'px';
+
+  dates.forEach((d,di)=>{
+    const col=document.createElement('div');
+    col.className='tl-col';
+    col.style.height=totalPx+'px';
+
+    // 구역 배경 + 구분선
+    ZONES.forEach(z=>{
+      const bg=document.createElement('div');
+      bg.className='zone-bg';
+      bg.style.cssText=`top:${(z.start-H_START)*PX_PER_H}px;height:${(z.end-z.start)*PX_PER_H}px;background:${z.bg}`;
+      col.appendChild(bg);
+    });
+
+    // 시간 눈금선
+    for(let h=H_START;h<=H_END;h++){
+      const line=document.createElement('div');
+      line.className='h-line '+(h===11||h===17?'zone':h%1===0?'major':'minor');
+      line.style.top=((h-H_START)*PX_PER_H)+'px';
+      col.appendChild(line);
+      // 30분 보조선
+      if(h<H_END){
+        const half=document.createElement('div');
+        half.className='h-line minor';
+        half.style.top=((h-H_START)*PX_PER_H+PX_PER_H/2)+'px';
+        col.appendChild(half);
+      }
+    }
+
+    // 현재 시각선
+    if(isToday(d)){
+      const now=new Date();
+      const nowMin=now.getHours()*60+now.getMinutes();
+      if(nowMin>=H_START*60&&nowMin<=H_END*60){
+        const nl=document.createElement('div');
+        nl.className='now-line';
+        nl.style.top=minToPx(nowMin)+'px';
+        nl.innerHTML='<div class="now-dot"></div>';
+        col.appendChild(nl);
+      }
+    }
+
+    // 세션 블록
+    const dateKey=dk(d);
+    Object.entries(sessions[dateKey]||{}).forEach(([sid,s])=>{
+      const subj=SUBJ[s.subject]||SUBJ.korean;
+      const startMin=toMin(s.start), endMin=toMin(s.end);
+      if(endMin<=H_START*60||startMin>=H_END*60) return;
+      const top=minToPx(Math.max(startMin,H_START*60));
+      const bot=minToPx(Math.min(endMin,H_END*60));
+      const height=Math.max(bot-top,14);
+      const durMin=endMin-startMin;
+
+      const goalPct=getGoalPct(subj.dashKey);
+      const dayTotal=Object.values(sessions[dateKey]||{})
+        .filter(x=>x.subject===s.subject)
+        .reduce((a,x)=>a+(toMin(x.end)-toMin(x.start)),0);
+      const pct=goalPct!==null?goalPct:Math.min(100,Math.round(dayTotal/120*100));
+      const fillClr=pct>=100?'#27c96e':subj.color;
+
+      const block=document.createElement('div');
+      block.className='sblock';
+      block.style.cssText=`top:${top}px;height:${height}px;background:${subj.bg};border-color:${subj.color}`;
+      block.innerHTML=`
+        <div class="resize-handle top" data-type="top"></div>
+        <div class="sblock-inner">
+          <div class="sblock-label" style="color:${subj.color}">${subj.label} <span style="font-weight:400;font-size:9px">${fmtMin(durMin)}</span></div>
+          ${height>22?`<div class="sblock-bar-wrap"><div class="sblock-bar-fill" style="width:${pct}%;background:${fillClr}"></div></div>`:''}
+        </div>
+        <div class="resize-handle bot" data-type="bot"></div>`;
+
+      // 삭제 (탭)
+      block.querySelector('.sblock-inner').addEventListener('click', e=>{
+        e.stopPropagation();
+        if(confirm(`${subj.label} ${s.start}~${s.end}\n삭제할까요?`))
+          remove(ref(db,`bdh3_t/schedule/sessions/${dateKey}/${sid}`));
+      });
+
+      // ── 드래그 이동 ──
+      let dragState=null, ghost=null;
+      block.addEventListener('pointerdown', e=>{
+        if(e.target.classList.contains('resize-handle')) return;
+        e.preventDefault(); e.stopPropagation();
+        const rect=col.getBoundingClientRect();
+        const offsetY=e.clientY-rect.top-top;
+        dragState={offsetY, sid, dateKey, startMin, endMin, durMin, colIdx:di};
+
+        const timer=setTimeout(()=>{
+          block.classList.add('dragging');
+          ghost=document.createElement('div');
+          ghost.className='drag-ghost';
+          ghost.style.cssText=`background:${subj.bg};border-color:${subj.color};color:${subj.color};width:80px`;
+          ghost.textContent=`${subj.label} ${fmtMin(durMin)}`;
+          document.body.appendChild(ghost);
+          ghost.style.left=(e.clientX-40)+'px';
+          ghost.style.top=(e.clientY-16)+'px';
+          dragState.active=true;
+        }, 300);
+        dragState.timer=timer;
+      });
+
+      block.addEventListener('pointermove', e=>{
+        if(!dragState?.active){return;}
+        e.preventDefault();
+        ghost.style.left=(e.clientX-40)+'px';
+        ghost.style.top=(e.clientY-16)+'px';
+
+        // 어느 열인지 계산
+        const gridRect=grid.getBoundingClientRect();
+        const colW=gridRect.width/7;
+        const newColIdx=Math.max(0,Math.min(6,Math.floor((e.clientX-gridRect.left)/colW)));
+        const colTop=gridRect.top;
+        const relY=e.clientY-colTop-dragState.offsetY;
+        const rawMin=pxToMin(relY);
+        const snapped=snap10(rawMin);
+        const newStart=clampMin(snapped);
+        const newEnd=clampMin(snapped+dragState.durMin);
+
+        dragState.newColIdx=newColIdx;
+        dragState.newStart=newStart;
+        dragState.newEnd=newEnd;
+
+        // 미리보기
+        const previewTop=minToPx(newStart);
+        block.style.top=previewTop+'px';
+        ghost.textContent=`${subj.label} ${fromMin(newStart)}`;
+      });
+
+      block.addEventListener('pointerup', e=>{
+        if(!dragState) return;
+        clearTimeout(dragState.timer);
+        block.classList.remove('dragging');
+        if(ghost){ghost.remove();ghost=null;}
+        if(!dragState.active){dragState=null;return;}
+
+        const {newColIdx, newStart, newEnd, sid, dateKey}=dragState;
+        dragState=null;
+
+        if(newStart===undefined) return;
+        const targetDate=dk(weekDates(weekOff)[newColIdx]);
+        const ns=fromMin(newStart), ne=fromMin(newEnd);
+
+        remove(ref(db,`bdh3_t/schedule/sessions/${dateKey}/${sid}`));
+        push(ref(db,`bdh3_t/schedule/sessions/${targetDate}`),{
+          subject:s.subject, start:ns, end:ne,
+          duration:(newEnd-newStart)*60, memo:s.memo||''
+        });
+        toast(`${subj.label} → ${ns}`);
+      });
+
+      block.addEventListener('pointercancel',()=>{
+        if(dragState){clearTimeout(dragState.timer);dragState=null;}
+        block.classList.remove('dragging');
+        if(ghost){ghost.remove();ghost=null;}
+        block.style.top=top+'px';
+      });
+      block.setPointerCapture && block.addEventListener('gotpointercapture',()=>{});
+
+      // ── 리사이즈 ──
+      ['top','bot'].forEach(hType=>{
+        const handle=block.querySelector(`.resize-handle.${hType}`);
+        let rsState=null;
+        handle.addEventListener('pointerdown',e=>{
+          e.preventDefault(); e.stopPropagation();
+          handle.setPointerCapture(e.pointerId);
+          rsState={startY:e.clientY, origStart:startMin, origEnd:endMin};
+        });
+        handle.addEventListener('pointermove',e=>{
+          if(!rsState) return;
+          e.preventDefault();
+          const deltaMin=snap10((e.clientY-rsState.startY)/PX_PER_MIN());
+          let ns=rsState.origStart, ne=rsState.origEnd;
+          if(hType==='top'){
+            ns=clampMin(Math.min(rsState.origStart+deltaMin, rsState.origEnd-10));
+          } else {
+            ne=clampMin(Math.max(rsState.origEnd+deltaMin, rsState.origStart+10));
+          }
+          const newTop=minToPx(ns);
+          const newH=Math.max(minToPx(ne)-newTop,14);
+          block.style.top=newTop+'px';
+          block.style.height=newH+'px';
+          const lbl=block.querySelector('.sblock-label');
+          if(lbl) lbl.innerHTML=`${subj.label} <span style="font-weight:400;font-size:9px">${fmtMin(ne-ns)}</span>`;
+          rsState._ns=ns; rsState._ne=ne;
+        });
+        handle.addEventListener('pointerup',e=>{
+          if(!rsState) return;
+          const ns=rsState._ns??startMin, ne=rsState._ne??endMin;
+          rsState=null;
+          if(ns===startMin&&ne===endMin) return;
+          remove(ref(db,`bdh3_t/schedule/sessions/${dateKey}/${sid}`));
+          push(ref(db,`bdh3_t/schedule/sessions/${dateKey}`),{
+            subject:s.subject, start:fromMin(ns), end:fromMin(ne),
+            duration:(ne-ns)*60, memo:s.memo||''
+          });
+          toast(`${subj.label} ${fromMin(ns)}~${fromMin(ne)}`);
+        });
+      });
+
+      col.appendChild(block);
+    });
+
+    grid.appendChild(col);
+  });
+
+  // 현재 시각선 1분마다 갱신
+  clearInterval(window._nowTimer);
+  window._nowTimer=setInterval(()=>{
+    document.querySelectorAll('.now-line').forEach(el=>el.remove());
+    const todayCol=document.querySelectorAll('.tl-col')[weekDates(weekOff).findIndex(d=>isToday(d))];
+    if(!todayCol) return;
+    const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+    if(nowMin>=H_START*60&&nowMin<=H_END*60){
+      const nl=document.createElement('div');
+      nl.className='now-line'; nl.style.top=minToPx(nowMin)+'px';
+      nl.innerHTML='<div class="now-dot"></div>';
+      todayCol.appendChild(nl);
+    }
+  },60000);
 }
 
-// ── Firebase 세션 로드 ──
-onValue(ref(db,'bdh3_t/schedule/sessions'),snap=>{
-  sessions=snap.val()||{};
-  render();
-});
-
-// ── Firebase 목표 로드 (bdh3/db/_goals) ──
+// ── Firebase ──
+onValue(ref(db,'bdh3_t/schedule/sessions'),snap=>{sessions=snap.val()||{};render();});
 onValue(ref(db,'bdh3/db/_goals'),snap=>{
   const raw=snap.val()||{};
-  // 과목명 → 배열 보정
-  Object.keys(raw).forEach(k=>{
-    goals[k]=Array.isArray(raw[k])?raw[k]:Object.values(raw[k]);
-  });
+  Object.keys(raw).forEach(k=>{goals[k]=Array.isArray(raw[k])?raw[k]:Object.values(raw[k]);});
   render();
 });
 
@@ -570,7 +587,8 @@ function stopTimer(){
   const now=new Date(),key=dk(now);
   const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');
   push(ref(db,`bdh3_t/schedule/sessions/${key}`),{
-    subject:selSubj,start:window._lsTime||`${hh}:${mm}`,end:`${hh}:${mm}`,duration:total,memo:''
+    subject:selSubj, start:window._lsTime||`${hh}:${mm}`, end:`${hh}:${mm}`,
+    duration:total, memo:''
   });
   toast(`${SUBJ[selSubj].label} ${Math.floor(total/60)}분 기록 완료`);
   resetTimer();
@@ -583,13 +601,13 @@ function resetTimer(){
   updTimer();
 }
 
-// ── 과목 필 ──
+// ── 필 ──
 function renderPills(){
   const w=document.getElementById('pills');w.innerHTML='';
   Object.entries(SUBJ).forEach(([key,s])=>{
     const p=document.createElement('div');
     p.className='pill';
-    if(selSubj===key)p.style.cssText=`background:${s.bg};color:${s.color};border-color:${s.color}`;
+    if(selSubj===key) p.style.cssText=`background:${s.bg};color:${s.color};border-color:${s.color}`;
     p.textContent=s.label;
     p.onclick=()=>{selSubj=key;renderPills();updTimer();};
     w.appendChild(p);
@@ -597,19 +615,12 @@ function renderPills(){
 }
 
 // ── 모달 ──
-document.getElementById('mCancel').onclick=()=>document.getElementById('mback').classList.remove('open');
-// 모달 열 때 날짜 초기화
-function openAddModal(dateKey){
-  const d=dateKey||dk(new Date());
-  document.getElementById('mDate').value=d;
+window.openAddModal=function(dateStr){
+  document.getElementById('mDate').value=dateStr||dk(new Date());
   document.getElementById('mback').classList.add('open');
-}
+};
+document.getElementById('mCancel').onclick=()=>document.getElementById('mback').classList.remove('open');
 document.getElementById('mback').onclick=e=>{if(e.target===document.getElementById('mback'))document.getElementById('mback').classList.remove('open');};
-// 모달 열릴 때 오늘 날짜 기본값
-document.querySelector('button[onclick*="mback"]')?.addEventListener('click',()=>{
-  const today=new Date();
-  document.getElementById('mDate').value=dk(today);
-});
 document.getElementById('mConfirm').onclick=()=>{
   const dateVal=document.getElementById('mDate').value||dk(new Date());
   const subj=document.getElementById('mSubject').value;
@@ -624,7 +635,7 @@ document.getElementById('mConfirm').onclick=()=>{
   toast('세션이 추가되었습니다');
 };
 
-// ── 네비 / 버튼 ──
+// ── 네비 ──
 document.getElementById('prevWeek').onclick=()=>{weekOff--;render();};
 document.getElementById('nextWeek').onclick=()=>{weekOff++;render();};
 document.getElementById('btnStart').onclick=()=>{if(tPaused)resumeTimer();else startTimer();};
@@ -632,7 +643,17 @@ document.getElementById('btnPause').onclick=pauseTimer;
 document.getElementById('btnStop').onclick=stopTimer;
 window.addEventListener('resize',render);
 
+// ── 스크롤 오늘 시각으로 ──
+function scrollToNow(){
+  const scr=document.getElementById('calScroll');
+  const now=new Date();
+  const nowMin=now.getHours()*60+now.getMinutes();
+  const px=minToPx(nowMin)-window.innerHeight*0.3;
+  scr.scrollTop=Math.max(0,px);
+}
+
 renderPills();updTimer();
+setTimeout(scrollToNow,100);
 </script>
 </body>
 </html>
