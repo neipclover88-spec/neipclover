@@ -42,7 +42,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .zcell.today-cell{outline:1.5px solid var(--accent-bd);outline-offset:-1px;border-radius:2px}
 
 /* 세션 블록 — 목업 스타일 */
-.sblock{border-radius:5px;padding:5px 6px 4px;cursor:pointer;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box}
+
 .sblock:active{opacity:0.7}
 .sblock.live{animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
@@ -50,6 +50,11 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .sblock-time{font-size:9px;font-weight:500;opacity:0.85}
 .sblock-bar{height:4px;border-radius:2px;overflow:hidden;margin-top:6px}
 .sblock-fill{height:100%;border-radius:2px;transition:width .4s}
+.sblock-handle{position:absolute;left:0;right:0;height:8px;cursor:ns-resize;z-index:10;display:flex;align-items:center;justify-content:center}
+.sblock-handle::after{content:'';width:20px;height:2px;border-radius:1px;background:rgba(255,255,255,0.3)}
+.sblock-handle.top{top:0}
+.sblock-handle.bottom{bottom:0}
+.sblock{border-radius:5px;padding:5px 6px 4px;cursor:grab;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box;position:relative}
 
 /* 구분선 */
 .divider{display:flex;align-items:center;gap:8px;padding:10px 12px 6px}
@@ -308,12 +313,69 @@ function render(){
           block.style.cssText=`background:${subj.bg};`;
           const fillClr = pct>=100 ? '#27c96e' : subj.color;
           block.innerHTML=`
+            <div class="sblock-handle top" data-handle="top"></div>
             <div class="sblock-label" style="color:${subj.color}">
               ${subj.label}<span class="sblock-time">${fmtMin(min)}</span>
             </div>
             <div class="sblock-bar" style="background:rgba(255,255,255,0.1)">
               <div class="sblock-fill" style="width:${pct}%;background:${fillClr}"></div>
-            </div>`;
+            </div>
+            <div class="sblock-handle bottom" data-handle="bottom"></div>`;
+
+          // ── 리사이즈 핸들 ──
+          ['top','bottom'].forEach(hType => {
+            const handle = block.querySelector(`.sblock-handle.${hType}`);
+            let resizing = false, startY = 0;
+            const origStart = s.start, origEnd = s.end;
+
+            handle.addEventListener('pointerdown', ev => {
+              ev.stopPropagation();
+              ev.preventDefault();
+              resizing = true;
+              startY = ev.clientY;
+              handle.setPointerCapture(ev.pointerId);
+            });
+
+            handle.addEventListener('pointermove', ev => {
+              if (!resizing) return;
+              ev.preventDefault();
+              const cellRect = cell.getBoundingClientRect();
+              const zoneMinutes = (zone.end - zone.start) * 60;
+              const pxPerMin = cellRect.height / zoneMinutes;
+              const deltaMin = Math.round((ev.clientY - startY) / pxPerMin / 10) * 10;
+
+              if (hType === 'top') {
+                const origStartMin = parseInt(s.start.split(':')[0])*60 + parseInt(s.start.split(':')[1]);
+                const newStartMin = Math.max(zone.start*60, Math.min(origStartMin + deltaMin, parseInt(s.end.split(':')[0])*60 + parseInt(s.end.split(':')[1]) - 10));
+                const nh = Math.floor(newStartMin/60), nm = newStartMin%60;
+                block.querySelector('.sblock-time').textContent = fmtMin((parseInt(s.end.split(':')[0])*60+parseInt(s.end.split(':')[1])) - newStartMin);
+                block._previewStart = `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
+              } else {
+                const origEndMin = parseInt(s.end.split(':')[0])*60 + parseInt(s.end.split(':')[1]);
+                const origStartMin2 = parseInt(s.start.split(':')[0])*60 + parseInt(s.start.split(':')[1]);
+                const newEndMin = Math.min(zone.end*60, Math.max(origEndMin + deltaMin, origStartMin2 + 10));
+                const nh = Math.floor(newEndMin/60), nm = newEndMin%60;
+                block.querySelector('.sblock-time').textContent = fmtMin(newEndMin - origStartMin2);
+                block._previewEnd = `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
+              }
+            });
+
+            handle.addEventListener('pointerup', ev => {
+              if (!resizing) return;
+              resizing = false;
+              const newStart = block._previewStart || s.start;
+              const newEnd   = block._previewEnd   || s.end;
+              if (newStart === s.start && newEnd === s.end) return;
+              const [sh2,sm2] = newStart.split(':').map(Number);
+              const [eh2,em2] = newEnd.split(':').map(Number);
+              remove(ref(db, `bdh3_t/schedule/sessions/${key}/${sid}`));
+              push(ref(db, `bdh3_t/schedule/sessions/${key}`), {
+                subject: s.subject, start: newStart, end: newEnd,
+                duration: (eh2*60+em2 - sh2*60-sm2)*60, memo: s.memo||''
+              });
+              toast(`${subj.label} ${newStart}~${newEnd}`);
+            });
+          });
 
           block.addEventListener('click',e=>{
             e.stopPropagation();
@@ -332,7 +394,7 @@ function render(){
               block.style.opacity='0.35';
               ghost = document.createElement('div');
               ghost.className = 'drag-ghost';
-              ghost.style.cssText = `background:${subj.bg};color:${subj.color};min-width:70px;font-size:12px;font-weight:700;padding:6px 10px;border-left:3px solid ${subj.color}`;
+              ghost.style.cssText = `background:${subj.bg};color:${subj.color};min-width:70px;font-size:12px;font-weight:700;padding:6px 10px;border-left:3px solid ${subj.color};pointer-events:none`;
               ghost.textContent = subj.label + ' ' + fmtMin(min);
               document.body.appendChild(ghost);
               ghost.style.left = (e.clientX - 35) + 'px';
