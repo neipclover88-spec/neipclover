@@ -40,7 +40,6 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 /* 셀 */
 .zcell{padding:4px 3px;position:relative;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-height:0}
 .zcell.today-cell{outline:1.5px solid var(--accent-bd);outline-offset:-1px;border-radius:2px}
-.zcell-hint{font-size:8px;color:var(--text3);text-align:center;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);line-height:1.7;pointer-events:none;white-space:pre}
 
 /* 세션 블록 — 목업 스타일 */
 .sblock{border-radius:6px;padding:7px 8px 6px;cursor:pointer;width:100%;min-width:0;flex-shrink:0;border:none;box-sizing:border-box}
@@ -92,7 +91,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .mtitle{font-size:14px;font-weight:600;margin-bottom:14px}
 .mrow{display:flex;gap:8px;margin-bottom:10px;align-items:center}
 .mlbl{font-size:12px;color:var(--text2);width:40px;flex-shrink:0}
-.modal select,.modal input[type=time],.modal input[type=text]{flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;padding:8px 10px;outline:none;-webkit-appearance:none}
+.modal select,.modal input[type=time],.modal input[type=text],.modal input[type=date]{flex:1;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;padding:8px 10px;outline:none;-webkit-appearance:none}
 .modal select option{background:var(--bg3)}
 .mbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
 .mbtn{padding:12px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer}
@@ -148,6 +147,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
       </button>
     </div>
   </div>
+  <button onclick="openAddModal()" style="width:100%;margin-top:8px;padding:10px;background:var(--bg2);border:0.5px dashed var(--border2);border-radius:10px;color:var(--text2);font-size:12px;cursor:pointer;">+ 과거 세션 직접 추가</button>
 </div>
 
 <div class="divider"><span>바로가기</span></div>
@@ -167,6 +167,9 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
   <div class="modal">
     <div class="mhandle"></div>
     <div class="mtitle">세션 추가</div>
+    <div class="mrow"><span class="mlbl">날짜</span>
+      <input type="date" id="mDate">
+    </div>
     <div class="mrow"><span class="mlbl">과목</span>
       <select id="mSubject">
         <option value="korean">국어</option><option value="math">수학</option>
@@ -266,7 +269,7 @@ function render(){
   // 구역 행
   const wrap=document.getElementById('zoneWrap');
   wrap.innerHTML='';
-  const totalH=Math.max(window.innerHeight*0.62,320);
+  const totalH=Math.max(window.innerHeight*0.85,400);
 
   ZONES.forEach(zone=>{
     const row=document.createElement('div');
@@ -282,13 +285,7 @@ function render(){
       const daySes=Object.entries(sessions[key]||{})
         .filter(([,s])=>{const h=parseInt(s.start);return h>=zone.start&&h<zone.end;});
 
-      if(daySes.length===0){
-        const hint=document.createElement('div');
-        hint.className='zcell-hint';
-        hint.textContent='길게 눌러\n추가';
-        cell.appendChild(hint);
-      } else {
-        daySes.forEach(([sid,s])=>{
+      daySes.forEach(([sid,s])=>{
           const subj=SUBJ[s.subject]||SUBJ.korean;
           const min=sesMin(s);
 
@@ -411,8 +408,7 @@ function render(){
           block.style.touchAction='none';
 
           cell.appendChild(block);
-        });
-      }
+      });
 
       // 오늘 현재 구역 빨간점
       if(isToday(d)){
@@ -424,18 +420,7 @@ function render(){
         }
       }
 
-      // 길게 누르기
-      let pt=null;
-      cell.addEventListener('pointerdown',()=>{
-        pt=setTimeout(()=>{
-          document.getElementById('mStart').value=`${String(zone.start).padStart(2,'0')}:00`;
-          document.getElementById('mEnd').value=`${String(Math.min(zone.start+1,zone.end-1)).padStart(2,'0')}:00`;
-          modalDate=key;
-          document.getElementById('mback').classList.add('open');
-        },600);
-      });
-      cell.addEventListener('pointerup',()=>clearTimeout(pt));
-      cell.addEventListener('pointerleave',()=>clearTimeout(pt));
+
 
       row.appendChild(cell);
     });
@@ -546,15 +531,27 @@ function renderPills(){
 
 // ── 모달 ──
 document.getElementById('mCancel').onclick=()=>document.getElementById('mback').classList.remove('open');
+// 모달 열 때 날짜 초기화
+function openAddModal(dateKey){
+  const d=dateKey||dk(new Date());
+  document.getElementById('mDate').value=d;
+  document.getElementById('mback').classList.add('open');
+}
 document.getElementById('mback').onclick=e=>{if(e.target===document.getElementById('mback'))document.getElementById('mback').classList.remove('open');};
+// 모달 열릴 때 오늘 날짜 기본값
+document.querySelector('button[onclick*="mback"]')?.addEventListener('click',()=>{
+  const today=new Date();
+  document.getElementById('mDate').value=dk(today);
+});
 document.getElementById('mConfirm').onclick=()=>{
+  const dateVal=document.getElementById('mDate').value||dk(new Date());
   const subj=document.getElementById('mSubject').value;
   const s=document.getElementById('mStart').value;
   const e=document.getElementById('mEnd').value;
   const memo=document.getElementById('mMemo').value;
   if(!s||!e||s>=e){toast('시간을 확인하세요');return;}
   const[sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number);
-  push(ref(db,`bdh3_t/schedule/sessions/${modalDate}`),{subject:subj,start:s,end:e,duration:(eh*60+em-sh*60-sm)*60,memo});
+  push(ref(db,`bdh3_t/schedule/sessions/${dateVal}`),{subject:subj,start:s,end:e,duration:(eh*60+em-sh*60-sm)*60,memo});
   document.getElementById('mback').classList.remove('open');
   document.getElementById('mMemo').value='';
   toast('세션이 추가되었습니다');
