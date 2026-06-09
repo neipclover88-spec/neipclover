@@ -25,7 +25,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .week-label{font-size:12px;color:var(--text2);min-width:80px;text-align:center}
 
 /* ── 캘린더 ── */
-.cal-scroll{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.cal-scroll{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;flex:1}
 .cal-inner{display:flex}
 
 /* 시간축 */
@@ -41,7 +41,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 
 /* 타임라인 그리드 */
 .tl-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;flex:1;position:relative}
-.tl-col{position:relative;border-left:0.5px solid var(--border)}
+.tl-col{position:relative;border-left:0.5px solid rgba(255,255,255,0.12)}
 .tl-col:first-child{border-left:none}
 
 /* 시간 수평선 */
@@ -230,7 +230,14 @@ const db = getDatabase(initializeApp(FB));
 // ── 상수 ──
 const H_START = 6, H_END = 23, TOTAL_H = H_END - H_START;
 const PX_PER_MIN = () => PX_PER_H / 60;
-let PX_PER_H = 44;
+// 화면 높이에서 상단 UI 빼고 타임라인이 꽉 차도록
+function calcPxPerH(){
+  const topbarH = document.querySelector('.topbar')?.offsetHeight||48;
+  const hdrH = document.getElementById('dayHeaders')?.offsetHeight||36;
+  const avail = window.innerHeight - topbarH - hdrH - 8;
+  return Math.max(24, Math.floor(avail / TOTAL_H));
+}
+let PX_PER_H = 28;
 const DAYS = ['일','월','화','수','목','금','토'];
 const SUBJ = {
   korean:  {label:'국어', color:'#4f8ef7', bg:'rgba(79,142,247,0.18)', dashKey:'국어'},
@@ -280,6 +287,7 @@ function getGoalPct(dashKey){
 
 // ── 렌더 ──
 function render(){
+  PX_PER_H = calcPxPerH();
   const dates=weekDates(weekOff);
   const d0=dates[0],d6=dates[6];
   document.getElementById('weekLabel').textContent=
@@ -390,123 +398,114 @@ function render(){
       });
 
       // ── 드래그 이동 ──
-      let dragState=null, ghost=null;
+      let dragging=false, dragTimer=null, ghost=null, dragOffsetY=0;
+      let dragNewStart=startMin, dragNewEnd=endMin, dragNewCol=di;
+
       block.addEventListener('pointerdown', e=>{
         if(e.target.classList.contains('resize-handle')) return;
         e.preventDefault(); e.stopPropagation();
-        const rect=col.getBoundingClientRect();
-        const offsetY=e.clientY-rect.top-top;
-        dragState={offsetY, sid, dateKey, startMin, endMin, durMin, colIdx:di};
-
-        const timer=setTimeout(()=>{
+        block.setPointerCapture(e.pointerId);
+        dragOffsetY = e.clientY - col.getBoundingClientRect().top - top;
+        dragNewStart=startMin; dragNewEnd=endMin; dragNewCol=di;
+        dragTimer = setTimeout(()=>{
+          dragging=true;
           block.classList.add('dragging');
           ghost=document.createElement('div');
           ghost.className='drag-ghost';
-          ghost.style.cssText=`background:${subj.bg};border-color:${subj.color};color:${subj.color};width:80px`;
-          ghost.textContent=`${subj.label} ${fmtMin(durMin)}`;
+          ghost.style.cssText=`background:${subj.bg};border-color:${subj.color};color:${subj.color};min-width:70px;pointer-events:none`;
+          ghost.textContent=`${subj.label} ${fromMin(startMin)}`;
           document.body.appendChild(ghost);
-          ghost.style.left=(e.clientX-40)+'px';
-          ghost.style.top=(e.clientY-16)+'px';
-          dragState.active=true;
-        }, 300);
-        dragState.timer=timer;
+          ghost.style.left=(e.clientX-35)+'px';
+          ghost.style.top=(e.clientY-12)+'px';
+        },350);
       });
 
       block.addEventListener('pointermove', e=>{
-        if(!dragState?.active){return;}
+        if(!dragging) return;
         e.preventDefault();
-        ghost.style.left=(e.clientX-40)+'px';
-        ghost.style.top=(e.clientY-16)+'px';
+        ghost.style.left=(e.clientX-35)+'px';
+        ghost.style.top=(e.clientY-12)+'px';
 
-        // 어느 열인지 계산
         const gridRect=grid.getBoundingClientRect();
         const colW=gridRect.width/7;
-        const newColIdx=Math.max(0,Math.min(6,Math.floor((e.clientX-gridRect.left)/colW)));
-        const colTop=gridRect.top;
-        const relY=e.clientY-colTop-dragState.offsetY;
+        dragNewCol=Math.max(0,Math.min(6,Math.floor((e.clientX-gridRect.left)/colW)));
+
+        const relY=e.clientY - gridRect.top - dragOffsetY;
         const rawMin=pxToMin(relY);
-        const snapped=snap10(rawMin);
-        const newStart=clampMin(snapped);
-        const newEnd=clampMin(snapped+dragState.durMin);
+        dragNewStart=clampMin(snap10(rawMin));
+        dragNewEnd=clampMin(dragNewStart+durMin);
 
-        dragState.newColIdx=newColIdx;
-        dragState.newStart=newStart;
-        dragState.newEnd=newEnd;
-
-        // 미리보기
-        const previewTop=minToPx(newStart);
-        block.style.top=previewTop+'px';
-        ghost.textContent=`${subj.label} ${fromMin(newStart)}`;
+        block.style.top=minToPx(dragNewStart)+'px';
+        if(ghost) ghost.textContent=`${subj.label} ${fromMin(dragNewStart)}`;
       });
 
       block.addEventListener('pointerup', e=>{
-        if(!dragState) return;
-        clearTimeout(dragState.timer);
+        clearTimeout(dragTimer);
         block.classList.remove('dragging');
         if(ghost){ghost.remove();ghost=null;}
-        if(!dragState.active){dragState=null;return;}
+        if(!dragging){dragging=false;return;}
+        dragging=false;
 
-        const {newColIdx, newStart, newEnd, sid, dateKey}=dragState;
-        dragState=null;
-
-        if(newStart===undefined) return;
-        const targetDate=dk(weekDates(weekOff)[newColIdx]);
-        const ns=fromMin(newStart), ne=fromMin(newEnd);
+        const targetDate=dk(weekDates(weekOff)[dragNewCol]);
+        const ns=fromMin(dragNewStart), ne=fromMin(dragNewEnd);
+        if(targetDate===dateKey && ns===s.start){return;}
 
         remove(ref(db,`bdh3_t/schedule/sessions/${dateKey}/${sid}`));
         push(ref(db,`bdh3_t/schedule/sessions/${targetDate}`),{
-          subject:s.subject, start:ns, end:ne,
-          duration:(newEnd-newStart)*60, memo:s.memo||''
+          subject:s.subject,start:ns,end:ne,duration:(dragNewEnd-dragNewStart)*60,memo:s.memo||''
         });
         toast(`${subj.label} → ${ns}`);
       });
 
       block.addEventListener('pointercancel',()=>{
-        if(dragState){clearTimeout(dragState.timer);dragState=null;}
+        clearTimeout(dragTimer); dragging=false;
         block.classList.remove('dragging');
         if(ghost){ghost.remove();ghost=null;}
         block.style.top=top+'px';
       });
-      block.setPointerCapture && block.addEventListener('gotpointercapture',()=>{});
 
       // ── 리사이즈 ──
       ['top','bot'].forEach(hType=>{
         const handle=block.querySelector(`.resize-handle.${hType}`);
-        let rsState=null;
+        let rsStartY=0, rsOrigStart=startMin, rsOrigEnd=endMin, rsActive=false;
+        let rsNs=startMin, rsNe=endMin;
+
         handle.addEventListener('pointerdown',e=>{
           e.preventDefault(); e.stopPropagation();
           handle.setPointerCapture(e.pointerId);
-          rsState={startY:e.clientY, origStart:startMin, origEnd:endMin};
+          rsActive=true;
+          rsStartY=e.clientY;
+          rsOrigStart=startMin; rsOrigEnd=endMin;
+          rsNs=startMin; rsNe=endMin;
         });
         handle.addEventListener('pointermove',e=>{
-          if(!rsState) return;
+          if(!rsActive) return;
           e.preventDefault();
-          const deltaMin=snap10((e.clientY-rsState.startY)/PX_PER_MIN());
-          let ns=rsState.origStart, ne=rsState.origEnd;
+          const deltaMin=snap10((e.clientY-rsStartY)/PX_PER_MIN());
+          let ns=rsOrigStart, ne=rsOrigEnd;
           if(hType==='top'){
-            ns=clampMin(Math.min(rsState.origStart+deltaMin, rsState.origEnd-10));
+            ns=clampMin(Math.min(rsOrigStart+deltaMin, rsOrigEnd-10));
           } else {
-            ne=clampMin(Math.max(rsState.origEnd+deltaMin, rsState.origStart+10));
+            ne=clampMin(Math.max(rsOrigEnd+deltaMin, rsOrigStart+10));
           }
+          rsNs=ns; rsNe=ne;
           const newTop=minToPx(ns);
           const newH=Math.max(minToPx(ne)-newTop,14);
           block.style.top=newTop+'px';
           block.style.height=newH+'px';
           const lbl=block.querySelector('.sblock-label');
           if(lbl) lbl.innerHTML=`${subj.label} <span style="font-weight:400;font-size:9px">${fmtMin(ne-ns)}</span>`;
-          rsState._ns=ns; rsState._ne=ne;
         });
         handle.addEventListener('pointerup',e=>{
-          if(!rsState) return;
-          const ns=rsState._ns??startMin, ne=rsState._ne??endMin;
-          rsState=null;
-          if(ns===startMin&&ne===endMin) return;
+          if(!rsActive) return;
+          rsActive=false;
+          if(rsNs===startMin&&rsNe===endMin) return;
           remove(ref(db,`bdh3_t/schedule/sessions/${dateKey}/${sid}`));
           push(ref(db,`bdh3_t/schedule/sessions/${dateKey}`),{
-            subject:s.subject, start:fromMin(ns), end:fromMin(ne),
-            duration:(ne-ns)*60, memo:s.memo||''
+            subject:s.subject,start:fromMin(rsNs),end:fromMin(rsNe),
+            duration:(rsNe-rsNs)*60,memo:s.memo||''
           });
-          toast(`${subj.label} ${fromMin(ns)}~${fromMin(ne)}`);
+          toast(`${subj.label} ${fromMin(rsNs)}~${fromMin(rsNe)}`);
         });
       });
 
