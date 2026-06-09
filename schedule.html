@@ -78,27 +78,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .divider span{font-size:11px;color:var(--text3);font-weight:500}
 .divider::after{content:'';flex:1;height:0.5px;background:var(--border)}
 
-/* ── 타이머 ── */
-.timer-sec{padding:0 10px 10px}
-.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.pill{font-size:12px;padding:5px 12px;border-radius:99px;border:0.5px solid var(--border2);color:var(--text2);background:var(--bg2);cursor:pointer;transition:all .15s}
-.pill:active{transform:scale(.95)}
-.timer-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:14px;padding:14px}
-.timer-status{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.zone-badge{font-size:11px;padding:3px 10px;border-radius:99px;background:var(--bg3);color:var(--text2);border:0.5px solid var(--border)}
-.tdot{width:8px;height:8px;border-radius:50%;background:var(--text3)}
-.tdot.run{background:var(--red);animation:blink 1s step-end infinite}
-.tdot.pause{background:#ef9f27}
-@keyframes blink{50%{opacity:0}}
-.ttime{text-align:center;font-size:48px;font-weight:300;letter-spacing:3px;margin:4px 0;font-variant-numeric:tabular-nums}
-.tlbl{text-align:center;font-size:12px;color:var(--text2);margin-bottom:12px}
-.tbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.tbtn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 4px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s}
-.tbtn:active{transform:scale(.96)}
-.tbtn svg{width:20px;height:20px}
-.tbtn.go{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent)}
-.tbtn.stop{background:rgba(226,75,74,.12);border-color:rgba(226,75,74,.3);color:var(--red)}
-.tbtn:disabled{opacity:.35;pointer-events:none}
+
 
 /* ── 링크 ── */
 .qlinks{display:flex;gap:8px;padding:0 10px 16px}
@@ -150,31 +130,10 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
   </div>
 </div>
 
-<div class="divider"><span>타이머</span></div>
-<div class="timer-sec">
-  <div class="pills" id="pills"></div>
-  <div class="timer-card">
-    <div class="timer-status">
-      <span class="zone-badge" id="timerZone">— 구역</span>
-      <div class="tdot" id="tdot"></div>
-    </div>
-    <div class="ttime" id="ttime">00:00:00</div>
-    <div class="tlbl" id="tlbl">과목을 선택하고 시작하세요</div>
-    <div class="tbtns">
-      <button class="tbtn" id="btnPause" disabled>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>일시정지
-      </button>
-      <button class="tbtn go" id="btnStart">
-        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>시작
-      </button>
-      <button class="tbtn stop" id="btnStop" disabled>
-        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>종료
-      </button>
-    </div>
-  </div>
-  <button onclick="openAddModal()" style="width:100%;margin-top:8px;padding:10px;background:var(--bg2);border:0.5px dashed var(--border2);border-radius:10px;color:var(--text2);font-size:12px;cursor:pointer">+ 과거 세션 직접 추가</button>
 </div>
 
+<div style="padding:8px 10px 0"><button onclick="openAddModal()" style="width:100%;padding:10px;background:var(--bg2);border:0.5px dashed var(--border2);border-radius:10px;color:var(--text2);font-size:12px;cursor:pointer">+ 세션 추가</button></div>
+<div style="padding:6px 10px 0"><button onclick="openAddModal()" style="width:100%;padding:10px;background:var(--bg2);border:0.5px dashed var(--border2);border-radius:10px;color:var(--text2);font-size:12px;cursor:pointer">+ 세션 추가</button></div>
 <div class="divider"><span>바로가기</span></div>
 <div class="qlinks">
   <a href="index.html" class="qlink">
@@ -256,8 +215,7 @@ const ZONES = [
 
 // ── 상태 ──
 let weekOff=0, sessions={}, goals={};
-let tInterval=null, tStart=null, tElapsed=0, tRunning=false, tPaused=false;
-let selSubj=null;
+
 
 // ── 유틸 ──
 function weekDates(off=0){
@@ -512,6 +470,28 @@ function render(){
       col.appendChild(block);
     });
 
+    // ── 탭으로 세션 추가 ──
+    col.addEventListener('pointerup', e=>{
+      // 블록이나 핸들 위면 무시
+      if(e.target.closest('.sblock')) return;
+      if(e.target.closest('.resize-handle')) return;
+      // 짧은 탭만 (드래그 아닌 경우)
+      if(e.target._wasDragged) return;
+
+      const gridRect = grid.getBoundingClientRect();
+      const relY = e.clientY - gridRect.top;
+      const rawMin = pxToMin(relY);
+      const snapped = snap10(rawMin);
+      const startSnapped = clampMin(snapped);
+      const endSnapped = clampMin(snapped + 60);
+
+      const dateStr = dk(weekDates(weekOff)[di]);
+      document.getElementById('mDate').value = dateStr;
+      document.getElementById('mStart').value = fromMin(startSnapped);
+      document.getElementById('mEnd').value = fromMin(endSnapped);
+      document.getElementById('mback').classList.add('open');
+    });
+
     grid.appendChild(col);
   });
 
@@ -539,79 +519,7 @@ onValue(ref(db,'bdh3/db/_goals'),snap=>{
   render();
 });
 
-// ── 타이머 ──
-function updTimer(){
-  const el=tRunning?tElapsed+Math.floor((Date.now()-tStart)/1000):tElapsed;
-  document.getElementById('ttime').textContent=fmtSec(el);
-  const now=new Date();
-  document.getElementById('timerZone').textContent=zoneName(now.getHours())+' 구역';
-  const dot=document.getElementById('tdot'),lbl=document.getElementById('tlbl');
-  if(tRunning){dot.className='tdot run';lbl.textContent=`진행중 · ${selSubj?SUBJ[selSubj].label:'—'}`;}
-  else if(tPaused){dot.className='tdot pause';lbl.textContent='일시정지됨';}
-  else{dot.className='tdot';lbl.textContent=selSubj?`${SUBJ[selSubj].label} · 시작 대기`:'과목을 선택하고 시작하세요';}
-}
-function startTimer(){
-  if(!selSubj){toast('과목을 먼저 선택하세요');return;}
-  tRunning=true;tPaused=false;tStart=Date.now();
-  tInterval=setInterval(updTimer,1000);
-  document.getElementById('btnStart').disabled=true;
-  document.getElementById('btnPause').disabled=false;
-  document.getElementById('btnStop').disabled=false;
-  const now=new Date();
-  window._lsTime=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  window._lsDate=dk(now);
-  updTimer();
-}
-function pauseTimer(){
-  if(!tRunning)return;
-  tElapsed+=Math.floor((Date.now()-tStart)/1000);
-  tRunning=false;tPaused=true;clearInterval(tInterval);
-  document.getElementById('btnStart').disabled=false;
-  document.getElementById('btnPause').disabled=true;
-  updTimer();
-}
-function resumeTimer(){
-  if(!tPaused){startTimer();return;}
-  tRunning=true;tPaused=false;tStart=Date.now();
-  tInterval=setInterval(updTimer,1000);
-  document.getElementById('btnStart').disabled=true;
-  document.getElementById('btnPause').disabled=false;
-  updTimer();
-}
-function stopTimer(){
-  if(!tRunning&&!tPaused)return;
-  const total=tElapsed+(tRunning?Math.floor((Date.now()-tStart)/1000):0);
-  if(total<60){toast('1분 이상 공부해야 기록됩니다');resetTimer();return;}
-  clearInterval(tInterval);
-  const now=new Date(),key=dk(now);
-  const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0');
-  push(ref(db,`bdh3_t/schedule/sessions/${key}`),{
-    subject:selSubj, start:window._lsTime||`${hh}:${mm}`, end:`${hh}:${mm}`,
-    duration:total, memo:''
-  });
-  toast(`${SUBJ[selSubj].label} ${Math.floor(total/60)}분 기록 완료`);
-  resetTimer();
-}
-function resetTimer(){
-  tRunning=false;tPaused=false;tElapsed=0;tStart=null;clearInterval(tInterval);
-  document.getElementById('btnStart').disabled=false;
-  document.getElementById('btnPause').disabled=true;
-  document.getElementById('btnStop').disabled=true;
-  updTimer();
-}
 
-// ── 필 ──
-function renderPills(){
-  const w=document.getElementById('pills');w.innerHTML='';
-  Object.entries(SUBJ).forEach(([key,s])=>{
-    const p=document.createElement('div');
-    p.className='pill';
-    if(selSubj===key) p.style.cssText=`background:${s.bg};color:${s.color};border-color:${s.color}`;
-    p.textContent=s.label;
-    p.onclick=()=>{selSubj=key;renderPills();updTimer();};
-    w.appendChild(p);
-  });
-}
 
 // ── 모달 ──
 window.openAddModal=function(dateStr){
@@ -637,9 +545,7 @@ document.getElementById('mConfirm').onclick=()=>{
 // ── 네비 ──
 document.getElementById('prevWeek').onclick=()=>{weekOff--;render();};
 document.getElementById('nextWeek').onclick=()=>{weekOff++;render();};
-document.getElementById('btnStart').onclick=()=>{if(tPaused)resumeTimer();else startTimer();};
-document.getElementById('btnPause').onclick=pauseTimer;
-document.getElementById('btnStop').onclick=stopTimer;
+
 window.addEventListener('resize',render);
 
 // ── 스크롤 오늘 시각으로 ──
@@ -651,7 +557,6 @@ function scrollToNow(){
   scr.scrollTop=Math.max(0,px);
 }
 
-renderPills();updTimer();
 setTimeout(scrollToNow,100);
 </script>
 </body>
