@@ -258,11 +258,11 @@ function render(){
   dates.forEach(d=>{
     const dateKey=dk(d);
     const daySessions=Object.values(sessions[dateKey]||{});
-    const totalMin=daySessions.filter(x=>!x.live).reduce((a,x)=>a+(toMin(x.end)-toMin(x.start)),0);
-    const totalStr=totalMin>0?(totalMin>=60?`${Math.floor(totalMin/60)}h${totalMin%60?totalMin%60+'m':''}`:`${totalMin}m`):'';
+    const studyMin=daySessions.filter(x=>!x.live&&x.subject!=='exercise').reduce((a,x)=>a+(toMin(x.end)-toMin(x.start)),0);
+    const totalStr=studyMin>0?(studyMin>=60?`${Math.floor(studyMin/60)}h${studyMin%60?studyMin%60+'m':''}`:`${studyMin}m`):'';
     const div=document.createElement('div');
     div.className='dh'+(isToday(d)?' today':'');
-    div.innerHTML=`${DAYS[d.getDay()]}<span class="dn">${d.getDate()}</span>${totalStr?`<span class="d-total">${totalStr}</span>`:''}`;
+    div.innerHTML=`<span class="d-dayrow">${DAYS[d.getDay()]} <span class="dn">${d.getDate()}</span></span>${totalStr?`<span class="d-total">${totalStr}</span>`:'<span class="d-total" style="visibility:hidden">-</span>'}`;
     hdr.appendChild(div);
   });
 
