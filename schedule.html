@@ -36,6 +36,7 @@ html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Pret
 .day-headers{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;position:sticky;top:0;z-index:50;background:var(--bg);padding:0 0 4px 0}
 .dh{text-align:center;font-size:10px;color:var(--text2);padding:4px 0 2px;line-height:1.3}
 .dh .dn{font-size:13px;font-weight:500;display:block;margin-top:1px}
+.d-total{display:block;font-size:8px;font-weight:600;color:var(--accent);margin-top:1px;letter-spacing:-0.2px}
 .dh.today{color:var(--accent)}
 .dh.today .dn{background:var(--accent);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
 
@@ -255,9 +256,13 @@ function render(){
   const hdr=document.getElementById('dayHeaders');
   hdr.innerHTML='';
   dates.forEach(d=>{
+    const dateKey=dk(d);
+    const daySessions=Object.values(sessions[dateKey]||{});
+    const totalMin=daySessions.filter(x=>!x.live).reduce((a,x)=>a+(toMin(x.end)-toMin(x.start)),0);
+    const totalStr=totalMin>0?(totalMin>=60?`${Math.floor(totalMin/60)}h${totalMin%60?totalMin%60+'m':''}`:`${totalMin}m`):'';
     const div=document.createElement('div');
     div.className='dh'+(isToday(d)?' today':'');
-    div.innerHTML=`${DAYS[d.getDay()]}<span class="dn">${d.getDate()}</span>`;
+    div.innerHTML=`${DAYS[d.getDay()]}<span class="dn">${d.getDate()}</span>${totalStr?`<span class="d-total">${totalStr}</span>`:''}`;
     hdr.appendChild(div);
   });
 
@@ -332,19 +337,24 @@ function render(){
 
       const goalPct=getGoalPct(subj.dashKey);
       const dayTotal=Object.values(sessions[dateKey]||{})
-        .filter(x=>x.subject===s.subject)
+        .filter(x=>x.subject===s.subject&&!x.live)
         .reduce((a,x)=>a+(toMin(x.end)-toMin(x.start)),0);
       const pct=goalPct!==null?goalPct:Math.min(100,Math.round(dayTotal/120*100));
       const fillClr=pct>=100?'#27c96e':subj.color;
+      // 오늘 세션은 밝게, 과거는 어둡게
+      const isDateToday=isToday(d);
+      const barBg=isDateToday?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.06)';
+      const barFill=isDateToday?fillClr:fillClr+'88';
 
       const block=document.createElement('div');
       block.className='sblock'+(s.live?' live':'');
-      block.style.cssText=`top:${top}px;height:${height}px;background:${subj.bg};border-color:${subj.color};${s.live?'border-style:dashed':''}`;
+      const blockBg=isDateToday?subj.bg:subj.bg.replace(/[\d.]+\)$/,'0.10)');
+      block.style.cssText=`top:${top}px;height:${height}px;background:${blockBg};border-color:${subj.color};${s.live?'border-style:dashed':''}${!isDateToday?';opacity:0.75':''}`;
       block.innerHTML=`
         <div class="resize-handle top" data-type="top"></div>
         <div class="sblock-inner">
           <div class="sblock-label" style="color:${subj.color}">${subj.label} <span style="font-weight:400;font-size:9px">${s.live?'⏱진행중':fmtMin(durMin)}</span></div>
-          ${!s.live&&height>22?`<div class="sblock-bar-wrap"><div class="sblock-bar-fill" style="width:${pct}%;background:${fillClr}"></div></div>`:''}
+          ${!s.live&&height>22?`<div class="sblock-bar-wrap" style="background:${barBg}"><div class="sblock-bar-fill" style="width:${pct}%;background:${barFill}"></div></div>`:''}
         </div>
         <div class="resize-handle bot" data-type="bot"></div>`;
 
