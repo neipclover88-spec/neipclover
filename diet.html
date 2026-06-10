@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🥗 식단 체크</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg:#05050e;--s1:#0b0b1c;--s2:#111122;
+  --b:#1c1c35;--t:#ddddf8;--m:#55558a;--m2:#35355a;
+  --green:#27c96e;--yellow:#f5c200;--red:#e74c3c;--blue:#4f8ef7;
+  --bebas:'Bebas Neue',display;
+  --mono:'Barlow Condensed',sans-serif;
+  --sans:'Noto Sans KR',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;background:var(--bg);color:var(--t);font-family:var(--sans)}
+
+/* ── HEADER ── */
+.hdr{
+  position:sticky;top:0;z-index:10;
+  background:var(--s1);border-bottom:1px solid var(--b);
+  padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-title{font-size:16px;font-weight:700}
+.date-nav{display:flex;align-items:center;gap:6px}
+.dnav-btn{background:var(--s2);border:1px solid var(--b);color:var(--t);
+  border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center}
+.date-lbl{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--m);
+  min-width:68px;text-align:center}
+.today-btn{background:var(--s2);border:1px solid var(--b);color:var(--m);
+  border-radius:5px;height:24px;padding:0 8px;cursor:pointer;font-size:10px}
+
+/* ── PROGRESS ── */
+.progress-wrap{padding:16px 16px 10px}
+.progress-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.progress-count{font-family:var(--bebas);font-size:32px;letter-spacing:.5px}
+.progress-label{font-size:11px;color:var(--m)}
+.progress-bar{height:10px;background:var(--b);border-radius:5px;overflow:hidden;margin-bottom:4px}
+.progress-fill{height:100%;border-radius:5px;transition:width .4s}
+.progress-msg{font-size:10px;text-align:right}
+
+/* ── MEAL LIST ── */
+.meal-list{padding:0 12px 24px;display:flex;flex-direction:column;gap:8px}
+
+.meal-card{
+  background:var(--s1);border:1px solid var(--b);border-radius:12px;
+  overflow:hidden;transition:border-color .2s;
+}
+.meal-card.done{border-color:rgba(39,201,110,.4)}
+
+.meal-hdr{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;
+  cursor:pointer;user-select:none;
+}
+.meal-check{
+  width:22px;height:22px;border-radius:50%;border:2px solid var(--m2);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .2s;font-size:12px;
+}
+.meal-card.done .meal-check{background:var(--green);border-color:var(--green);color:#fff}
+.meal-time{font-family:var(--mono);font-size:13px;font-weight:700;
+  color:var(--m);width:42px;flex-shrink:0}
+.meal-name{font-size:14px;font-weight:700;flex:1}
+.meal-card.done .meal-name{color:var(--green)}
+.meal-cals{font-size:10px;color:var(--m2);flex-shrink:0}
+
+.meal-detail{
+  display:none;
+  padding:0 14px 12px 46px;
+  flex-direction:column;gap:6px;
+}
+.meal-detail.open{display:flex}
+.meal-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--m)}
+.meal-item::before{content:'·';color:var(--m2)}
+.meal-note{font-size:10px;color:var(--m2);margin-top:2px;
+  background:rgba(255,255,255,.03);border-radius:6px;padding:6px 8px;line-height:1.5}
+
+/* ── SUPPLEMENT SECTION ── */
+.sup-section{margin:0 12px 16px;background:var(--s1);border:1px solid var(--b);
+  border-radius:12px;padding:14px}
+.sup-title{font-size:11px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;
+  margin-bottom:10px}
+.sup-list{display:flex;flex-direction:column;gap:8px}
+.sup-row{display:flex;align-items:center;gap:10px;cursor:pointer}
+.sup-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--m2);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .2s;font-size:11px}
+.sup-row.done .sup-check{background:var(--blue);border-color:var(--blue);color:#fff}
+.sup-name{font-size:13px;font-weight:600}
+.sup-row.done .sup-name{color:var(--blue)}
+.sup-desc{font-size:10px;color:var(--m);margin-left:auto}
+
+/* ── WEEKLY SECTION ── */
+.week-section{margin:0 12px 24px;background:var(--s1);border:1px solid var(--b);
+  border-radius:12px;padding:14px}
+.week-title{font-size:11px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;
+  margin-bottom:10px}
+.week-row{display:flex;align-items:center;gap:10px;cursor:pointer}
+.week-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--m2);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .2s;font-size:11px}
+.week-row.done .week-check{background:#f5a623;border-color:#f5a623;color:#fff}
+.week-name{font-size:13px;font-weight:600}
+.week-row.done .week-name{color:#f5a623}
+.week-sub{font-size:10px;color:var(--m);margin-left:auto}
+
+/* ── SYNC DOT ── */
+.sync{width:6px;height:6px;border-radius:50%;background:var(--m2);transition:background .3s}
+.sync.ok{background:var(--green)}
+.sync.busy{background:#f5a623;animation:blink .7s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <span class="hdr-title">🥗 식단 체크</span>
+    <span class="sync" id="syncDot"></span>
+  </div>
+  <div class="date-nav">
+    <button class="dnav-btn" onclick="shiftDay(-1)">‹</button>
+    <span class="date-lbl" id="dateLbl"></span>
+    <button class="dnav-btn" onclick="shiftDay(1)">›</button>
+    <button class="today-btn" onclick="goToday()">오늘</button>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-top">
+    <div>
+      <span class="progress-count" id="progressCount" style="color:var(--green)">0</span>
+      <span style="font-family:var(--bebas);font-size:20px;color:var(--m)"> / 6</span>
+    </div>
+    <span class="progress-label">오늘 목표 달성</span>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%;background:var(--green)"></div>
+  </div>
+  <div class="progress-msg" id="progressMsg"></div>
+</div>
+
+<div class="meal-list" id="mealList"></div>
+
+<div class="sup-section">
+  <div class="sup-title">영양제</div>
+  <div class="sup-list">
+    <div class="sup-row" id="sup-mag" onclick="toggleExtra('마그네슘')">
+      <div class="sup-check">✓</div>
+      <span class="sup-name">💊 마그네슘</span>
+      <span class="sup-desc">저녁 식후</span>
+    </div>
+    <div class="sup-row" id="sup-yogurt" onclick="toggleExtra('그릭요거트')">
+      <div class="sup-check">✓</div>
+      <span class="sup-name">🥛 그릭요거트</span>
+      <span class="sup-desc">유산균</span>
+    </div>
+  </div>
+</div>
+
+<div class="week-section">
+  <div class="week-title">주 2회 목표</div>
+  <div>
+    <div class="week-row" id="week-fish" onclick="toggleExtra('생선')">
+      <div class="week-check">✓</div>
+      <span class="week-name">🐟 생선 (고등어/연어)</span>
+      <span class="week-sub">오메가3</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const FB_CONFIG = {
+  apiKey:            "AIzaSyC9QBrj_8YSvT1Nk7CsTPu_vKk-zetdmnU",
+  authDomain:        "neipclover88-3db3f.firebaseapp.com",
+  databaseURL:       "https://neipclover88-3db3f-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "neipclover88-3db3f",
+};
+const FB_PATH = 'bdh3';
+
+firebase.initializeApp(FB_CONFIG);
+const fbDb = firebase.database();
+
+// ── 식단 메뉴 정의 ──
+const MEALS = [
+  {
+    key: '운동후',
+    time: '운동 후',
+    emoji: '🥚',
+    name: '운동 후 식사',
+    items: ['달걀 3개', '사과', '토마토', '칼슘두유'],
+    note: '단백질 + 과일로 회복 촉진',
+  },
+  {
+    key: '11시',
+    time: '11:00',
+    emoji: '🍌',
+    name: '오전 간식',
+    items: ['바나나 1개', '견과류 한 줌'],
+    note: '복합당 + 건강한 지방 → 혈당 안정',
+  },
+  {
+    key: '14시',
+    time: '14:00',
+    emoji: '🍠',
+    name: '오후 간식',
+    items: ['냉동 고구마 큐브 (전자레인지 2분)'],
+    note: '포만감 + 식이섬유 → 과식 예방',
+  },
+  {
+    key: '17시',
+    time: '17:00',
+    emoji: '🍗',
+    name: '저녁 식사',
+    items: ['닭갈비', '양배추', '밥 한 공기'],
+    note: '단백질 + 채소 위주 주식',
+  },
+  {
+    key: '야간',
+    time: '야간',
+    emoji: '🫐',
+    name: '야간 간식',
+    items: ['블루베리 또는 견과류'],
+    note: '고당 간식(몽쉘 등) 대신 → 지방 저장 차단',
+  },
+];
+
+const MAIN_KEYS = MEALS.map(m => m.key);
+
+// ── 날짜 유틸 ──
+function todayStr() {
+  const d = new Date();
+  return dateFmt(d);
+}
+function dateFmt(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function parseD(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function fmtLabel(s) {
+  const d = parseD(s);
+  const days = ['일','월','화','수','목','금','토'];
+  const today = todayStr();
+  if(s === today) return '오늘';
+  const [,m,dd] = s.split('-');
+  return `${Number(m)}/${Number(dd)} (${days[d.getDay()]})`;
+}
+
+// ── STATE ──
+const params = new URLSearchParams(location.search);
+let curDate = params.get('date') || todayStr();
+let dietData = {}; // {key: bool}
+
+// ── FIREBASE ──
+let fbRef = null;
+function loadDate(dk) {
+  curDate = dk;
+  document.getElementById('dateLbl').textContent = fmtLabel(dk);
+  setSyncDot('busy');
+  fbDb.ref(`${FB_PATH}/${dk}/diet`).once('value').then(snap => {
+    dietData = snap.val() || {};
+    render();
+    setSyncDot('ok');
+  }).catch(() => setSyncDot('err'));
+}
+function saveData() {
+  setSyncDot('busy');
+  fbDb.ref(`${FB_PATH}/${curDate}/diet`).set(dietData)
+    .then(() => setSyncDot('ok'))
+    .catch(() => setSyncDot('err'));
+}
+function setSyncDot(state) {
+  const el = document.getElementById('syncDot');
+  el.className = 'sync ' + state;
+}
+
+function shiftDay(dir) {
+  const d = parseD(curDate);
+  d.setDate(d.getDate() + dir);
+  loadDate(dateFmt(d));
+}
+function goToday() {
+  loadDate(todayStr());
+}
+
+// ── TOGGLE ──
+function toggleMeal(key) {
+  dietData[key] = !dietData[key];
+  render();
+  saveData();
+}
+function toggleExtra(key) {
+  dietData[key] = !dietData[key];
+  renderExtras();
+  saveData();
+}
+
+// ── RENDER ──
+let openMeal = null;
+
+function render() {
+  const done = MAIN_KEYS.filter(k => dietData[k]).length;
+  const total = MAIN_KEYS.length;
+  const pct   = Math.round(done / total * 100);
+  const clr   = pct >= 80 ? '#27c96e' : pct >= 50 ? '#f5c200' : '#e74c3c';
+  const msgs  = ['오늘 식단을 기록해봐요 💪', '절반 왔어요, 조금 더!', '잘 하고 있어요 👍', '완벽해요! 🎉'];
+  const msgIdx = pct >= 100 ? 3 : pct >= 66 ? 2 : pct >= 33 ? 1 : 0;
+
+  document.getElementById('progressCount').textContent = done;
+  document.getElementById('progressCount').style.color = clr;
+  document.getElementById('progressFill').style.width  = pct + '%';
+  document.getElementById('progressFill').style.background = clr;
+  document.getElementById('progressMsg').textContent   = msgs[msgIdx];
+  document.getElementById('progressMsg').style.color   = clr;
+
+  const list = document.getElementById('mealList');
+  list.innerHTML = MEALS.map(meal => {
+    const isDone = !!dietData[meal.key];
+    const isOpen = openMeal === meal.key;
+    return `
+    <div class="meal-card ${isDone ? 'done' : ''}" id="mc-${meal.key}">
+      <div class="meal-hdr" onclick="handleMealTap('${meal.key}')">
+        <div class="meal-check">${isDone ? '✓' : ''}</div>
+        <span class="meal-time">${meal.time}</span>
+        <span class="meal-name">${meal.emoji} ${meal.name}</span>
+      </div>
+      <div class="meal-detail ${isOpen ? 'open' : ''}">
+        ${meal.items.map(it => `<div class="meal-item">${it}</div>`).join('')}
+        ${meal.note ? `<div class="meal-note">💡 ${meal.note}</div>` : ''}
+        <button onclick="toggleMeal('${meal.key}')" style="
+          margin-top:4px;padding:8px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;
+          background:${isDone ? 'rgba(231,76,60,.15)' : 'rgba(39,201,110,.15)'};
+          border:1px solid ${isDone ? 'rgba(231,76,60,.3)' : 'rgba(39,201,110,.3)'};
+          color:${isDone ? '#e74c3c' : '#27c96e'};
+        ">${isDone ? '✕ 취소' : '✓ 먹었어요'}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  renderExtras();
+}
+
+function handleMealTap(key) {
+  openMeal = openMeal === key ? null : key;
+  render();
+}
+
+function renderExtras() {
+  // 마그네슘
+  const magEl = document.getElementById('sup-mag');
+  if(magEl) {
+    magEl.classList.toggle('done', !!dietData['마그네슘']);
+    magEl.querySelector('.sup-check').textContent = dietData['마그네슘'] ? '✓' : '';
+  }
+  // 그릭요거트
+  const yoEl = document.getElementById('sup-yogurt');
+  if(yoEl) {
+    yoEl.classList.toggle('done', !!dietData['그릭요거트']);
+    yoEl.querySelector('.sup-check').textContent = dietData['그릭요거트'] ? '✓' : '';
+  }
+  // 생선
+  const fishEl = document.getElementById('week-fish');
+  if(fishEl) {
+    fishEl.classList.toggle('done', !!dietData['생선']);
+    fishEl.querySelector('.week-check').textContent = dietData['생선'] ? '✓' : '';
+  }
+}
+
+// ── INIT ──
+loadDate(curDate);
+</script>
+</body>
+</html>
