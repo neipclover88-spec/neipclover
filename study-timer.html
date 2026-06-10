@@ -2051,15 +2051,15 @@ function renderCalGrid(dates, sessionsByDate) {
       const hPx    = Math.max(durMin * (HOUR_H/60), 4);
       const color  = s.subjectColor || '#5ba3e8';
       const showText = hPx >= 14;
-      const showDur  = hPx >= 22 && durMin >= 1;
-      const showSub  = hPx >= 28 && s.subCategoryName;
+      const showDur  = showText && durMin >= 1;
+      const showSub  = showText && s.subCategoryName && s.subCategoryName.trim() !== '';
       const durStr   = durMin > 0 ? Math.round(durMin) + 'm' : '';
 
       let blockContent = '';
       if (showText) {
         blockContent += `<div class="cal-block-text" style="color:${color};">${s.subjectName}${showDur ? `<span style="font-weight:400;opacity:.75;"> ${durStr}</span>` : ''}</div>`;
         if (showSub) {
-          blockContent += `<div style="font-size:7px;color:${color};opacity:.8;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">${s.subCategoryName}</div>`;
+          blockContent += `<div style="font-size:7px;color:${color};opacity:.85;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">${s.subCategoryName}</div>`;
         }
       }
 
