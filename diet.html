@@ -136,8 +136,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--t);font-family:var(--
 <div class="progress-wrap">
   <div class="progress-top">
     <div>
-      <span class="progress-count" id="progressCount" style="color:var(--green)">0</span>
-      <span style="font-family:var(--bebas);font-size:20px;color:var(--m)"> / 6</span>
+      <span class="progress-count" id="progressCount" style="color:var(--green)">0</span><span id="progressTotal" style="font-family:var(--bebas);font-size:20px;color:var(--m)"> / 0</span>
     </div>
     <span class="progress-label">오늘 목표 달성</span>
   </div>
@@ -186,47 +185,47 @@ const fbDb = firebase.database();
 const MEALS = [
   {
     key: '아침',
-    time: '아침',
-    emoji: '🥬',
-    name: '아침 식사',
-    items: ['양배추', '블루베리', '계란 2개', '사과 1개'],
-    note: '식이섬유 + 항산화 + 단백질로 하루 시작',
+    time: '08:00',
+    emoji: '🥚',
+    name: '운동 후 아침',
+    items: ['반숙달걀 2개', '고구마 4조각', '그릭요거트 90g', '사과 1개', '토마토 2개', '칼슘두유'],
+    note: '운동 직후 단백질 + 복합당 + 유산균 한 번에',
   },
   {
     key: '점심',
-    time: '점심',
-    emoji: '🍚',
-    name: '점심 식사',
-    items: ['밥 1공기', '닭가슴살 150~200g', '김치', '나물 반찬'],
-    note: '단백질 위주 + 발효식품으로 장 건강',
+    time: '10:30',
+    emoji: '🍗',
+    name: '일 나가기 전',
+    items: ['닭가슴살', '바나나 1개'],
+    note: '단백질 + 빠른 당 → 더운 날 배달 2~3시간 버티기',
   },
   {
-    key: '운동전',
-    time: '운동 전',
-    emoji: '🍌',
-    name: '운동 전 간식',
-    items: ['바나나 1개'],
-    note: '빠른 에너지 공급 → 운동 퍼포먼스 향상',
+    key: '오후',
+    time: '14:00',
+    emoji: '🐟',
+    name: '오후 (배고플 때만)',
+    items: ['고등어 반 캔'],
+    note: '배고플 때만. 오메가3 + 단백질 · 5시 저녁에 영향 없음',
   },
   {
     key: '저녁',
-    time: '저녁',
-    emoji: '🍗',
-    name: '저녁 식사',
-    items: ['닭갈비 또는 오리고기', '밥 반 공기', '양배추', '토마토'],
-    note: '단백질 + 채소 중심 · 탄수화물은 반 공기로 조절',
+    time: '17:00',
+    emoji: '🍖',
+    name: '저녁 일 나가기 전',
+    items: ['닭갈비 또는 훈제오리', '잡곡밥', '김치', '샐러드 (양배추+블루베리+견과류+참깨소스+부추)'],
+    note: '하루 메인 식사 · 탄수화물 + 단백질 + 채소 균형',
   },
   {
-    key: '자기전',
-    time: '자기 전',
+    key: '야식',
+    time: '귀가 후',
     emoji: '🥛',
-    name: '자기 전',
-    items: ['그릭요거트 1컵'],
-    note: '유산균 + 카세인 단백질 → 수면 중 근육 유지',
+    name: '일 다녀와서',
+    items: ['그릭요거트 90g'],
+    note: '가볍게 마무리 · 카세인 단백질로 수면 중 근육 유지',
   },
 ];
 
-const MAIN_KEYS = MEALS.map(m => m.key);
+const MAIN_KEYS = ['아침','점심','저녁','야식']; // 오후는 선택 항목
 
 // ── 날짜 유틸 ──
 function todayStr() {
@@ -287,11 +286,7 @@ function goToday() {
 }
 
 // ── TOGGLE ──
-function toggleMeal(key) {
-  dietData[key] = !dietData[key];
-  render();
-  saveData();
-}
+// toggleMeal 제거 — 개별 아이템 체크로 대체
 function toggleExtra(key) {
   dietData[key] = !dietData[key];
   renderExtras();
@@ -301,41 +296,79 @@ function toggleExtra(key) {
 // ── RENDER ──
 let openMeal = null;
 
+// 아이템 키 생성
+function itemKey(mealKey, idx) { return mealKey + '_' + idx; }
+
+// 밀 아이템 체크 수
+function mealCheckedCount(meal) {
+  return meal.items.filter((_, i) => dietData[itemKey(meal.key, i)]).length;
+}
+function mealAllDone(meal) {
+  return mealCheckedCount(meal) === meal.items.length;
+}
+
 function render() {
-  const done = MAIN_KEYS.filter(k => dietData[k]).length;
-  const total = MAIN_KEYS.length;
-  const pct   = Math.round(done / total * 100);
+  // 전체 아이템 수 기준 진행률
+  const allItems = MEALS.filter(m => MAIN_KEYS.includes(m.key))
+    .flatMap(m => m.items.map((_, i) => itemKey(m.key, i)));
+  const doneItems = allItems.filter(k => dietData[k]).length;
+  const total = allItems.length;
+  const pct   = total > 0 ? Math.round(doneItems / total * 100) : 0;
   const clr   = pct >= 80 ? '#27c96e' : pct >= 50 ? '#f5c200' : '#e74c3c';
   const msgs  = ['오늘 식단을 기록해봐요 💪', '절반 왔어요, 조금 더!', '잘 하고 있어요 👍', '완벽해요! 🎉'];
   const msgIdx = pct >= 100 ? 3 : pct >= 66 ? 2 : pct >= 33 ? 1 : 0;
 
-  document.getElementById('progressCount').textContent = done;
+  document.getElementById('progressCount').textContent = doneItems;
   document.getElementById('progressCount').style.color = clr;
   document.getElementById('progressFill').style.width  = pct + '%';
   document.getElementById('progressFill').style.background = clr;
   document.getElementById('progressMsg').textContent   = msgs[msgIdx];
   document.getElementById('progressMsg').style.color   = clr;
+  // 분모도 업데이트
+  document.getElementById('progressTotal').textContent = ' / ' + total;
 
   const list = document.getElementById('mealList');
   list.innerHTML = MEALS.map(meal => {
-    const isDone = !!dietData[meal.key];
-    const isOpen = openMeal === meal.key;
+    const checked = mealCheckedCount(meal);
+    const mTotal  = meal.items.length;
+    const allDone = checked === mTotal;
+    const mPct    = Math.round(checked / mTotal * 100);
+    const mClr    = allDone ? '#27c96e' : checked > 0 ? '#f5c200' : 'var(--m2)';
+    const isOpen  = openMeal === meal.key;
+
     return `
-    <div class="meal-card ${isDone ? 'done' : ''}" id="mc-${meal.key}">
+    <div class="meal-card ${allDone ? 'done' : ''}" id="mc-${meal.key}">
       <div class="meal-hdr" onclick="handleMealTap('${meal.key}')">
-        <div class="meal-check">${isDone ? '✓' : ''}</div>
+        <div class="meal-check" style="border-color:${mClr};${allDone?'background:#27c96e':''}">
+          ${allDone ? '✓' : checked > 0 ? checked : ''}
+        </div>
         <span class="meal-time">${meal.time}</span>
-        <span class="meal-name">${meal.emoji} ${meal.name}</span>
+        <span class="meal-name" style="color:${allDone?'#27c96e':'var(--t)'}">${meal.emoji} ${meal.name}</span>
+        <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+          <span style="font-size:9px;color:${mClr};font-family:'Barlow Condensed',sans-serif;font-weight:700">${checked}/${mTotal}</span>
+          <span style="font-size:9px;color:var(--m)">${isOpen?'▲':'▼'}</span>
+        </div>
       </div>
       <div class="meal-detail ${isOpen ? 'open' : ''}">
-        ${meal.items.map(it => `<div class="meal-item">${it}</div>`).join('')}
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+          ${meal.items.map((it, i) => {
+            const ik = itemKey(meal.key, i);
+            const iDone = !!dietData[ik];
+            return `<div onclick="toggleItem('${meal.key}',${i})"
+              style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 8px;
+                border-radius:8px;background:${iDone?'rgba(39,201,110,.1)':'rgba(255,255,255,.03)'};
+                border:1px solid ${iDone?'rgba(39,201,110,.3)':'rgba(255,255,255,.06)'}">
+              <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${iDone?'#27c96e':'var(--m2)'};
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                background:${iDone?'#27c96e':'none'};font-size:11px;color:#fff;transition:all .2s">
+                ${iDone?'✓':''}
+              </div>
+              <span style="font-size:13px;color:${iDone?'#27c96e':'var(--t)'};
+                text-decoration:${iDone?'line-through':'none'};transition:all .2s">${it}</span>
+            </div>`;
+          }).join('')}
+        </div>
         ${meal.note ? `<div class="meal-note">💡 ${meal.note}</div>` : ''}
-        <button onclick="toggleMeal('${meal.key}')" style="
-          margin-top:4px;padding:8px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;
-          background:${isDone ? 'rgba(231,76,60,.15)' : 'rgba(39,201,110,.15)'};
-          border:1px solid ${isDone ? 'rgba(231,76,60,.3)' : 'rgba(39,201,110,.3)'};
-          color:${isDone ? '#e74c3c' : '#27c96e'};
-        ">${isDone ? '✕ 취소' : '✓ 먹었어요'}</button>
       </div>
     </div>`;
   }).join('');
@@ -346,6 +379,13 @@ function render() {
 function handleMealTap(key) {
   openMeal = openMeal === key ? null : key;
   render();
+}
+
+function toggleItem(mealKey, idx) {
+  const k = itemKey(mealKey, idx);
+  dietData[k] = !dietData[k];
+  render();
+  saveData();
 }
 
 function renderExtras() {
