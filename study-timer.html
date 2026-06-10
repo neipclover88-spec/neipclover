@@ -821,7 +821,12 @@ body {
 
       <div class="card">
         <div style="display:flex;align-items:center;margin-bottom:12px;">
-          <div class="card-label" style="margin-bottom:0;">오늘 기록</div>
+          <div class="card-label" style="margin-bottom:0;">기록</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:8px;">
+            <button class="dnav-btn" onclick="changeRecentDate(-1)" style="width:22px;height:22px;font-size:13px;">‹</button>
+            <span id="recentDateLbl" style="font-size:11px;color:var(--text2);min-width:60px;text-align:center;"></span>
+            <button class="dnav-btn" onclick="changeRecentDate(1)" id="recentNextBtn" style="width:22px;height:22px;font-size:13px;">›</button>
+          </div>
           <button class="btn-add-record" onclick="openManualEntry()">+ 직접 추가</button>
         </div>
         <div id="recentList"><div style="color:var(--text2);font-size:13px;">기록이 없습니다</div></div>
@@ -1414,10 +1419,28 @@ async function syncToTracker(sub, durationSec, date) {
     });
   } catch(e) { console.warn('대시보드 연동 실패:', e); }
 }
+let recentDate = new Date();
+
+function changeRecentDate(d) {
+  recentDate.setDate(recentDate.getDate() + d);
+  // 오늘 이후로는 못 가게
+  if (recentDate > new Date()) recentDate = new Date();
+  loadRecent();
+}
+
 async function loadRecent() {
+  const dateStr = ds(recentDate);
+  const isToday = dateStr === todayStr();
+  // 날짜 레이블
+  const lbl = $('recentDateLbl');
+  if (lbl) lbl.textContent = isToday ? '오늘' : korDate(recentDate).replace(/\d{4}년 /,'');
+  // 다음 버튼 비활성화 (오늘이면)
+  const nextBtn = $('recentNextBtn');
+  if (nextBtn) nextBtn.disabled = isToday;
+
   if (!rtdb) { renderRecent([], {}); return; }
   try {
-    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`).get();
+    const snap = await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${dateStr}`).get();
     if (!snap.exists()) { renderRecent([], {}); return; }
     const raw = snap.val();
     const list = Object.entries(raw)
@@ -1453,7 +1476,7 @@ async function delSession(date, key, durationSec) {
   if (!rtdb) return;
   try {
     await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${date}/${key}`).remove();
-    todayMins = Math.max(0, todayMins - durationSec/60);
+    if (date === todayStr()) todayMins = Math.max(0, todayMins - durationSec/60);
     updateGoalUI();
     loadRecent();
   } catch(e) {}
