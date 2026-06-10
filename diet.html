@@ -157,22 +157,16 @@ html,body{min-height:100%;background:var(--bg);color:var(--t);font-family:var(--
       <span class="sup-name">💊 마그네슘</span>
       <span class="sup-desc">저녁 식후</span>
     </div>
-    <div class="sup-row" id="sup-yogurt" onclick="toggleExtra('그릭요거트')">
-      <div class="sup-check">✓</div>
-      <span class="sup-name">🥛 그릭요거트</span>
-      <span class="sup-desc">유산균</span>
-    </div>
   </div>
 </div>
 
-<div class="week-section">
-  <div class="week-title">주 2회 목표</div>
-  <div>
-    <div class="week-row" id="week-fish" onclick="toggleExtra('생선')">
-      <div class="week-check">✓</div>
-      <span class="week-name">🐟 생선 (고등어/연어)</span>
-      <span class="week-sub">오메가3</span>
-    </div>
+<div class="week-section" style="border-color:rgba(245,166,35,.25)">
+  <div class="week-title" style="color:#f5a62388">현실 팁 💡</div>
+  <div style="font-size:11px;color:var(--m);line-height:1.7">
+    · 참치캔 1캔 ≈ 700원 — 오메가3 충분<br>
+    · 고등어캔 ≈ 1,500원 — 단백질+지방 균형<br>
+    · 마그네슘은 약국 저가품 30일분 5,000원대<br>
+    · 그릭요거트 대신 일반 플레인 요거트 (편의점 200원대)
   </div>
 </div>
 
@@ -191,44 +185,44 @@ const fbDb = firebase.database();
 // ── 식단 메뉴 정의 ──
 const MEALS = [
   {
-    key: '운동후',
-    time: '운동 후',
-    emoji: '🥚',
-    name: '운동 후 식사',
-    items: ['달걀 3개', '사과', '토마토', '칼슘두유'],
-    note: '단백질 + 과일로 회복 촉진',
+    key: '아침',
+    time: '아침',
+    emoji: '🥬',
+    name: '아침 식사',
+    items: ['양배추', '블루베리', '계란 2개', '사과 1개'],
+    note: '식이섬유 + 항산화 + 단백질로 하루 시작',
   },
   {
-    key: '11시',
-    time: '11:00',
+    key: '점심',
+    time: '점심',
+    emoji: '🍚',
+    name: '점심 식사',
+    items: ['밥 1공기', '닭가슴살 150~200g', '김치', '나물 반찬'],
+    note: '단백질 위주 + 발효식품으로 장 건강',
+  },
+  {
+    key: '운동전',
+    time: '운동 전',
     emoji: '🍌',
-    name: '오전 간식',
-    items: ['바나나 1개', '견과류 한 줌'],
-    note: '복합당 + 건강한 지방 → 혈당 안정',
+    name: '운동 전 간식',
+    items: ['바나나 1개'],
+    note: '빠른 에너지 공급 → 운동 퍼포먼스 향상',
   },
   {
-    key: '14시',
-    time: '14:00',
-    emoji: '🍠',
-    name: '오후 간식',
-    items: ['냉동 고구마 큐브 (전자레인지 2분)'],
-    note: '포만감 + 식이섬유 → 과식 예방',
-  },
-  {
-    key: '17시',
-    time: '17:00',
+    key: '저녁',
+    time: '저녁',
     emoji: '🍗',
     name: '저녁 식사',
-    items: ['닭갈비', '양배추', '밥 한 공기'],
-    note: '단백질 + 채소 위주 주식',
+    items: ['닭갈비 또는 오리고기', '밥 반 공기', '양배추', '토마토'],
+    note: '단백질 + 채소 중심 · 탄수화물은 반 공기로 조절',
   },
   {
-    key: '야간',
-    time: '야간',
-    emoji: '🫐',
-    name: '야간 간식',
-    items: ['블루베리 또는 견과류'],
-    note: '고당 간식(몽쉘 등) 대신 → 지방 저장 차단',
+    key: '자기전',
+    time: '자기 전',
+    emoji: '🥛',
+    name: '자기 전',
+    items: ['그릭요거트 1컵'],
+    note: '유산균 + 카세인 단백질 → 수면 중 근육 유지',
   },
 ];
 
@@ -361,18 +355,8 @@ function renderExtras() {
     magEl.classList.toggle('done', !!dietData['마그네슘']);
     magEl.querySelector('.sup-check').textContent = dietData['마그네슘'] ? '✓' : '';
   }
-  // 그릭요거트
-  const yoEl = document.getElementById('sup-yogurt');
-  if(yoEl) {
-    yoEl.classList.toggle('done', !!dietData['그릭요거트']);
-    yoEl.querySelector('.sup-check').textContent = dietData['그릭요거트'] ? '✓' : '';
-  }
-  // 생선
-  const fishEl = document.getElementById('week-fish');
-  if(fishEl) {
-    fishEl.classList.toggle('done', !!dietData['생선']);
-    fishEl.querySelector('.week-check').textContent = dietData['생선'] ? '✓' : '';
-  }
+
+
 }
 
 // ── INIT ──
