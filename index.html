@@ -1310,6 +1310,34 @@ function renderHealth() {
         onchange="updHTxt('hobby',this.value)">`
   );
 
+  // 9. 식단 (항상 노출 — 클릭하면 diet.html 열림)
+  const dietChecks = db[sel]?.diet || {};
+  const DIET_ITEMS = ['운동후','11시','14시','17시','야간','마그네슘'];
+  const dietDone  = DIET_ITEMS.filter(k=>dietChecks[k]).length;
+  const dietTotal = DIET_ITEMS.length;
+  const dietPct   = Math.round(dietDone/dietTotal*100);
+  const dietClr   = dietPct>=80?'#27c96e':dietPct>=50?'#f5a623':'#e74c3c';
+
+  out += `<div class="hact" style="cursor:pointer" onclick="window.open('diet.html?date=${sel}','_blank')">
+    <div class="hact-hdr">
+      <span class="hico">🥗</span>
+      <span class="hact-name">식단</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+        <span style="font-family:var(--bebas);font-size:15px;color:${dietClr}">${dietDone}/${dietTotal}</span>
+        <span style="font-size:9px;color:var(--m)">↗</span>
+      </div>
+    </div>
+    <div style="padding:0 8px 8px">
+      <div style="height:6px;background:var(--b);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${dietPct}%;background:${dietClr};border-radius:3px;transition:width .4s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px">
+        <span style="font-size:8px;color:var(--m)">${dietPct>=80?'✓ 잘 지키는 중':dietPct>=50?'⚡ 절반 달성':'오늘 식단 기록'}</span>
+        <span style="font-size:8px;color:${dietClr};font-weight:700">${dietPct}%</span>
+      </div>
+    </div>
+  </div>`;
+
   document.getElementById('pHealth').innerHTML = out;
 }
 
