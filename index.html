@@ -1192,7 +1192,7 @@ function renderHealth() {
   <!-- 식단 — 수면 바로 아래 -->
   ${(()=>{
     const dietChecks = db[sel]?.diet || {};
-    const DIET_KEYS = ['아침','점심','운동전','저녁','자기전','마그네슘'];
+    const DIET_KEYS = ['아침','점심','저녁','야식','마그네슘'];
     const dietDone  = DIET_KEYS.filter(k=>dietChecks[k]).length;
     const dietTotal = DIET_KEYS.length;
     const dietPct   = Math.round(dietDone/dietTotal*100);
