@@ -44,15 +44,11 @@ body {
 }
 
 #app { display: flex; flex-direction: column; height: 100dvh; }
+/* 삼성 브라우저 주소바 자동 숨김 트릭 */
+body::after { content:''; display:block; height:1px; opacity:0; pointer-events:none; }
 
 /* HEADER */
-.header {
-  padding: 14px 20px 12px;
-  display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  flex-shrink: 0;
-}
+.header { display: none; }
 .app-name {
   font-family: 'JetBrains Mono', monospace;
   font-size: 17px; font-weight: 700;
@@ -792,6 +788,7 @@ body {
       <div class="subcat-row" id="subcatRow"></div>
 
       <div class="timer-block">
+        <div id="timerDateLbl" style="font-size:12px;color:var(--text2);text-align:center;margin-bottom:4px;letter-spacing:.3px;"></div>
         <div class="timer-digits" id="timerDigits">00:00:00</div>
         <div id="timerBadge" class="timer-badge"></div>
       </div>
@@ -1244,7 +1241,7 @@ async function initFirebase() {
 /* ── BOOTSTRAP ── */
 async function boot() {
   // 날짜 표시
-  $('hDate').textContent        = korDate(new Date());
+  if($('timerDateLbl')) $('timerDateLbl').textContent = korDate(new Date());
   $('statsDateLbl').textContent = korDate(statsDate);
 
   // 과목·색상은 즉시 렌더 (Firebase 대기 없이)
