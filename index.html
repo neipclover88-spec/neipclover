@@ -1192,10 +1192,17 @@ function renderHealth() {
   <!-- 식단 — 수면 바로 아래 -->
   ${(()=>{
     const dietChecks = db[sel]?.diet || {};
-    const DIET_KEYS = ['아침','점심','저녁','야식','마그네슘'];
-    const dietDone  = DIET_KEYS.filter(k=>dietChecks[k]).length;
-    const dietTotal = DIET_KEYS.length;
-    const dietPct   = Math.round(dietDone/dietTotal*100);
+    // 개별 아이템 키 기준으로 계산 (diet.html과 동일 방식)
+    const DIET_MEAL_ITEMS = {
+      '아침': 6, '점심': 2, '오후': 1, '저녁': 4, '야식': 1
+    };
+    const DIET_EXTRAS = ['마그네슘'];
+    let dietDone = 0, dietTotal = 0;
+    Object.entries(DIET_MEAL_ITEMS).forEach(([meal, count]) => {
+      for(let i=0; i<count; i++) { dietTotal++; if(dietChecks[meal+'_'+i]) dietDone++; }
+    });
+    DIET_EXTRAS.forEach(k => { dietTotal++; if(dietChecks[k]) dietDone++; });
+    const dietPct   = dietTotal>0 ? Math.round(dietDone/dietTotal*100) : 0;
     const dietClr   = dietPct>=80?'#27c96e':dietPct>=50?'#f5a623':'#e74c3c';
     return `<div class="hact" style="cursor:pointer" onclick="window.open('diet.html?date=${sel}','_blank')">
       <div class="hact-hdr">
