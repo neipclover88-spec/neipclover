@@ -587,38 +587,41 @@ body {
 }
 
 /* ── CALENDAR TAB ── */
-.cal-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 10px 0 10px; flex-shrink: 0;
-}
-.cal-week-nav {
-  display: flex; align-items: center; gap: 6px; flex: 1;
-}
-.cal-week-lbl { font-size: 13px; font-weight: 600; flex: 1; text-align: center; }
+.cal-header { display:none; } /* 병합됨 */
+.cal-week-nav { display:flex; align-items:center; gap:4px; }
+.cal-week-lbl { font-size:11px; font-weight:600; white-space:nowrap; }
 .cal-total {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 20px; font-weight: 700; color: var(--blue);
-  flex-shrink: 0;
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px; font-weight:700; color:var(--blue);
 }
 .cal-day-labels {
-  display: flex; margin-left: 28px;
-  border-bottom: 1px solid var(--border);
-  padding: 5px 0 5px; flex-shrink: 0;
+  display:flex; align-items:center;
+  border-bottom:1px solid var(--border);
+  padding:4px 0 4px; flex-shrink:0;
+}
+.cal-day-labels-inner {
+  display:flex; flex:1; margin-left:28px;
+}
+.cal-nav-slot {
+  width:28px; flex-shrink:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:1px;
+  padding-left:4px;
 }
 .cal-day-lbl {
-  flex: 1; text-align: center; font-size: 9px;
-  color: var(--text2); line-height: 1.2;
+  flex:1; text-align:center; font-size:9px;
+  color:var(--text2); line-height:1.2;
 }
 .cal-day-lbl .cal-day-num {
-  display: block; font-size: 13px; font-weight: 700;
-  color: var(--text); margin-top: 1px;
+  display:block; font-size:13px; font-weight:700;
+  color:var(--text); margin-top:1px;
 }
 .cal-day-lbl.today .cal-day-num {
-  background: var(--blue); color: #fff;
-  width: 22px; height: 22px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
+  background:var(--blue); color:#fff;
+  width:22px; height:22px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
 }
-.cal-day-lbl.today { color: var(--blue); }
+.cal-day-lbl.today { color:var(--blue); }
 .cal-scroll {
   overflow-y: auto; overflow-x: hidden; flex: 1;
   -webkit-overflow-scrolling: touch;
@@ -906,15 +909,16 @@ body {
     <!-- ② CALENDAR -->
     <div class="screen" id="screen-calendar" style="display:none;flex-direction:column;height:100%;padding:0;">
       <div style="flex-shrink:0;">
-        <div class="cal-header">
-          <div class="cal-week-nav">
-            <button class="dnav-btn" onclick="changeCalWeek(-1)" style="width:26px;height:26px;font-size:14px;">‹</button>
-            <div class="cal-week-lbl" id="calWeekLbl"></div>
-            <button class="dnav-btn" onclick="changeCalWeek(1)" style="width:26px;height:26px;font-size:14px;">›</button>
+        <div class="cal-day-labels" id="calDayLabels">
+          <div class="cal-nav-slot">
+            <div style="display:flex;gap:2px;">
+              <button class="dnav-btn" onclick="changeCalWeek(-1)" style="width:20px;height:20px;font-size:12px;padding:0;">‹</button>
+              <button class="dnav-btn" onclick="changeCalWeek(1)" style="width:20px;height:20px;font-size:12px;padding:0;">›</button>
+            </div>
+            <div class="cal-total" id="calTotal" style="font-size:11px;margin-top:2px;">0:00</div>
           </div>
-          <div class="cal-total" id="calTotal">0:00</div>
+          <div class="cal-day-labels-inner" id="calDayLabelsInner"></div>
         </div>
-        <div class="cal-day-labels" id="calDayLabels"></div>
       </div>
       <div class="cal-scroll" id="calScroll">
         <div class="cal-grid" id="calGrid"></div>
@@ -1959,12 +1963,11 @@ function changeCalWeek(dir) {
 
 async function loadCalendar() {
   const dates = getCalWeekDates(calAnchor);
-  $('calWeekLbl').textContent = calWeekLabel(dates);
 
   // day header labels
   const DAY_KR = ['월','화','수','목','금','토','일'];
   const today = todayStr();
-  $('calDayLabels').innerHTML = dates.map((d,i) => {
+  $('calDayLabelsInner').innerHTML = dates.map((d,i) => {
     const dayNum = new Date(d+'T00:00:00').getDate();
     const isToday = d === today;
     return `<div class="cal-day-lbl ${isToday?'today':''}">
