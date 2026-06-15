@@ -838,6 +838,7 @@ body::after { content:''; display:block; height:1px; opacity:0; pointer-events:n
     <div id="certOverlay" style="
       display:none; position:fixed; inset:0; z-index:200;
       background:var(--bg); overflow:hidden;
+      user-select:none; -webkit-user-select:none;
     ">
       <div style="height:100dvh; display:flex; flex-direction:column;">
         <!-- close bar -->
@@ -3034,7 +3035,7 @@ async function renderCert() {
   }).join('');
 
   const tlHtml = `
-    <div id="tlBar" style="position:relative;height:28px;margin-bottom:22px;background:var(--surface2);border-radius:4px;overflow:visible;touch-action:none;cursor:crosshair;">
+    <div id="tlBar" style="position:relative;height:28px;margin-bottom:22px;background:var(--surface2);border-radius:4px;overflow:visible;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
       ${tlMarks}
       ${exBlock}
       ${tlBlocks}
