@@ -3081,6 +3081,63 @@ async function renderCert() {
         </div>
       </div>
 
+      <!-- ④ 수면 + 운동 -->
+      <div style="display:flex;gap:8px;padding:0 4px;flex-shrink:0;margin-bottom:16px;">
+        <!-- 수면 -->
+        ${(()=>{
+          const SLP_COLOR='#7a7a9a';
+          const slpH=Number(health?.sleep?.sleepH)||0;
+          const slpM=Number(health?.sleep?.sleepM)||0;
+          const slpScore=Number(health?.sleep?.score)||0;
+          const slpTotal=slpH*60+slpM;
+          if(!slpTotal&&!slpScore) return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${SLP_COLOR};opacity:.4;">
+            <div style="font-size:9px;color:${SLP_COLOR};letter-spacing:1px;margin-bottom:4px;">💤 수면</div>
+            <div style="font-size:11px;color:var(--text2);">기록 없음</div>
+          </div>`;
+          const q=slpTotal>=7*60?'#4f8ef7':slpTotal>=6*60?'#f5a623':'#e74c3c';
+          const qLbl=slpTotal>=7*60?'양호':slpTotal>=6*60?'부족':'매우부족';
+          const bar=slpTotal>0?`<div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:6px;">
+            <div style="width:${Math.min(100,Math.round(slpTotal/(9*60)*100))}%;height:100%;background:${q};border-radius:2px;"></div>
+          </div>`:'';
+          return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${SLP_COLOR};">
+            <div style="font-size:9px;color:${SLP_COLOR};letter-spacing:1px;margin-bottom:6px;">💤 수면</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${q};line-height:1;">${slpH}h${slpM?slpM+'m':''}</div>
+                <div style="font-size:9px;color:${q};margin-top:2px;">${qLbl}</div>
+              </div>
+              ${slpScore?`<div style="text-align:right;"><div style="font-size:9px;color:var(--text2);">점수</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${slpScore>=85?'#4f8ef7':slpScore>=70?'#27c96e':slpScore>=55?'#f5a623':'#e74c3c'};line-height:1;">${slpScore}</div></div>`:''}
+            </div>
+            ${bar}
+          </div>`;
+        })()}
+        <!-- 운동 -->
+        ${(()=>{
+          const EXC='#c07a45';
+          const items=[];
+          const r=health?.running, sw=health?.swimming, cy=health?.cycling;
+          const pu=health?.pushup, pl=health?.pullup, lr=health?.legraise;
+          if(r?.km>0)   items.push({ico:'🏃',txt:`${r.km}km${r.runM?` · ${r.runM}m`:''}`});
+          if(sw?.laps>0) items.push({ico:'🏊',txt:`${sw.laps}바퀴${sw.swimM?` · ${sw.swimM}m`:''}`});
+          if(cy?.km>0)  items.push({ico:'🚴',txt:`${cy.km}km`});
+          if(pu?.reps>0) items.push({ico:'💪',txt:`${pu.reps}회`});
+          if(pl?.reps>0) items.push({ico:'🏋️',txt:`${pl.reps}회`});
+          if(lr?.reps>0) items.push({ico:'🦵',txt:`${lr.reps}회`});
+          if(!items.length) return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${EXC};opacity:.4;">
+            <div style="font-size:9px;color:${EXC};letter-spacing:1px;margin-bottom:4px;">🏃 운동</div>
+            <div style="font-size:11px;color:var(--text2);">기록 없음</div>
+          </div>`;
+          const totalExMin=(r?.runM||0)+(sw?.swimM||0)+((cy?.cycH||0)*60+(cy?.cycM||0));
+          return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${EXC};">
+            <div style="font-size:9px;color:${EXC};letter-spacing:1px;margin-bottom:6px;">🏃 운동</div>
+            ${totalExMin>0?`<div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${EXC};line-height:1;margin-bottom:5px;">${totalExMin}m</div>`:''}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              ${items.map(i=>`<div style="font-size:11px;color:var(--text);">${i.ico} <span style="color:${EXC};">${i.txt}</span></div>`).join('')}
+            </div>
+          </div>`;
+        })()}
+      </div>
+
       <div style="text-align:center;padding-bottom:12px;font-size:8px;color:var(--text2);opacity:0.3;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
     </div>
   `;
