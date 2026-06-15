@@ -3050,8 +3050,8 @@ async function renderCert() {
     }).join('');
 
   // 스케줄 세션 블록 (HH:MM 포맷) + 클릭 삭제/수정
-  const SCHED_COLORS = {korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45',work:'#7a7a9a'};
-  const SCHED_LABELS = {korean:'국어',math:'수학',eng:'영어',social:'사회',science:'과학',exercise:'운동',work:'업무'};
+  const SCHED_COLORS = {korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45',work:'#7a7a9a',etc:'#5a5a6a'};
+  const SCHED_LABELS = {korean:'국어',math:'수학',eng:'영어',social:'사회',science:'과학',exercise:'운동',work:'업무',etc:'기타'};
   function hmToPct(hhmm) {
     if (!hhmm) return null;
     const [h,m] = hhmm.split(':').map(Number);
@@ -3150,8 +3150,8 @@ async function renderCert() {
         ${(()=>{
           const nonStudy = schedSessions.filter(s => !['korean','math','eng','social','science'].includes(s.subject) && !s.live);
           if (!nonStudy.length) return '';
-          const NC = {exercise:'#c07a45', work:'#7a7a9a'};
-          const NL = {exercise:'운동', work:'업무'};
+          const NC = {exercise:'#c07a45', work:'#7a7a9a', etc:'#5a5a6a'};
+          const NL = {exercise:'운동', work:'업무', etc:'기타'};
           return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">` +
             nonStudy.map(s => {
               const color = NC[s.subject]||'#7a7a9a';
@@ -3247,6 +3247,7 @@ async function renderCert() {
     {label:'과학', key:'science', color:'#a855f7'},
     {label:'운동', key:'exercise',color:'#c07a45'},
     {label:'업무', key:'work',    color:'#7a7a9a'},
+    {label:'기타', key:'etc',     color:'#5a5a6a'},
   ];
   const tlBar = $('tlBar');
   const tlSel = $('tlSel');
