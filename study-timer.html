@@ -2938,9 +2938,9 @@ async function renderCert() {
         const raw = jbSnap.val();
         jbBooks = Array.isArray(raw.books) ? raw.books : Object.values(raw.books||{});
       }
-      // 스케줄 세션 → schedSessions
+      // 스케줄 세션 → schedSessions (키 포함)
       if (schedSnap?.exists()) {
-        schedSessions = Object.values(schedSnap.val());
+        schedSessions = Object.entries(schedSnap.val()).map(([k,v])=>({...v,_key:k}));
       }
     } catch(e) {}
   }
@@ -3020,8 +3020,9 @@ async function renderCert() {
       return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${s.subjectColor||'#5ba3e8'};border-radius:2px;opacity:0.9;"></div>`;
     }).join('');
 
-  // 스케줄 세션 블록 (HH:MM 포맷)
+  // 스케줄 세션 블록 (HH:MM 포맷) + 클릭 삭제/수정
   const SCHED_COLORS = {korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45'};
+  const SCHED_LABELS = {korean:'국어',math:'수학',eng:'영어',social:'사회',science:'과학',exercise:'운동'};
   function hmToPct(hhmm) {
     if (!hhmm) return null;
     const [h,m] = hhmm.split(':').map(Number);
@@ -3030,24 +3031,31 @@ async function renderCert() {
   const schedBlocks = schedSessions
     .filter(s => s.start && s.end && !s.live)
     .map(s => {
-      const left = hmToPct(s.start);
+      const left  = hmToPct(s.start);
       const right = hmToPct(s.end);
       if (left === null || right === null) return '';
-      const w = Math.max(right - left, 0.5);
+      const w     = Math.max(right - left, 0.5);
       const color = SCHED_COLORS[s.subject] || '#7a7a9a';
-      return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${color};border-radius:2px;opacity:0.85;"></div>`;
+      const label = SCHED_LABELS[s.subject] || s.subject;
+      return `<div
+        onclick="certBlockTap('${s._key}','${label}','${s.start}','${s.end}','${s.subject}')"
+        style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${color};border-radius:2px;opacity:0.85;cursor:pointer;z-index:5;"></div>`;
     }).join('');
 
   // 운동 블록 (시간 없으면 건강 기록 기반 추정)
   let exBlock = '';
-  const run = health?.running;
-  const swim = health?.swimming;
-  if (run?.km > 0 || swim?.laps > 0) {
-    const exMin = (run?.runM||0) + (swim?.swimM||0) || 55;
-    // 기본 위치 6:30 (아침 운동 추정)
+  const run  = health?.running  || {};
+  const swim = health?.swimming || {};
+  const cyc  = health?.cycling  || {};
+  const runKm  = Number(run.km)||0;
+  const swimLp = Number(swim.laps)||0;
+  const cycKm  = Number(cyc.km)||0;
+  if (runKm > 0 || swimLp > 0 || cycKm > 0) {
+    const exMin = (Number(run.runM)||0) + (Number(swim.swimM)||0)
+      + (Number(cyc.cycH)||0)*60 + (Number(cyc.cycM)||0) || 60;
     const exLeft = ((6.5 - TL_START) / TL_SPAN) * 100;
-    const exW = (exMin / (TL_SPAN * 60)) * 100;
-    exBlock = `<div style="position:absolute;left:${exLeft}%;width:${Math.max(exW,1)}%;top:0;bottom:0;background:${EX_COLOR};border-radius:2px;opacity:0.85;" title="운동"></div>`;
+    const exW    = Math.max((exMin / (TL_SPAN * 60)) * 100, 1);
+    exBlock = `<div style="position:absolute;left:${exLeft}%;width:${exW}%;top:0;bottom:0;background:${EX_COLOR};border-radius:2px;opacity:0.85;" title="운동 ${exMin}m"></div>`;
   }
 
   // 시간 눈금 (6, 9, 12, 15, 18, 21, 23)
@@ -3066,6 +3074,14 @@ async function renderCert() {
       ${schedBlocks}
       <div id="tlSel" style="display:none;position:absolute;top:0;bottom:0;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.5);border-radius:3px;pointer-events:none;"></div>
       <div id="tlSelLbl" style="display:none;position:absolute;bottom:-18px;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;"></div>
+    </div>
+    <!-- 블록 탭 팝업 -->
+    <div id="tlBlockPop" style="display:none;position:relative;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+      <div id="tlBlockPopLbl" style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px;"></div>
+      <div style="display:flex;gap:6px;">
+        <button id="tlBlockDelBtn" style="flex:1;padding:8px;border-radius:8px;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#e74c3c;font-size:12px;font-weight:700;cursor:pointer;">🗑 삭제</button>
+        <button onclick="document.getElementById('tlBlockPop').style.display='none'" style="flex:1;padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;">취소</button>
+      </div>
     </div>
     <!-- 과목 선택 팝업 -->
     <div id="tlPicker" style="display:none;position:absolute;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
@@ -3242,6 +3258,25 @@ async function renderCert() {
     showPicker(pctToTimeStr(lo), pctToTimeStr(hi));
   });
   tlBar.addEventListener('pointercancel', ()=>{ clearTimeout(_tlTimer); _tlActive=false; });
+}
+
+/* ── TIMELINE BLOCK TAP ── */
+function certBlockTap(key, label, start, end, subject) {
+  const pop = document.getElementById('tlBlockPop');
+  const lbl = document.getElementById('tlBlockPopLbl');
+  const delBtn = document.getElementById('tlBlockDelBtn');
+  if (!pop) return;
+  lbl.textContent = `${label}  ${start} → ${end}`;
+  lbl.style.color = ({korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45'})[subject]||'var(--text)';
+  pop.style.display = 'block';
+  delBtn.onclick = async () => {
+    pop.style.display = 'none';
+    if (!rtdb) return;
+    try {
+      await rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${todayStr()}/${key}`).remove();
+      await renderCert();
+    } catch(e) {}
+  };
 }
 
 /* ── TIMELINE QUICK ADD ── */
