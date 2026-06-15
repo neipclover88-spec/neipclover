@@ -843,9 +843,15 @@ body::after { content:''; display:block; height:1px; opacity:0; pointer-events:n
       <div style="height:100dvh; display:flex; flex-direction:column;">
         <!-- close bar -->
         <div style="
-          display:flex; justify-content:flex-end;
+          display:flex; justify-content:space-between; align-items:center;
           padding:10px 16px 0; flex-shrink:0;
         ">
+          <button onclick="renderCert()" style="
+            background:var(--surface2); border:1px solid var(--border);
+            color:var(--text2); border-radius:100px;
+            padding:5px 14px; font-size:12px; cursor:pointer;
+            font-family:'Noto Sans KR',sans-serif;
+          ">↺ 새로고침</button>
           <button onclick="closeCert()" style="
             background:var(--surface2); border:1px solid var(--border);
             color:var(--text2); border-radius:100px;
@@ -2907,7 +2913,7 @@ async function renderCert() {
 
   if (rtdb) {
     const t = ms => new Promise(r=>setTimeout(r,ms));
-    const safeGet = ref => Promise.race([ref.get(), t(3000).then(()=>null)]);
+    const safeGet = ref => Promise.race([ref.get(), t(6000).then(()=>null)]);
     try {
       const [sessSnap, goalSnap, healthSnap, snapSnap, jbSnap, schedSnap] = await Promise.all([
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`)),
@@ -3165,6 +3171,7 @@ async function renderCert() {
           if(!items.length) return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${EXC};opacity:.4;">
             <div style="font-size:9px;color:${EXC};letter-spacing:1px;margin-bottom:4px;">🏃 운동</div>
             <div style="font-size:11px;color:var(--text2);">기록 없음</div>
+            <div style="font-size:9px;color:var(--text2);margin-top:4px;opacity:.6;">↺ 새로고침 눌러보세요</div>
           </div>`;
           const totalExMin=(r?.runM||0)+(sw?.swimM||0)+((cy?.cycH||0)*60+(cy?.cycM||0));
           return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${EXC};">
