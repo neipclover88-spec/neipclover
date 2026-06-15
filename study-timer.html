@@ -3078,9 +3078,9 @@ async function renderCert() {
   const swim = health?.swimming || {};
   const cyc  = health?.cycling  || {};
   const runKm  = Number(run.km)||0;
-  const swimLp = Number(swim.laps)||0;
+  const swimM  = Number(swim.m)||0;      // 대시보드: swimming.m (미터)
   const cycKm  = Number(cyc.km)||0;
-  if (runKm > 0 || swimLp > 0 || cycKm > 0) {
+  if (runKm > 0 || swimM > 0 || cycKm > 0) {
     const exMin = (Number(run.runM)||0) + (Number(swim.swimM)||0)
       + (Number(cyc.cycH)||0)*60 + (Number(cyc.cycM)||0) || 60;
     const exLeft = ((6.5 - TL_START) / TL_SPAN) * 100;
@@ -3139,7 +3139,7 @@ async function renderCert() {
         ${tlHtml}
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
           ${studiedList.map(([n,i])=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};flex-shrink:0;"></span>${n}</span>`).join('')}
-          ${(runKm>0||swimLp>0||cycKm>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
+          ${(runKm>0||swimM>0||cycKm>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
         </div>
       </div>
 
@@ -3184,14 +3184,15 @@ async function renderCert() {
         ${(()=>{
           const EXC='#c07a45';
           const items=[];
-          const r=health?.running, sw=health?.swimming, cy=health?.cycling;
-          const pu=health?.pushup, pl=health?.pullup, lr=health?.legraise;
-          if(r?.km>0)   items.push({ico:'🏃',txt:`${r.km}km${r.runM?` · ${r.runM}m`:''}`});
-          if(sw?.laps>0) items.push({ico:'🏊',txt:`${sw.laps}바퀴${sw.swimM?` · ${sw.swimM}m`:''}`});
-          if(cy?.km>0)  items.push({ico:'🚴',txt:`${cy.km}km`});
-          if(pu?.reps>0) items.push({ico:'💪',txt:`${pu.reps}회`});
-          if(pl?.reps>0) items.push({ico:'🏋️',txt:`${pl.reps}회`});
-          if(lr?.reps>0) items.push({ico:'🦵',txt:`${lr.reps}회`});
+          const r=health?.running||{}, sw=health?.swimming||{}, cy=health?.cycling||{};
+          const pu=health?.pushup||{}, pl=health?.pullup||{}, lr=health?.legraise||{};
+          const swM = Number(sw.m)||0;
+          if(r.km>0)   items.push({ico:'🏃',txt:`${r.km}km${r.runM?` · ${r.runM}분`:''}`});
+          if(swM>0)    items.push({ico:'🏊',txt:`${swM}m${sw.swimM?` · ${sw.swimM}분${sw.swimS?sw.swimS+'초':''}`:''}`});
+          if(cy.km>0)  items.push({ico:'🚴',txt:`${cy.km}km`});
+          if(pu.reps>0) items.push({ico:'💪',txt:`${pu.reps}회`});
+          if(pl.reps>0) items.push({ico:'🏋️',txt:`${pl.reps}회`});
+          if(lr.reps>0) items.push({ico:'🦵',txt:`${lr.reps}회`});
           if(!items.length) return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${EXC};opacity:.4;">
             <div style="font-size:9px;color:${EXC};letter-spacing:1px;margin-bottom:4px;">🏃 운동</div>
             <div style="font-size:11px;color:var(--text2);">기록 없음</div>
