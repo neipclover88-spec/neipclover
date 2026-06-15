@@ -2900,17 +2900,19 @@ async function renderCert() {
   let sessions = [];
   let goals = {};
   let health = {};
-  let snapshots = {}; // 오늘 시작 시점 completedVal 스냅샷
+  let snapshots = {};
+  let jbBooks = [];
 
   if (rtdb) {
     const t = ms => new Promise(r=>setTimeout(r,ms));
     const safeGet = ref => Promise.race([ref.get(), t(3000).then(()=>null)]);
     try {
-      const [sessSnap, goalSnap, healthSnap, snapSnap] = await Promise.all([
+      const [sessSnap, goalSnap, healthSnap, snapSnap, jbSnap] = await Promise.all([
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/_goals`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/health`)),
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/goalSnapshots/${todayStr()}`)),
+        safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/jeongbok`)),
       ]);
       if (sessSnap?.exists())  sessions = Object.values(sessSnap.val());
       if (goalSnap?.exists())  {
@@ -2921,8 +2923,6 @@ async function renderCert() {
         });
       }
       if (healthSnap?.exists()) health = healthSnap.val();
-
-      // 오늘 스냅샷 로드 or 최초 생성
       if (snapSnap?.exists()) {
         snapshots = snapSnap.val();
       } else if (Object.keys(goals).length) {
@@ -2931,194 +2931,149 @@ async function renderCert() {
         });
         try { await rtdb.ref(`${TIMER_FB_PATH}/timer/goalSnapshots/${todayStr()}`).set(snapshots); } catch(e) {}
       }
-    } catch(e) { /* fetch 실패해도 빈 데이터로 렌더 */ }
+      if (jbSnap?.exists()) {
+        const raw = jbSnap.val();
+        jbBooks = Array.isArray(raw.books) ? raw.books : Object.values(raw.books||{});
+      }
+    } catch(e) {}
   }
 
   // 집계
   const bySubj = {};
   sessions.forEach(s => {
     const sn = s.subjectName;
-    if (!bySubj[sn]) bySubj[sn] = {color:s.subjectColor, total:0, subs:{}};
+    if (!bySubj[sn]) bySubj[sn] = {color:s.subjectColor||'#5ba3e8', total:0};
     bySubj[sn].total += s.durationSec||0;
-    const cat = s.subCategoryName||'';
-    if (cat) bySubj[sn].subs[cat] = (bySubj[sn].subs[cat]||0) + (s.durationSec||0);
   });
   const totalSec = sessions.reduce((a,s)=>a+(s.durationSec||0),0);
-  const goalSec  = goalHours*3600;
-  const pct      = goalSec>0 ? Math.min(100,Math.round(totalSec/goalSec*100)) : 0;
-  const today    = new Date();
-  const dayKr    = ['일','월','화','수','목','금','토'][today.getDay()];
+  const today = new Date();
+  const dayKr = ['일','월','화','수','목','금','토'][today.getDay()];
+  const EX_COLOR = '#c07a45';
 
-  const EX_COLOR  = '#c07a45';
-  const SLP_COLOR = '#7a7a9a';
-  const cardTitle = (emoji, title, accent) =>
-    `<div style="font-size:9px;color:${accent};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">${emoji} ${title}</div>`;
-
-  // 과목 카드 생성 함수
-  function makeSubjCard(name, info) {
-    const color   = info.color||'#5ba3e8';
-    const sPct    = goalSec>0 ? Math.min(100,Math.round(info.total/goalSec*100)) : 0;
-    const gs      = goals[name]||[];
-    const subRows = Object.entries(info.subs).sort((a,b)=>b[1]-a[1]).map(([cat,sec])=>`
-      <div style="display:flex;justify-content:space-between;padding:1px 0 1px 8px;">
-        <span style="font-size:10px;color:var(--text2);">· ${cat}</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);">${fmtMin(sec/60)}</span>
-      </div>`).join('');
-    const goalRows = gs.map((g, gi) => {
-      const tv    = Number(g.targetVal)||0;
-      const cv    = Number(g.completedVal)||0;
-      const start = Number((snapshots[name]||[])[gi])||0;
-      const todayGain = Math.max(0, cv - start);
-      const startPct  = tv>0 ? Math.min(100,Math.round(start/tv*100)) : 0;
-      const todayPct  = tv>0 ? Math.min(100-startPct, Math.round(todayGain/tv*100)) : 0;
-
-      return `<div style="margin-top:5px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-          <span style="font-size:10px;color:var(--text2);">${g.name||''}</span>
-          <div style="display:flex;align-items:center;gap:4px;">
-            ${todayGain>0?`<span style="font-size:9px;font-weight:700;color:${color};background:${color}22;padding:1px 5px;border-radius:4px;">+${todayGain}${g.targetUnit||''}</span>`:''}
-            <input type="number" min="0" max="${tv}" value="${cv}"
-              style="width:46px;background:var(--surface2);border:1px solid ${color}66;border-radius:5px;
-                padding:2px 4px;color:${color};font-family:'JetBrains Mono',monospace;
-                font-size:11px;text-align:center;outline:none;"
-              onchange="certUpdateGoal('${name}',${gi},this.value)"
-              onclick="event.stopPropagation()">
-            <span style="font-size:9px;color:var(--text2);">/${tv}${g.targetUnit||''}</span>
-          </div>
-        </div>
-        <!-- 바: 어제까지(어두운) + 오늘(밝은) -->
-        <div style="height:12px;background:var(--surface2);border-radius:6px;overflow:hidden;position:relative;">
-          <div style="position:absolute;left:0;top:0;height:100%;width:${startPct}%;background:${color};opacity:0.25;border-radius:6px 0 0 6px;"></div>
-          <div style="position:absolute;left:${startPct}%;top:0;height:100%;width:${todayPct}%;background:${color};border-radius:0 6px 6px 0;box-shadow:0 0 10px ${color}aa;"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:2px;">
-          <span style="font-size:9px;color:var(--text2);">어제까지 ${start}${g.targetUnit||''}</span>
-          <span style="font-size:9px;color:${color};">오늘 +${todayGain}${g.targetUnit||''}</span>
-        </div>
-      </div>`;
-    }).join('');
-    return `<div style="
-      background:var(--surface);border:1px solid var(--border);
-      border-radius:10px;padding:9px 12px;
-      border-left:3px solid ${color};flex:1;min-width:0;
-    ">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <span style="font-size:13px;font-weight:700;color:${color};">${name}</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${color};">${fmtMin(info.total/60)}</span>
-      </div>
-      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:${subRows?'3px':'0'};">
-        <div style="width:${sPct}%;height:100%;background:${color};border-radius:3px;"></div>
-      </div>
-      ${subRows}
-      ${goalRows?`<div style="height:1px;background:var(--border);margin:4px 0 1px;"></div>${goalRows}`:''}
-    </div>`;
+  // ── 정복지도 진척도 (오늘 공부한 과목만) ──
+  const SUBJ_KEY_MAP = {'국어':'korean','수학':'math','영어':'eng','사회':'social','과학':'science'};
+  function getJbPct(subjName) {
+    const key = SUBJ_KEY_MAP[subjName];
+    // subject 필드로 매칭
+    const books = jbBooks.filter(b => {
+      const subj = (b.subject||'').toLowerCase();
+      return key ? subj === key || subj.includes(subjName) : subj === subjName;
+    });
+    let solved = 0, total = 0;
+    books.forEach(b => {
+      const cells = Array.isArray(b.cells) ? b.cells : Object.values(b.cells||{});
+      total += b.n || cells.length;
+      solved += cells.filter(c => c && c.st && c.st !== 'unsolved').length;
+    });
+    return total > 0 ? Math.min(100, Math.round(solved / total * 100)) : null;
   }
 
-  // ── 운동 카드 ── (전체 종목)
-  const ex = [];
-  const run  = health?.running;
-  const swim = health?.swimming;
-  const cyc  = health?.cycling;
-  const push = health?.pushup;
-  const pull = health?.pullup;
-  const leg  = health?.legraise;
-  if (run?.km>0)    ex.push(`🏃 러닝 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${run.km}km${run.runM>0?' · '+run.runM+'분':''}</span>`);
-  if (swim?.laps>0) ex.push(`🏊 수영 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${swim.laps}바퀴${swim.swimM>0?' · '+swim.swimM+'분':''}</span>`);
-  if (cyc?.km>0)    ex.push(`🚴 자전거 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${cyc.km}km</span>`);
-  if (push?.reps>0) ex.push(`💪 푸시업 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${push.reps}회</span>`);
-  if (pull?.reps>0) ex.push(`🏋️ 풀업 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${pull.reps}회</span>`);
-  if (leg?.reps>0)  ex.push(`🦵 레그레이즈 <span style="color:${EX_COLOR};font-family:'JetBrains Mono',monospace;">${leg.reps}회</span>`);
-  const exContent = ex.map(e=>`<div style="font-size:12px;padding:2px 0;">${e}</div>`).join('') ||
-    `<div style="font-size:11px;color:var(--text2);">기록 없음</div>`;
-
-  // ── 수면 카드 ──
-  const slpH = Number(health?.sleep?.sleepH)||0;
-  const slpM = Number(health?.sleep?.sleepM)||0;
-  const slpTotal = slpH*60+slpM;
-  const slpQuality = slpTotal>=7*60&&slpTotal<=9*60?'#27c96e':slpTotal>=6*60?'#f5a623':'#e74c3c';
-  const slpMsg  = slpTotal>=7*60&&slpTotal<=9*60?'양호':slpTotal>=6*60?'부족':'매우 부족';
-  const slpEmoji = slpTotal>=8*60?'😴':slpTotal>=7*60?'😊':slpTotal>=6*60?'😐':'😵';
-  // 점수: 0~100점 (7~9h = 100점, 6h = 70점, 5h = 40점, 4h 이하 = 20점)
-  const slpScore = slpTotal===0 ? null
-    : slpTotal>=7*60&&slpTotal<=9*60 ? 100
-    : slpTotal>=8.5*60 ? Math.round(100 - (slpTotal-8.5*60)/60*5)  // 8.5h 초과 감점
-    : slpTotal>=6*60   ? Math.round(70 + (slpTotal-6*60)/(60*60)*30)
-    : slpTotal>=5*60   ? Math.round(40 + (slpTotal-5*60)/(60*60)*30)
-    : Math.max(10, Math.round(slpTotal/(5*60)*40));
-  const slpContent = slpTotal>0 ? `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
-      <div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${slpQuality};line-height:1;">${slpH}:${String(slpM).padStart(2,'0')}</div>
-        <div style="font-size:10px;color:${slpQuality};margin-top:2px;">${slpMsg}</div>
-        <div style="font-size:9px;color:var(--text2);margin-top:1px;">권장 7–9h</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:24px;line-height:1;">${slpEmoji}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${slpQuality};line-height:1;margin-top:3px;">${slpScore}
-          <span style="font-size:9px;color:var(--text2);">/ 100</span>
-        </div>
-      </div>
-    </div>
-    <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:5px;">
-      <div style="width:${Math.min(100,Math.round(slpTotal/(9*60)*100))}%;height:100%;background:${slpQuality};border-radius:3px;"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text2);">
-      <span>0h</span><span style="color:${slpQuality};">↑ ${slpH}h ${slpM}m</span><span>9h</span>
-    </div>` :
-    `<div style="font-size:11px;color:var(--text2);">기록 없음</div>`;
-
-  // ── 행 배치: 과목 2개씩, 운동+수면 마지막 ──
   const studiedList = Object.entries(bySubj).sort((a,b)=>b[1].total-a[1].total);
-  const rowsHtml = [];
 
-  if (studiedList.length === 0) {
-    rowsHtml.push(`<div style="display:flex;gap:7px;">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;flex:1;text-align:center;color:var(--text2);font-size:12px;">오늘 공부 기록 없음</div>
-    </div>`);
-  } else {
-    for (let i=0; i<studiedList.length; i+=2) {
-      const pair = studiedList.slice(i, i+2);
-      const cardsHtml = pair.map(([n,info])=>makeSubjCard(n,info)).join('');
-      const filler = pair.length===1 ? `<div style="flex:1;min-width:0;"></div>` : '';
-      rowsHtml.push(`<div style="display:flex;gap:7px;">${cardsHtml}${filler}</div>`);
-    }
+  const jbBarsHtml = studiedList.length > 0 ? studiedList.map(([name, info]) => {
+    const pct = getJbPct(name);
+    if (pct === null) return '';
+    const color = info.color;
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span style="font-size:12px;font-weight:700;color:${color};">${name}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);">${fmtMin(info.total/60)}</span>
+      </div>
+      <div style="position:relative;padding-bottom:16px;">
+        <!-- 화살표 + % 라벨 -->
+        <div style="position:absolute;bottom:0;left:calc(${pct}% - 16px);width:32px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:${color};line-height:1;">${pct}%</div>
+          <div style="font-size:8px;color:${color};line-height:1;">▲</div>
+        </div>
+        <!-- 바 -->
+        <div style="height:16px;background:var(--surface2);border-radius:8px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${color};border-radius:8px;box-shadow:0 0 8px ${color}66;"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '';
+
+  // ── 타임라인 (6시~23시) ──
+  const TL_START = 6, TL_END = 23, TL_SPAN = TL_END - TL_START; // 17h
+  function toPct(isoStr) {
+    if (!isoStr) return null;
+    const d = new Date(isoStr);
+    const mins = d.getHours() * 60 + d.getMinutes();
+    return Math.max(0, Math.min(100, (mins - TL_START*60) / (TL_SPAN*60) * 100));
   }
 
-  // 운동+수면 마지막 행
-  rowsHtml.push(`<div style="display:flex;gap:7px;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 12px;border-left:3px solid ${EX_COLOR};flex:1;min-width:0;">
-      ${cardTitle('🏃','운동',EX_COLOR)}${exContent}
-    </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 12px;border-left:3px solid ${SLP_COLOR};flex:1;min-width:0;">
-      ${cardTitle('💤','수면',SLP_COLOR)}${slpContent}
-    </div>
-  </div>`);
+  // 세션 블록
+  const tlBlocks = sessions
+    .filter(s => s.startTime && s.endTime)
+    .map(s => {
+      const left = toPct(s.startTime);
+      const right = toPct(s.endTime);
+      if (left === null || right === null) return '';
+      const w = Math.max(right - left, 0.5);
+      return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${s.subjectColor||'#5ba3e8'};border-radius:2px;opacity:0.9;" title="${s.subjectName}"></div>`;
+    }).join('');
 
+  // 운동 블록 (시간 없으면 건강 기록 기반 추정)
+  let exBlock = '';
+  const run = health?.running;
+  const swim = health?.swimming;
+  if (run?.km > 0 || swim?.laps > 0) {
+    const exMin = (run?.runM||0) + (swim?.swimM||0) || 55;
+    // 기본 위치 6:30 (아침 운동 추정)
+    const exLeft = ((6.5 - TL_START) / TL_SPAN) * 100;
+    const exW = (exMin / (TL_SPAN * 60)) * 100;
+    exBlock = `<div style="position:absolute;left:${exLeft}%;width:${Math.max(exW,1)}%;top:0;bottom:0;background:${EX_COLOR};border-radius:2px;opacity:0.85;" title="운동"></div>`;
+  }
+
+  // 시간 눈금 (6, 9, 12, 15, 18, 21, 23)
+  const tlMarks = [6,9,12,15,18,21,23].map(h => {
+    const left = (h - TL_START) / TL_SPAN * 100;
+    return `<div style="position:absolute;left:${left}%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08);pointer-events:none;">
+      <span style="position:absolute;top:100%;margin-top:3px;font-size:8px;color:var(--text2);transform:translateX(-50%);white-space:nowrap;">${h}시</span>
+    </div>`;
+  }).join('');
+
+  const tlHtml = `
+    <div style="position:relative;height:22px;margin-bottom:18px;background:var(--surface2);border-radius:4px;overflow:visible;">
+      ${tlMarks}
+      ${exBlock}
+      ${tlBlocks}
+    </div>`;
+
+  // ── 최종 HTML ──
   $('certCard').innerHTML = `
-    <div style="display:flex;flex-direction:column;height:100%;">
-      <!-- 헤더 -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;flex-shrink:0;">
-        <div>
-          <div style="font-size:8px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:2px;">DAILY STUDY LOG</div>
-          <div style="font-size:15px;font-weight:700;">${today.getMonth()+1}월 ${today.getDate()}일 (${dayKr})</div>
-          ${streak>0?`<div style="font-size:11px;color:var(--amber);">🔥 ${streak}일 연속</div>`:''}
+    <div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+
+      <!-- ① 날짜 + 공부시간 -->
+      <div style="text-align:center;padding:20px 0 18px;flex-shrink:0;">
+        <div style="font-size:13px;color:var(--text2);letter-spacing:2px;font-weight:600;margin-bottom:4px;">${dayKr}요일</div>
+        <div style="font-size:32px;font-weight:700;letter-spacing:-1px;margin-bottom:14px;">
+          ${today.getMonth()+1}월 ${today.getDate()}일
         </div>
-        <div style="text-align:right;">
-          <div style="font-size:8px;color:var(--text2);letter-spacing:1px;margin-bottom:1px;">총 공부시간</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-2px;">${fmtMin(totalSec/60)}</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:2px;">목표 ${goalHours}h · ${pct}%</div>
-          <div style="height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:3px;">
-            <div style="width:${pct}%;height:100%;background:var(--amber);border-radius:2px;"></div>
-          </div>
+        ${streak>0?`<div style="font-size:11px;color:var(--amber);margin-bottom:10px;">🔥 ${streak}일 연속</div>`:''}
+        <div style="font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-2px;">${fmtMin(totalSec/60)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:6px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
+      </div>
+
+      <!-- ② 정복지도 진척도 -->
+      ${jbBarsHtml ? `
+      <div style="padding:0 4px;flex-shrink:0;margin-bottom:8px;">
+        <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">📊 정복지도</div>
+        ${jbBarsHtml}
+      </div>` : ''}
+
+      <!-- ③ 하루 타임라인 -->
+      <div style="padding:0 4px;flex-shrink:0;margin-bottom:16px;">
+        <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">⏱ 오늘 하루</div>
+        ${tlHtml}
+        <!-- 과목 범례 -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+          ${studiedList.map(([n,i])=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};flex-shrink:0;"></span>${n}</span>`).join('')}
+          ${(run?.km>0||swim?.laps>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
         </div>
       </div>
 
-      <!-- 카드들 (콘텐츠 크기에 맞게 자동 조절, 넘치면 스크롤) -->
-      <div style="display:flex;flex-direction:column;gap:7px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;">
-        ${rowsHtml.join('')}
-      </div>
-
-      <div style="text-align:center;margin-top:6px;font-size:8px;color:var(--text2);opacity:0.3;flex-shrink:0;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
+      <div style="text-align:center;padding-bottom:12px;font-size:8px;color:var(--text2);opacity:0.3;font-family:'JetBrains Mono',monospace;">열공 타이머</div>
     </div>
   `;
 }
