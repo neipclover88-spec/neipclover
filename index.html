@@ -384,7 +384,7 @@ function dayData(k) {
   }
   const h = d.health;
   if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0};
-  if(!h.swimming) h.swimming = {laps:0,swimM:0};
+  if(!h.swimming) h.swimming = {m:0,swimM:0,swimS:0,free:0,back:0,breast:0,fly:0};
   if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
   if(!h.pushup)   h.pushup   = {reps:0};
@@ -645,7 +645,7 @@ function renderCal() {
     // health
     const hd = db[dk]?.health||{};
     const hp = [];
-    if(hd.swimming?.laps>0) hp.push('🏊'+hd.swimming.laps+'바');
+    if(hd.swimming?.m>0)    hp.push('🏊'+hd.swimming.m+'m');
     if(hd.running?.km>0)    hp.push('🏃'+hd.running.km+'k');
     if(hd.cycling?.km>0)    hp.push('🚴'+hd.cycling.km+'k');
     if(hd.pushup?.reps>0)    hp.push('💪'+hd.pushup.reps);
@@ -1095,9 +1095,11 @@ function renderHealth() {
   const slpMsg = slpScore>0?(slpScore>=85?'매우 좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심 필요'):(slpTotalMins>=7*60?'✓ 충분':slpTotalMins>=6*60?'⚡ 부족':slpTotalMins>0?'⚠ 매우 부족':'');
   const scoreClr = slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':slpScore>0?'#f5a623':'var(--m2)';
 
-  const swimLaps = Number(h.swimming.laps)||0;
-  const swimM    = Number(h.swimming.swimM)||0;
-  const swimStr  = swimLaps>0 ? swimLaps+'바퀴'+(swimM?' '+swimM+'분':'') : '';
+  const swimM2   = Number(h.swimming.swimM)||0;
+  const swimS2   = Number(h.swimming.swimS)||0;
+  const swimDist = Number(h.swimming.m)||0;
+  const swimTimeStr = swimM2>0||swimS2>0 ? swimM2+'분'+(swimS2?swimS2+'초':'') : '';
+  const swimStr  = swimDist>0 ? swimDist+'m'+(swimTimeStr?' '+swimTimeStr:'') : '';
 
   const runKm  = Number(h.running.km)||0;
   const runM   = Number(h.running.runM)||0;
@@ -1230,18 +1232,32 @@ function renderHealth() {
   // 2. SWIMMING (collapsible)
   out += hItem('swim','🏊','수영', swimStr,
     `<div class="hrow">
-        <span class="hlbl">바퀴</span>
-        <input class="hinp" type="number" min="0" value="${swimLaps||''}" placeholder="0"
-          oninput="updHSave('swimming','laps',this.value)" onblur="renderHealth();renderCal()">
-        <span class="hunit">바퀴</span>
+        <span class="hlbl">거리</span>
+        <input class="hinp" type="number" min="0" value="${swimDist||''}" placeholder="0"
+          oninput="updHSave('swimming','m',this.value)" onblur="renderHealth();renderCal()">
+        <span class="hunit">m</span>
       </div>
       <div class="hrow">
         <span class="hlbl">시간</span>
-        <input class="hinp" type="number" min="0" value="${swimM||''}" placeholder="0"
-          oninput="updHSave('swimming','swimM',this.value)" onblur="renderHealth();renderCal()">
-        <span class="hunit">분</span>
+        <div class="tpair">
+          <input type="number" class="ti" min="0" value="${swimM2||''}" placeholder="0"
+            style="border-color:#4f8ef740" oninput="updHSave('swimming','swimM',this.value)" onblur="renderHealth();renderCal()">
+          <span class="tu" style="color:#4f8ef7aa">분</span>
+          <input type="number" class="ti" min="0" max="59" value="${swimS2||''}" placeholder="0"
+            style="border-color:#4f8ef740" oninput="updHSave('swimming','swimS',this.value)" onblur="renderHealth();renderCal()">
+          <span class="tu" style="color:#4f8ef7aa">초</span>
+        </div>
       </div>
-      ${swimLaps>0?`<div class="hcalc" style="color:#27c96e">= ${swimLaps*50}m · ${(swimLaps*50/1000).toFixed(2)}km</div>`:''}`
+      <div style="height:1px;background:var(--b);margin:4px 0"></div>
+      <div style="font-size:8px;color:var(--m);margin-bottom:4px;letter-spacing:.5px">영법별 거리</div>
+      ${[['free','자유형'],['back','배영'],['breast','평영'],['fly','접영']].map(([key,name])=>`
+      <div class="hrow">
+        <span class="hlbl" style="font-size:8px">${name}</span>
+        <input class="hinp" type="number" min="0" value="${Number(h.swimming[key])||''}" placeholder="0"
+          oninput="updHSave('swimming','${key}',this.value)" onblur="renderHealth()">
+        <span class="hunit">m</span>
+      </div>`).join('')}
+      ${swimDist>0?`<div class="hcalc" style="color:#4f8ef7">${(swimDist/1000).toFixed(2)}km</div>`:''}`
   );
 
   // 3. RUNNING (collapsible)
@@ -1507,7 +1523,7 @@ function updWorkSave(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1518,7 +1534,7 @@ function updH(cat, fld, val) {
 }
 // 저장만 하고 렌더링 안 함
 function updHSave(cat, fld, val) {
-  const numFlds = ['laps','swimM','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save();
 }
@@ -2042,13 +2058,13 @@ function renderModalHealth() {
   const maxKm  = Math.max(1,...Object.values(ss));
   const [,m0,d0]=dates[0].split('-'), [,m1,d1]=dates[6].split('-');
 
-  let totalSwimLaps=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0,totalNapMins=0;
+  let totalSwimM=0,totalSwimMins=0,totalRunKm=0,totalRunMins=0,totalCycKm=0,totalCycMins=0,totalSleepMins=0,totalNapMins=0;
   let totalPushup=0, totalPullup=0, totalLegraise=0;
   const dailySleep=[],dailyRun=[],dailyCyc=[],dailyPush=[],dailyPull=[],dailyLeg=[];
   for(const dk of dates) {
     const h=db[dk]?.health||{};
-    totalSwimLaps  += Number(h.swimming?.laps)||0;
-    totalSwimMins  += Number(h.swimming?.swimM)||0;
+    totalSwimM     += Number(h.swimming?.m)||0;
+    totalSwimMins  += ((Number(h.swimming?.swimM)||0)*60+(Number(h.swimming?.swimS)||0))/60;
     totalRunKm     += Number(h.running?.km)||0;
     totalRunMins   += Math.round(((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60*100)/100;
     totalCycKm     += Number(h.cycling?.km)||0;
@@ -2106,7 +2122,7 @@ function renderModalHealth() {
       <div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">${totalRunKm>0?totalRunKm+'km':'–'}</div>
       <div style="font-size:7px;color:#27c96e88;margin-top:2px">${totalRunMins>0?fmtHM(rh,rm):'기록 없음'}</div>
     </div>
-    ${totalSwimLaps>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🏊 수영</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalSwimLaps+'바퀴</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">'+(totalSwimLaps*50)+'m</div></div>'):''}
+    ${totalSwimM>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🏊 수영</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalSwimM+'m</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">'+(totalSwimM/1000).toFixed(2)+'km</div></div>'):''}
     ${totalCycKm>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🚴 자전거</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalCycKm+'km</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">'+(totalCycMins>0?fmtHM(ch,cm):'')+'</div></div>'):''}
     ${totalPushup>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">💪 푸시업</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalPushup+'회</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">주간 누적</div></div>'):''}
     ${totalPullup>0?('<div style="background:linear-gradient(160deg,#0a1a10,#051008);border:1px solid rgba(39,201,110,.3);border-radius:8px;padding:8px;text-align:center"><div style="font-size:7px;color:#27c96eaa;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">🏋️ 풀업</div><div style="font-family:var(--bebas);font-size:20px;color:#27c96e;line-height:1.1">'+totalPullup+'회</div><div style="font-size:7px;color:#27c96e88;margin-top:2px">주간 누적</div></div>'):''}
@@ -2153,13 +2169,13 @@ function renderModalHealth() {
     // 각 날의 운동 종류와 수치를 통합 (하루 하나씩)
     const dailyExercise = dates.map((dk,i) => {
       const h = db[dk]?.health||{};
-      const swimLaps = Number(h.swimming?.laps)||0;
-      const swimMins = Number(h.swimming?.swimM)||0;
+      const swimLaps = Number(h.swimming?.m)||0;
+      const swimMins = ((Number(h.swimming?.swimM)||0)*60+(Number(h.swimming?.swimS)||0))/60;
       const runKm    = Number(h.running?.km)||0;
       const runMins  = Math.round(((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60*100)/100;
       const cycKm    = Number(h.cycling?.km)||0;
       const cycMins  = hmToMins(h.cycling?.cycH, h.cycling?.cycM);
-      if(swimLaps>0) return {type:'swim', mins:swimMins||swimLaps*2, label:swimLaps+'바퀴'+(swimMins?' '+swimMins+'분':'')};
+      if(swimLaps>0) return {type:'swim', mins:swimMins||Math.round(swimLaps/25), label:swimLaps+'m'+(swimMins>0?' '+Math.floor(swimMins)+'분':'')};
       if(runKm>0)    return {type:'run',  mins:runMins||Math.round(runKm*6), label:runKm+'km'+(runMins?' '+fmtHM(...Object.values(minsToHM(runMins))):'')};
       if(cycKm>0)    return {type:'cyc',  mins:cycMins||Math.round(cycKm*3), label:cycKm+'km'+(cycMins?' '+fmtHM(...Object.values(minsToHM(cycMins))):'')};
       return null;
