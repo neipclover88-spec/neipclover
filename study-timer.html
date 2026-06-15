@@ -3218,10 +3218,11 @@ async function renderCert() {
           </div>`:'';
           return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${SLP_COLOR};">
             <div style="font-size:9px;color:${SLP_COLOR};letter-spacing:1px;margin-bottom:6px;">💤 수면</div>
+            <div style="font-size:8px;color:var(--text2);margin-bottom:4px;">실제 수면 시간</div>
             <div style="display:flex;justify-content:space-between;align-items:flex-end;">
               <div>
                 <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${q};line-height:1;">${slpH}h${slpM?slpM+'m':''}</div>
-                <div style="font-size:9px;color:${q};margin-top:2px;">${qLbl}</div>
+                <div style="font-size:9px;color:${q};margin-top:2px;">${qLbl} (권장 7–9h)</div>
               </div>
               ${slpScore?`<div style="text-align:right;"><div style="font-size:9px;color:var(--text2);">점수</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${slpScore>=85?'#4f8ef7':slpScore>=70?'#27c96e':slpScore>=55?'#f5a623':'#e74c3c'};line-height:1;">${slpScore}</div></div>`:''}
             </div>
