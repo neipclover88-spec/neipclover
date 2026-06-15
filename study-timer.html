@@ -2903,17 +2903,19 @@ async function renderCert() {
   let health = {};
   let snapshots = {};
   let jbBooks = [];
+  let schedSessions = [];
 
   if (rtdb) {
     const t = ms => new Promise(r=>setTimeout(r,ms));
     const safeGet = ref => Promise.race([ref.get(), t(3000).then(()=>null)]);
     try {
-      const [sessSnap, goalSnap, healthSnap, snapSnap, jbSnap] = await Promise.all([
+      const [sessSnap, goalSnap, healthSnap, snapSnap, jbSnap, schedSnap] = await Promise.all([
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/_goals`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/health`)),
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/goalSnapshots/${todayStr()}`)),
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/jeongbok`)),
+        safeGet(rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${todayStr()}`)),
       ]);
       if (sessSnap?.exists())  sessions = Object.values(sessSnap.val());
       if (goalSnap?.exists())  {
@@ -2935,6 +2937,10 @@ async function renderCert() {
       if (jbSnap?.exists()) {
         const raw = jbSnap.val();
         jbBooks = Array.isArray(raw.books) ? raw.books : Object.values(raw.books||{});
+      }
+      // 스케줄 세션 → schedSessions
+      if (schedSnap?.exists()) {
+        schedSessions = Object.values(schedSnap.val());
       }
     } catch(e) {}
   }
@@ -3003,7 +3009,7 @@ async function renderCert() {
     return Math.max(0, Math.min(100, (mins - TL_START*60) / (TL_SPAN*60) * 100));
   }
 
-  // 세션 블록
+  // 세션 블록 (timer sessions - ISO 포맷)
   const tlBlocks = sessions
     .filter(s => s.startTime && s.endTime)
     .map(s => {
@@ -3011,7 +3017,25 @@ async function renderCert() {
       const right = toPct(s.endTime);
       if (left === null || right === null) return '';
       const w = Math.max(right - left, 0.5);
-      return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${s.subjectColor||'#5ba3e8'};border-radius:2px;opacity:0.9;" title="${s.subjectName}"></div>`;
+      return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${s.subjectColor||'#5ba3e8'};border-radius:2px;opacity:0.9;"></div>`;
+    }).join('');
+
+  // 스케줄 세션 블록 (HH:MM 포맷)
+  const SCHED_COLORS = {korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45'};
+  function hmToPct(hhmm) {
+    if (!hhmm) return null;
+    const [h,m] = hhmm.split(':').map(Number);
+    return Math.max(0, Math.min(100, (h*60+m - TL_START*60) / (TL_SPAN*60) * 100));
+  }
+  const schedBlocks = schedSessions
+    .filter(s => s.start && s.end && !s.live)
+    .map(s => {
+      const left = hmToPct(s.start);
+      const right = hmToPct(s.end);
+      if (left === null || right === null) return '';
+      const w = Math.max(right - left, 0.5);
+      const color = SCHED_COLORS[s.subject] || '#7a7a9a';
+      return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${color};border-radius:2px;opacity:0.85;"></div>`;
     }).join('');
 
   // 운동 블록 (시간 없으면 건강 기록 기반 추정)
@@ -3039,6 +3063,7 @@ async function renderCert() {
       ${tlMarks}
       ${exBlock}
       ${tlBlocks}
+      ${schedBlocks}
       <div id="tlSel" style="display:none;position:absolute;top:0;bottom:0;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.5);border-radius:3px;pointer-events:none;"></div>
       <div id="tlSelLbl" style="display:none;position:absolute;bottom:-18px;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;"></div>
     </div>
