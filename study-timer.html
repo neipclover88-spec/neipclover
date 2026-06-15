@@ -3103,7 +3103,7 @@ async function renderCert() {
       ${tlBlocks}
       ${schedBlocks}
       <div id="tlSel" style="display:none;position:absolute;top:0;bottom:0;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.5);border-radius:3px;pointer-events:none;"></div>
-      <div id="tlSelLbl" style="display:none;position:absolute;bottom:-18px;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;"></div>
+      <div id="tlSelLbl" style="display:none;position:absolute;top:-20px;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:4px;"></div>
     </div>
     <!-- 블록 탭 팝업 -->
     <div id="tlBlockPop" style="display:none;position:relative;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
@@ -3117,7 +3117,13 @@ async function renderCert() {
     <div id="tlPicker" style="display:none;position:absolute;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
       <div id="tlPickerLbl" style="font-size:10px;color:var(--text2);margin-bottom:8px;text-align:center;font-weight:700;"></div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;" id="tlPickerBtns"></div>
-    </div>`;
+      <div id="tlMemoWrap" style="display:none;margin-top:8px;">
+        <input id="tlMemoInp" type="text" placeholder="어떤 일정인지 입력..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px 8px;outline:none;font-family:'Noto Sans KR',sans-serif;">
+        <button id="tlMemoConfirm" style="width:100%;margin-top:5px;padding:7px;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
+      </div>
+    </div>
+    <!-- 비공부 일정 목록 -->
+    <div id="tlNotesList" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;"></div>`;
 
   // ── 최종 HTML ──
   $('certCard').innerHTML = `
@@ -3141,6 +3147,25 @@ async function renderCert() {
           ${studiedList.map(([n,i])=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};flex-shrink:0;"></span>${n}</span>`).join('')}
           ${(runKm>0||swimM>0||cycKm>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
         </div>
+        ${(()=>{
+          const nonStudy = schedSessions.filter(s => !['korean','math','eng','social','science'].includes(s.subject) && !s.live);
+          if (!nonStudy.length) return '';
+          const NC = {exercise:'#c07a45', work:'#7a7a9a'};
+          const NL = {exercise:'운동', work:'업무'};
+          return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">` +
+            nonStudy.map(s => {
+              const color = NC[s.subject]||'#7a7a9a';
+              const lbl   = NL[s.subject]||s.subject;
+              const dur   = Math.round((s.duration||0)/60);
+              return `<div style="display:flex;align-items:center;gap:6px;background:${color}18;border:1px solid ${color}33;border-radius:7px;padding:5px 9px;">
+                <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-size:11px;font-weight:700;color:${color};">${lbl}</span>
+                <span style="font-size:10px;color:var(--text2);">${s.start}–${s.end}</span>
+                ${s.memo?`<span style="font-size:11px;color:var(--text);flex:1;">${s.memo}</span>`:''}
+                ${dur>0?`<span style="font-size:10px;color:var(--text2);margin-left:auto;">${dur}분</span>`:''}
+              </div>`;
+            }).join('') + `</div>`;
+        })()}
       </div>
 
       <!-- ③ 정복지도 진척도 -->
@@ -3241,21 +3266,22 @@ async function renderCert() {
     const w = Math.max(hi-lo, 1);
     tlSel.style.cssText = `display:block;position:absolute;top:0;bottom:0;left:${lo}%;width:${w}%;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.55);border-radius:3px;pointer-events:none;`;
     const s = pctToTimeStr(lo), e = pctToTimeStr(hi);
-    tlSelLbl.style.cssText = `display:block;position:absolute;bottom:-18px;left:${lo}%;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;`;
+    tlSelLbl.style.cssText = `display:block;position:absolute;top:-20px;left:${lo}%;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:4px;`;
     tlSelLbl.textContent = `${s} → ${e}`;
   }
+  const STUDY_SUBJS = new Set(['korean','math','eng','social','science']);
+
   function showPicker(startStr, endStr) {
     const picker = $('tlPicker');
     $('tlPickerLbl').textContent = `${startStr} → ${endStr}`;
+    $('tlMemoWrap').style.display = 'none';
     $('tlPickerBtns').innerHTML = TL_SUBJS.map(s =>
       `<button style="padding:6px 10px;border-radius:7px;border:1px solid ${s.color}44;background:${s.color}22;color:${s.color};font-size:11px;font-weight:700;cursor:pointer;"
-        onclick="tlAddSession('${startStr}','${endStr}','${s.key}','${s.label}','${s.color}')">${s.label}</button>`
+        onclick="tlPickSubj('${startStr}','${endStr}','${s.key}','${s.label}','${s.color}')">${s.label}</button>`
     ).join('') +
     `<button style="padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:11px;cursor:pointer;"
       onclick="document.getElementById('tlPicker').style.display='none';document.getElementById('tlSel').style.display='none';document.getElementById('tlSelLbl').style.display='none';">취소</button>`;
     picker.style.display = 'block';
-    // 위치: tlBar 아래
-    const barRect = tlBar.getBoundingClientRect();
     picker.style.top = '40px';
     picker.style.left = '0';
     picker.style.right = '0';
@@ -3331,8 +3357,32 @@ function certBlockTap(key, label, start, end, subject) {
   };
 }
 
+/* ── PICKER SUBJECT SELECT ── */
+function tlPickSubj(start, end, key, label, color) {
+  const studyKeys = new Set(['korean','math','eng','social','science']);
+  if (studyKeys.has(key)) {
+    // 공부 과목 → 바로 저장
+    tlAddSession(start, end, key, label, color, '');
+    return;
+  }
+  // 비공부 → 메모 입력창
+  const wrap = document.getElementById('tlMemoWrap');
+  const inp  = document.getElementById('tlMemoInp');
+  const btn  = document.getElementById('tlMemoConfirm');
+  if (!wrap) return;
+  inp.value = '';
+  inp.placeholder = `${label} 내용 입력... (예: 수영 1400m)`;
+  btn.style.background = color + '33';
+  btn.style.border = `1px solid ${color}66`;
+  btn.style.color  = color;
+  btn.textContent  = `${label} 추가`;
+  wrap.style.display = 'block';
+  btn.onclick = () => tlAddSession(start, end, key, label, color, inp.value.trim());
+  setTimeout(() => inp.focus(), 50);
+}
+
 /* ── TIMELINE QUICK ADD ── */
-async function tlAddSession(start, end, subjKey, subjLabel, subjColor) {
+async function tlAddSession(start, end, subjKey, subjLabel, subjColor, memo) {
   document.getElementById('tlPicker').style.display = 'none';
   document.getElementById('tlSel').style.display = 'none';
   document.getElementById('tlSelLbl').style.display = 'none';
@@ -3342,9 +3392,8 @@ async function tlAddSession(start, end, subjKey, subjLabel, subjColor) {
   const dur = (eh*60+em - sh*60-sm)*60;
   try {
     await rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${todayStr()}`).push({
-      subject: subjKey, start, end, duration: dur, memo: '', live: false
+      subject: subjKey, start, end, duration: dur, memo: memo||'', live: false
     });
-    // cert 새로고침
     await renderCert();
   } catch(e) {}
 }
