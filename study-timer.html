@@ -2978,7 +2978,7 @@ async function renderCert() {
   const totalSec = sessions.reduce((a,s)=>a+(s.durationSec||0),0);
   const today = new Date();
   const dayKr = ['일','월','화','수','목','금','토'][today.getDay()];
-  const EX_COLOR = '#c07a45';
+  const EX_COLOR = '#f4a0b0';
 
   // ── 정복지도 진척도 (오늘 공부한 과목만) ──
   const SUBJ_KEY_MAP = {'국어':'korean','수학':'math','영어':'eng','사회':'social','과학':'science'};
@@ -3050,7 +3050,7 @@ async function renderCert() {
     }).join('');
 
   // 스케줄 세션 블록 (HH:MM 포맷) + 클릭 삭제/수정
-  const SCHED_COLORS = {korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45',work:'#7a7a9a',etc:'#5a5a6a'};
+  const SCHED_COLORS = {korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#f4a0b0',work:'#7a7a9a',etc:'#5a5a6a'};
   const SCHED_LABELS = {korean:'국어',math:'수학',eng:'영어',social:'사회',science:'과학',exercise:'운동',work:'업무',etc:'기타'};
   function hmToPct(hhmm) {
     if (!hhmm) return null;
@@ -3089,10 +3089,10 @@ async function renderCert() {
   }
 
   // 시간 눈금 (6, 9, 12, 15, 18, 21, 23)
-  const tlMarks = [6,9,12,15,18,21,23].map(h => {
+  const tlMarks = Array.from({length: TL_END - TL_START + 1}, (_,i) => TL_START + i).map(h => {
     const left = (h - TL_START) / TL_SPAN * 100;
     return `<div style="position:absolute;left:${left}%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08);pointer-events:none;">
-      <span style="position:absolute;top:100%;margin-top:3px;font-size:8px;color:var(--text2);transform:translateX(-50%);white-space:nowrap;">${h}시</span>
+      <span style="position:absolute;top:100%;margin-top:3px;font-size:7px;color:var(--text2);transform:translateX(-50%);white-space:nowrap;">${h}</span>
     </div>`;
   }).join('');
 
@@ -3154,14 +3154,17 @@ async function renderCert() {
   $('certCard').innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;">
 
-      <!-- ① 날짜 + 공부시간 -->
-      <div style="text-align:center;padding:20px 0 18px;flex-shrink:0;">
-        <div style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:10px;">
-          ${today.getMonth()+1}월 ${today.getDate()}일 ${dayKr}요일
+      <!-- ① 날짜 + 공부시간 한 행 -->
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:14px 4px 10px;flex-shrink:0;">
+        <div>
+          <span style="font-size:18px;font-weight:700;letter-spacing:-0.5px;">${today.getMonth()+1}월 ${today.getDate()}일</span>
+          <span style="font-size:13px;color:var(--text2);margin-left:5px;">${dayKr}요일</span>
+          ${streak>0?`<span style="font-size:11px;color:var(--amber);margin-left:8px;">🔥 ${streak}일</span>`:''}
         </div>
-        ${streak>0?`<div style="font-size:11px;color:var(--amber);margin-bottom:10px;">🔥 ${streak}일 연속</div>`:''}
-        <div style="font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-2px;">${fmtMin(totalSec/60)}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:6px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
+        <div style="text-align:right;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px;">${fmtMin(totalSec/60)}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
+        </div>
       </div>
 
       <!-- ② 하루 타임라인 -->
@@ -3227,7 +3230,7 @@ async function renderCert() {
         })()}
         <!-- 운동 -->
         ${(()=>{
-          const EXC='#c07a45';
+          const EXC='#f4a0b0';
           const items=[];
           const r=health?.running||{}, sw=health?.swimming||{}, cy=health?.cycling||{};
           const pu=health?.pushup||{}, pl=health?.pullup||{}, lr=health?.legraise||{};
@@ -3265,7 +3268,7 @@ async function renderCert() {
     {label:'영어', key:'eng',     color:'#f5a623'},
     {label:'사회', key:'social',  color:'#e74c3c'},
     {label:'과학', key:'science', color:'#a855f7'},
-    {label:'운동', key:'exercise',color:'#c07a45'},
+    {label:'운동', key:'exercise',color:'#f4a0b0'},
     {label:'업무', key:'work',    color:'#7a7a9a'},
     {label:'기타', key:'etc',     color:'#5a5a6a'},
   ];
@@ -3366,7 +3369,7 @@ function certBlockTap(key, label, start, end, subject) {
   const delBtn = document.getElementById('tlBlockDelBtn');
   if (!pop) return;
   lbl.textContent = `${label}  ${start} → ${end}`;
-  lbl.style.color = ({korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#c07a45'})[subject]||'var(--text)';
+  lbl.style.color = ({korean:'#4f8ef7',math:'#27c96e',eng:'#f5a623',social:'#e74c3c',science:'#a855f7',exercise:'#f4a0b0'})[subject]||'var(--text)';
   pop.style.display = 'block';
   delBtn.onclick = async () => {
     pop.style.display = 'none';
