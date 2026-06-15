@@ -2915,10 +2915,10 @@ async function renderCert() {
     const t = ms => new Promise(r=>setTimeout(r,ms));
     const safeGet = ref => Promise.race([ref.get(), t(6000).then(()=>null)]);
     try {
-      const [sessSnap, goalSnap, healthSnap, snapSnap, jbSnap, schedSnap] = await Promise.all([
+      const [sessSnap, goalSnap, dbSnap, snapSnap, jbSnap, schedSnap] = await Promise.all([
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}`)),
         safeGet(rtdb.ref(`${DASH_FB_PATH}/db/_goals`)),
-        safeGet(rtdb.ref(`${DASH_FB_PATH}/db/${todayStr()}/health`)),
+        safeGet(rtdb.ref(`${DASH_FB_PATH}/db`)),
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/goalSnapshots/${todayStr()}`)),
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/timer/jeongbok`)),
         safeGet(rtdb.ref(`${TIMER_FB_PATH}/schedule/sessions/${todayStr()}`)),
@@ -2931,7 +2931,24 @@ async function renderCert() {
           if (!goals[s]) goals[s] = [];
         });
       }
-      if (healthSnap?.exists()) health = healthSnap.val();
+      // health: 오늘 먼저, 없으면 가장 최근 날짜
+      if (dbSnap?.exists()) {
+        const dbData = dbSnap.val();
+        const today = todayStr();
+        if (dbData[today]?.health) {
+          health = dbData[today].health;
+        } else {
+          // 가장 최근 날짜에서 health 찾기
+          const dates = Object.keys(dbData).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().reverse();
+          for (const d of dates) {
+            const h = dbData[d]?.health;
+            const hasEx = h?.running?.km>0 || h?.swimming?.laps>0 || h?.cycling?.km>0;
+            if (hasEx) { health = h; break; }
+          }
+          // 아무것도 없으면 그냥 오늘 것
+          if (!Object.keys(health).length && dbData[today]) health = dbData[today].health || {};
+        }
+      }
       if (snapSnap?.exists()) {
         snapshots = snapSnap.val();
       } else if (Object.keys(goals).length) {
