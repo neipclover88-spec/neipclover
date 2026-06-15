@@ -3015,15 +3015,25 @@ async function renderCert() {
     return Math.max(0, Math.min(100, (mins - TL_START*60) / (TL_SPAN*60) * 100));
   }
 
-  // 세션 블록 (timer sessions - ISO 포맷)
-  const tlBlocks = sessions
+  // 세션 블록 (timer sessions - ISO 포맷, 키 포함)
+  const timerSessWithKeys = sessSnap?.exists()
+    ? Object.entries(sessSnap.val()).map(([k,v])=>({...v,_key:k}))
+    : sessions.map((s,i)=>({...s,_key:'t'+i}));
+
+  const tlBlocks = timerSessWithKeys
     .filter(s => s.startTime && s.endTime)
     .map(s => {
-      const left = toPct(s.startTime);
+      const left  = toPct(s.startTime);
       const right = toPct(s.endTime);
       if (left === null || right === null) return '';
       const w = Math.max(right - left, 0.5);
-      return `<div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${s.subjectColor||'#5ba3e8'};border-radius:2px;opacity:0.9;"></div>`;
+      const color = s.subjectColor||'#5ba3e8';
+      const durM  = Math.round((s.durationSec||0)/60);
+      return `<div
+        data-block="timer" data-key="${s._key}"
+        data-label="${s.subjectName||''}" data-start="${s.startTime}" data-end="${s.endTime}" data-dur="${durM}"
+        onclick="event.stopPropagation();certTimerBlockTap('${s._key}','${s.subjectName||''}','${color}',${durM})"
+        style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${color};border-radius:2px;opacity:0.9;cursor:pointer;z-index:5;"></div>`;
     }).join('');
 
   // 스케줄 세션 블록 (HH:MM 포맷) + 클릭 삭제/수정
@@ -3044,7 +3054,8 @@ async function renderCert() {
       const color = SCHED_COLORS[s.subject] || '#7a7a9a';
       const label = SCHED_LABELS[s.subject] || s.subject;
       return `<div
-        onclick="certBlockTap('${s._key}','${label}','${s.start}','${s.end}','${s.subject}')"
+        data-block="sched" data-key="${s._key}"
+        onclick="event.stopPropagation();certBlockTap('${s._key}','${label}','${s.start}','${s.end}','${s.subject}')"
         style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:${color};border-radius:2px;opacity:0.85;cursor:pointer;z-index:5;"></div>`;
     }).join('');
 
@@ -3236,6 +3247,8 @@ async function renderCert() {
   }
 
   tlBar.addEventListener('pointerdown', e => {
+    // 기존 블록 탭이면 long-press 무시
+    if (e.target.dataset.block) return;
     e.preventDefault();
     const rect = tlBar.getBoundingClientRect();
     _tlStartPct = Math.max(0,Math.min(100,(e.clientX-rect.left)/rect.width*100));
@@ -3265,7 +3278,26 @@ async function renderCert() {
   tlBar.addEventListener('pointercancel', ()=>{ clearTimeout(_tlTimer); _tlActive=false; });
 }
 
-/* ── TIMELINE BLOCK TAP ── */
+/* ── TIMELINE BLOCK TAP (timer sessions) ── */
+function certTimerBlockTap(key, label, color, durM) {
+  const pop = document.getElementById('tlBlockPop');
+  const lbl = document.getElementById('tlBlockPopLbl');
+  const delBtn = document.getElementById('tlBlockDelBtn');
+  if (!pop) return;
+  lbl.textContent = `${label}  ${durM}분`;
+  lbl.style.color = color;
+  pop.style.display = 'block';
+  delBtn.onclick = async () => {
+    pop.style.display = 'none';
+    if (!rtdb) return;
+    try {
+      await rtdb.ref(`${TIMER_FB_PATH}/timer/sessions/${todayStr()}/${key}`).remove();
+      await renderCert();
+    } catch(e) {}
+  };
+}
+
+/* ── TIMELINE BLOCK TAP (schedule sessions) ── */
 function certBlockTap(key, label, start, end, subject) {
   const pop = document.getElementById('tlBlockPop');
   const lbl = document.getElementById('tlBlockPopLbl');
