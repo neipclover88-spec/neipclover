@@ -3095,32 +3095,30 @@ async function renderCert() {
 
       <!-- ① 날짜 + 공부시간 -->
       <div style="text-align:center;padding:20px 0 18px;flex-shrink:0;">
-        <div style="font-size:13px;color:var(--text2);letter-spacing:2px;font-weight:600;margin-bottom:4px;">${dayKr}요일</div>
-        <div style="font-size:32px;font-weight:700;letter-spacing:-1px;margin-bottom:14px;">
-          ${today.getMonth()+1}월 ${today.getDate()}일
+        <div style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:10px;">
+          ${today.getMonth()+1}월 ${today.getDate()}일 ${dayKr}요일
         </div>
         ${streak>0?`<div style="font-size:11px;color:var(--amber);margin-bottom:10px;">🔥 ${streak}일 연속</div>`:''}
         <div style="font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-2px;">${fmtMin(totalSec/60)}</div>
         <div style="font-size:11px;color:var(--text2);margin-top:6px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
       </div>
 
-      <!-- ② 정복지도 진척도 -->
+      <!-- ② 하루 타임라인 -->
+      <div style="padding:0 4px;flex-shrink:0;margin-bottom:16px;">
+        <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">⏱ 오늘 하루</div>
+        ${tlHtml}
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+          ${studiedList.map(([n,i])=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};flex-shrink:0;"></span>${n}</span>`).join('')}
+          ${(runKm>0||swimLp>0||cycKm>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
+        </div>
+      </div>
+
+      <!-- ③ 정복지도 진척도 -->
       ${jbBarsHtml ? `
       <div style="padding:0 4px;flex-shrink:0;margin-bottom:8px;">
         <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">📊 정복지도</div>
         ${jbBarsHtml}
       </div>` : ''}
-
-      <!-- ③ 하루 타임라인 -->
-      <div style="padding:0 4px;flex-shrink:0;margin-bottom:16px;">
-        <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">⏱ 오늘 하루</div>
-        ${tlHtml}
-        <!-- 과목 범례 -->
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
-          ${studiedList.map(([n,i])=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};flex-shrink:0;"></span>${n}</span>`).join('')}
-          ${(run?.km>0||swim?.laps>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
-        </div>
-      </div>
 
       <!-- ④ 수면 + 운동 -->
       <div style="display:flex;gap:8px;padding:0 4px;flex-shrink:0;margin-bottom:16px;">
