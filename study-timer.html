@@ -3096,14 +3096,41 @@ async function renderCert() {
     </div>`;
   }).join('');
 
+  // 라벨 행 — 비공부 블록만 (운동/업무/기타)
+  const nonStudyLabels = [
+    // sched 비공부 세션
+    ...schedSessions.filter(s => !['korean','math','eng','social','science'].includes(s.subject) && !s.live).map(s => {
+      const left = hmToPct(s.start);
+      if (left === null) return null;
+      const color = SCHED_COLORS[s.subject]||'#7a7a9a';
+      const lbl   = s.memo ? `${SCHED_LABELS[s.subject]||s.subject} ${s.memo}` : (SCHED_LABELS[s.subject]||s.subject);
+      return { left, color, label: lbl };
+    }).filter(Boolean),
+    // 건강 데이터 운동 블록
+    ...(runKm > 0 || swimM > 0 || cycKm > 0 ? [{
+      left: ((6.5 - TL_START) / TL_SPAN) * 100,
+      color: EX_COLOR,
+      label: swimM>0 ? `수영 ${swimM}m` : runKm>0 ? `러닝 ${runKm}km` : `자전거 ${cycKm}km`
+    }] : []),
+  ];
+
   const tlHtml = `
-    <div id="tlBar" style="position:relative;height:28px;margin-bottom:22px;background:var(--surface2);border-radius:4px;overflow:visible;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
-      ${tlMarks}
-      ${exBlock}
-      ${tlBlocks}
-      ${schedBlocks}
-      <div id="tlSel" style="display:none;position:absolute;top:0;bottom:0;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.5);border-radius:3px;pointer-events:none;"></div>
-      <div id="tlSelLbl" style="display:none;position:absolute;top:-20px;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:4px;"></div>
+    <div style="position:relative;padding-top:18px;margin-bottom:22px;">
+      <!-- 라벨 행 (비공부만) -->
+      <div style="position:relative;height:16px;margin-bottom:2px;">
+        ${nonStudyLabels.map(b =>
+          `<div style="position:absolute;left:${Math.min(b.left, 75)}%;font-size:8px;font-weight:700;color:${b.color};white-space:nowrap;pointer-events:none;line-height:1.2;">${b.label}</div>`
+        ).join('')}
+      </div>
+      <!-- 바 -->
+      <div id="tlBar" style="position:relative;height:22px;background:var(--surface2);border-radius:4px;overflow:visible;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
+        ${tlMarks}
+        ${exBlock}
+        ${tlBlocks}
+        ${schedBlocks}
+        <div id="tlSel" style="display:none;position:absolute;top:0;bottom:0;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.5);border-radius:3px;pointer-events:none;"></div>
+        <div id="tlSelLbl" style="display:none;position:absolute;top:-20px;font-size:9px;color:var(--text);font-weight:700;white-space:nowrap;pointer-events:none;background:rgba(0,0,0,.7);padding:2px 6px;border-radius:4px;"></div>
+      </div>
     </div>
     <!-- 블록 탭 팝업 -->
     <div id="tlBlockPop" style="display:none;position:relative;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
@@ -3114,16 +3141,14 @@ async function renderCert() {
       </div>
     </div>
     <!-- 과목 선택 팝업 -->
-    <div id="tlPicker" style="display:none;position:absolute;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+    <div id="tlPicker" style="display:none;position:relative;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);margin-bottom:8px;">
       <div id="tlPickerLbl" style="font-size:10px;color:var(--text2);margin-bottom:8px;text-align:center;font-weight:700;"></div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;" id="tlPickerBtns"></div>
       <div id="tlMemoWrap" style="display:none;margin-top:8px;">
         <input id="tlMemoInp" type="text" placeholder="어떤 일정인지 입력..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px 8px;outline:none;font-family:'Noto Sans KR',sans-serif;">
         <button id="tlMemoConfirm" style="width:100%;margin-top:5px;padding:7px;border-radius:7px;border:none;font-size:12px;font-weight:700;cursor:pointer;">확인</button>
       </div>
-    </div>
-    <!-- 비공부 일정 목록 -->
-    <div id="tlNotesList" style="display:flex;flex-direction:column;gap:4px;margin-top:6px;"></div>`;
+    </div>`;
 
   // ── 최종 HTML ──
   $('certCard').innerHTML = `
@@ -3143,28 +3168,23 @@ async function renderCert() {
       <div style="padding:0 4px;flex-shrink:0;margin-bottom:16px;">
         <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">⏱ 오늘 하루</div>
         ${tlHtml}
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
-          ${studiedList.map(([n,i])=>`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${i.color};flex-shrink:0;"></span>${n}</span>`).join('')}
-          ${(runKm>0||swimM>0||cycKm>0)?`<span style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${EX_COLOR};flex-shrink:0;"></span>운동</span>`:''}
-        </div>
+        <!-- 공부 세션 목록 -->
         ${(()=>{
-          const nonStudy = schedSessions.filter(s => !['korean','math','eng','social','science'].includes(s.subject) && !s.live);
-          if (!nonStudy.length) return '';
-          const NC = {exercise:'#c07a45', work:'#7a7a9a', etc:'#5a5a6a'};
-          const NL = {exercise:'운동', work:'업무', etc:'기타'};
-          return `<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">` +
-            nonStudy.map(s => {
-              const color = NC[s.subject]||'#7a7a9a';
-              const lbl   = NL[s.subject]||s.subject;
-              const dur   = Math.round((s.duration||0)/60);
-              return `<div style="display:flex;align-items:center;gap:6px;background:${color}18;border:1px solid ${color}33;border-radius:7px;padding:5px 9px;">
-                <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-size:11px;font-weight:700;color:${color};">${lbl}</span>
+          const studySessions = sessions.filter(s => s.startTime && s.endTime).map(s => {
+            const st = new Date(s.startTime), en = new Date(s.endTime);
+            const fmt = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return { color: s.subjectColor||'#5ba3e8', name: s.subjectName||'', start: fmt(st), end: fmt(en), dur: Math.round((s.durationSec||0)/60) };
+          });
+          if (!studySessions.length) return '';
+          return `<div style="display:flex;flex-direction:column;gap:3px;margin-top:8px;">` +
+            studySessions.map(s =>
+              `<div style="display:flex;align-items:center;gap:6px;">
+                <span style="width:8px;height:8px;border-radius:2px;background:${s.color};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-size:11px;font-weight:700;color:${s.color};">${s.name}</span>
                 <span style="font-size:10px;color:var(--text2);">${s.start}–${s.end}</span>
-                ${s.memo?`<span style="font-size:11px;color:var(--text);flex:1;">${s.memo}</span>`:''}
-                ${dur>0?`<span style="font-size:10px;color:var(--text2);margin-left:auto;">${dur}분</span>`:''}
-              </div>`;
-            }).join('') + `</div>`;
+                <span style="font-size:10px;color:var(--text2);margin-left:auto;">${s.dur}분</span>
+              </div>`
+            ).join('') + `</div>`;
         })()}
       </div>
 
