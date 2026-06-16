@@ -3103,7 +3103,9 @@ async function renderCert() {
       const left = hmToPct(s.start);
       if (left === null) return null;
       const color = SCHED_COLORS[s.subject]||'#7a7a9a';
-      const lbl   = s.memo ? `${SCHED_LABELS[s.subject]||s.subject} ${s.memo}` : (SCHED_LABELS[s.subject]||s.subject);
+      const lbl   = s.subject === 'etc'
+        ? (s.memo || '기타')
+        : s.memo ? `${SCHED_LABELS[s.subject]||s.subject} ${s.memo}` : (SCHED_LABELS[s.subject]||s.subject);
       return { left, color, label: lbl };
     }).filter(Boolean),
     // 건강 데이터 운동 블록
