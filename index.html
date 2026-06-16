@@ -597,15 +597,38 @@ function calcVitality(dk) {
   }
   if(hasStrength && cardioMin>0) activityComp = Math.min(100, activityComp+10);
 
-  // 3. 근무 부담 균형 — 6~9h 적정, 과로/공백 모두 감점
-  const workMin = hmToMins(work.workH, work.workM);
-  let workComp;
-  if(workMin<=0) workComp = 70;            // 휴무일 — 중립
-  else if(workMin<180) workComp = 60;      // 너무 짧음
-  else if(workMin<=540) workComp = 100;    // 6~9h 적정
-  else if(workMin<=600) workComp = 80;     // 약간 초과
-  else workComp = Math.max(40, 60-(workMin-600)/30*10); // 10h+ 과로
-  if(workMin>540 && sleepComp!==null && sleepComp<60) workComp = Math.max(0, workComp-15); // 과로+수면부족 이중감점
+  // 3. 일일 총 부하 (근무+공부 합산) — 화물운전자 근무시간 안전기준(14h 듀티한도)에 착안
+  //    배달은 신체노동, 공부는 인지노동이지만 둘 다 회복을 갉아먹는 누적 부하로 간주
+  const workMin  = hmToMins(work.workH, work.workM);
+  const studyMin = totalStudyMins(dk);
+  const totalLoad = workMin + studyMin;
+  let loadComp;
+  if(totalLoad<=0) loadComp = 70;                  // 완전 휴식일 — 중립
+  else if(totalLoad<=600) loadComp = 100;          // 0~10h: 지속 가능한 부하
+  else if(totalLoad<=840) loadComp = 100-(totalLoad-600)/240*40; // 10~14h: 선형 감소(14h=60점)
+  else loadComp = Math.max(20, 60-(totalLoad-840)/60*15);        // 14h+ : 급격 감소(운전 피로 위험구간)
+  if(totalLoad>780 && sleepComp!==null && sleepComp<60) loadComp = Math.max(0, loadComp-15); // 과부하+수면부족 이중감점
+
+  // 3-1. 최근 7일 내 진짜 휴식일이 있었는지 자동 체크 (휴식일 = 부하<2h & 운동 안 함)
+  //      누적 피로는 하루 단위로 안 잡히므로 주간 패턴까지 함께 본다
+  function isRestDay(k) {
+    const dh = db[k]?.health || {};
+    const dw = db[k]?.work || {};
+    const wMin = hmToMins(dw.workH, dw.workM);
+    const sMin = totalStudyMins(k);
+    const rMin = ((Number(dh.running?.runM)||0)*60+(Number(dh.running?.runS)||0))/60;
+    const swMin = (Number(dh.swimming?.swimM)||0)+(Number(dh.swimming?.swimS)||0)/60;
+    const cMin = hmToMins(dh.cycling?.cycH, dh.cycling?.cycM);
+    const strength = (Number(dh.pushup?.reps)||0)>0 || (Number(dh.pullup?.reps)||0)>0 || (Number(dh.legraise?.reps)||0)>0;
+    return (wMin+sMin)<120 && rMin+swMin+cMin<=0 && !strength;
+  }
+  const dDate = parseD(dk);
+  let foundRest = false;
+  for(let i=0;i<7;i++) {
+    const x = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate()-i);
+    if(isRestDay(dateFmt(x))) { foundRest = true; break; }
+  }
+  const noRestPenalty = (!foundRest && totalLoad>0) ? 8 : 0; // 7일간 휴식일 없으면 -8
 
   // 4. 식단 관리 — 체크리스트 완료율 (diet.html과 동일 계산)
   const dietChecks = d.diet || {};
@@ -619,15 +642,15 @@ function calcVitality(dk) {
   const dietComp = dTotal>0 ? (dDone/dTotal*100) : null;
 
   // ── 가중합산 (데이터 없는 영역은 자동 재분배) ──
-  const weights = {sleep:0.40, activity:0.25, work:0.20, diet:0.15};
-  const comps   = {sleep:sleepComp, activity:activityComp, work:workComp, diet:dietComp};
+  const weights = {sleep:0.40, activity:0.25, load:0.20, diet:0.15};
+  const comps   = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp};
   let usedW=0, sum=0;
   Object.entries(comps).forEach(([k,v])=>{
     if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
   });
   if(usedW===0) return null;
-  const score = Math.round(sum/usedW);
-  return {score, comps};
+  const score = Math.max(0, Math.round(sum/usedW) - noRestPenalty);
+  return {score, comps, noRestPenalty, totalLoad};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -1224,7 +1247,7 @@ function renderHealth() {
           </div>
         </div>
         <div style="display:flex;gap:3px">
-          ${[['sleep','😴'],['activity','🏃'],['work','💼'],['diet','🥗']].map(([k,ico])=>{
+          ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗']].map(([k,ico])=>{
             const v=vit.comps[k];
             const c=v===null?'var(--m2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
             return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1}">${ico}</div>`;
@@ -1234,6 +1257,7 @@ function renderHealth() {
       <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
+      ${vit.noRestPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일간 휴식일 없음 (-${vit.noRestPenalty}점)</div>`:''}
     </div>`;
   }
 
