@@ -563,7 +563,7 @@ function weeklySubjProgress(dates, subj) {
 //  4개 영역 가중합산: 수면40% · 활동25% · 근무20% · 식단15%
 //  데이터 없는 영역은 자동으로 가중치 재분배 (가용 데이터만으로 계산)
 // ════════════════════════════════════════════════
-function calcVitality(dk) {
+function calcVitality(dk, _depth=0) {
   const d = db[dk] || {};
   const h = d.health || {};
   const work = d.work || {};
@@ -673,9 +673,29 @@ function calcVitality(dk) {
   Object.entries(comps).forEach(([k,v])=>{
     if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
   });
-  if(usedW===0) return null;
-  const score = Math.max(0, Math.round(sum/usedW) - chronicPenalty);
-  return {score, comps, chronicPenalty, totalLoad, avg7Load};
+  const rawScore = usedW>0 ? sum/usedW : null;
+
+  // 전일 점수 이어붙이기 — 자정 넘어가서 오늘 데이터가 아직 없어도 0으로 리셋되지 않고
+  // 전일 점수에서 시작해서, 오늘 입력하는 만큼(usedW) 점진적으로 오늘 점수로 옮겨감
+  let prevScore = null;
+  if(_depth===0) {
+    const prevDate = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate()-1);
+    const prevVit = calcVitality(dateFmt(prevDate), 1);
+    prevScore = prevVit ? prevVit.score : null;
+  }
+
+  let blended, carried=false;
+  if(rawScore===null) {
+    if(prevScore===null) return null; // 정말 아무 데이터도 없음 (전일도 기록 없음)
+    blended = prevScore; carried = true; // 오늘 입력 전 — 전일 점수 그대로 유지
+  } else if(prevScore!==null && usedW<1) {
+    blended = rawScore*usedW + prevScore*(1-usedW); // 부분 입력 — 전일과 블렌딩
+  } else {
+    blended = rawScore;
+  }
+
+  const score = Math.max(0, Math.round(blended) - chronicPenalty);
+  return {score, comps, chronicPenalty, totalLoad, avg7Load, usedW, carried};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -1294,6 +1314,7 @@ function renderHealth() {
       <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
+      ${vit.carried?`<div style="font-size:8px;color:#4f8ef7;margin-top:5px">↻ 전일 점수 유지 중 — 오늘 데이터를 입력하면 갱신돼요</div>`:''}
       ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
     </div>`;
   }
