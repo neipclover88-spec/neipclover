@@ -556,6 +556,87 @@ function weeklySubjProgress(dates, subj) {
   return {pct:Math.min(100,Math.round(comp/tot*100)), comp, tot};
 }
 
+// ════════════════════════════════════════════════
+//  일상 활력 점수 (Daily Vitality Score)
+//  4개 영역 가중합산: 수면40% · 활동25% · 근무20% · 식단15%
+//  데이터 없는 영역은 자동으로 가중치 재분배 (가용 데이터만으로 계산)
+// ════════════════════════════════════════════════
+function calcVitality(dk) {
+  const d = db[dk] || {};
+  const h = d.health || {};
+  const work = d.work || {};
+
+  // 1. 수면 회복도 — 삼성헬스 점수 우선, 없으면 시간 기반 추정
+  const sleepScoreRaw = Number(h.sleep?.score)||0;
+  const sleepMin = hmToMins(h.sleep?.sleepH, h.sleep?.sleepM);
+  const napMin   = hmToMins(h.sleep?.napH, h.sleep?.napM);
+  let sleepComp = null;
+  if(sleepScoreRaw>0) {
+    sleepComp = sleepScoreRaw;
+  } else if(sleepMin>0) {
+    if(sleepMin>=420 && sleepMin<=540) sleepComp = 100; // 7~9h 권장 구간
+    else if(sleepMin<420) sleepComp = Math.max(0, 100-(420-sleepMin)/60*20); // 부족: 시간당 -20
+    else sleepComp = Math.max(0, 100-(sleepMin-540)/60*15); // 과다: 시간당 -15
+  }
+  if(sleepComp!==null && napMin>0) sleepComp = Math.min(100, sleepComp + Math.min(5, napMin/12));
+
+  // 2. 신체활동 — 유산소(러닝+수영+자전거) + 근력운동 보너스
+  const runMin  = ((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60;
+  const swimMin = (Number(h.swimming?.swimM)||0)+(Number(h.swimming?.swimS)||0)/60;
+  const cycMin  = hmToMins(h.cycling?.cycH, h.cycling?.cycM);
+  const cardioMin = runMin+swimMin+cycMin;
+  const hasStrength = (Number(h.pushup?.reps)||0)>0 || (Number(h.pullup?.reps)||0)>0 || (Number(h.legraise?.reps)||0)>0;
+  let activityComp = 0;
+  if(cardioMin>0) {
+    if(cardioMin<30) activityComp = cardioMin/30*70;        // WHO 일일 권장 30분 기준
+    else if(cardioMin<60) activityComp = 70+(cardioMin-30)/30*30;
+    else activityComp = 100;
+    if(cardioMin>120) activityComp = Math.max(0, activityComp-(cardioMin-120)*0.3); // 과훈련 소폭 감점
+  } else if(hasStrength) {
+    activityComp = 55; // 근력운동만 한 경우 기본점
+  }
+  if(hasStrength && cardioMin>0) activityComp = Math.min(100, activityComp+10);
+
+  // 3. 근무 부담 균형 — 6~9h 적정, 과로/공백 모두 감점
+  const workMin = hmToMins(work.workH, work.workM);
+  let workComp;
+  if(workMin<=0) workComp = 70;            // 휴무일 — 중립
+  else if(workMin<180) workComp = 60;      // 너무 짧음
+  else if(workMin<=540) workComp = 100;    // 6~9h 적정
+  else if(workMin<=600) workComp = 80;     // 약간 초과
+  else workComp = Math.max(40, 60-(workMin-600)/30*10); // 10h+ 과로
+  if(workMin>540 && sleepComp!==null && sleepComp<60) workComp = Math.max(0, workComp-15); // 과로+수면부족 이중감점
+
+  // 4. 식단 관리 — 체크리스트 완료율 (diet.html과 동일 계산)
+  const dietChecks = d.diet || {};
+  const DIET_MEAL_ITEMS = {'아침':6,'점심':2,'오후':1,'저녁':4,'야식':1};
+  const DIET_EXTRAS = ['마그네슘'];
+  let dTotal=0, dDone=0;
+  Object.entries(DIET_MEAL_ITEMS).forEach(([m,c])=>{
+    for(let i=0;i<c;i++){ dTotal++; if(dietChecks[m+'_'+i]) dDone++; }
+  });
+  DIET_EXTRAS.forEach(k=>{ dTotal++; if(dietChecks[k]) dDone++; });
+  const dietComp = dTotal>0 ? (dDone/dTotal*100) : null;
+
+  // ── 가중합산 (데이터 없는 영역은 자동 재분배) ──
+  const weights = {sleep:0.40, activity:0.25, work:0.20, diet:0.15};
+  const comps   = {sleep:sleepComp, activity:activityComp, work:workComp, diet:dietComp};
+  let usedW=0, sum=0;
+  Object.entries(comps).forEach(([k,v])=>{
+    if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
+  });
+  if(usedW===0) return null;
+  const score = Math.round(sum/usedW);
+  return {score, comps};
+}
+function vitalityTier(score) {
+  if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
+  if(score>=70) return {label:'좋음',       clr:'#27c96e'};
+  if(score>=55) return {label:'보통',       clr:'#f5c200'};
+  if(score>=40) return {label:'주의',       clr:'#f5a623'};
+  return            {label:'위험',       clr:'#e74c3c'};
+}
+
 // ─── PERSIST ───
 function save() {
   try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
@@ -1128,6 +1209,33 @@ function renderHealth() {
     <span class="ptitle">건강</span>
     <span style="font-size:9px;color:var(--m);margin-left:auto">↗</span>
   </div>`;
+
+  // 일상 활력 점수
+  const vit = calcVitality(sel);
+  if(vit) {
+    const tier = vitalityTier(vit.score);
+    out += `<div style="background:linear-gradient(135deg,${tier.clr}22,${tier.clr}08);border-bottom:1px solid var(--b);padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:7px;color:${tier.clr}aa;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:2px">오늘의 일상 활력</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span style="font-family:var(--bebas);font-size:30px;color:${tier.clr};letter-spacing:.3px;line-height:1">${vit.score}</span>
+            <span style="font-size:11px;color:${tier.clr};font-weight:700">${tier.label}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:3px">
+          ${[['sleep','😴'],['activity','🏃'],['work','💼'],['diet','🥗']].map(([k,ico])=>{
+            const v=vit.comps[k];
+            const c=v===null?'var(--m2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
+            return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1}">${ico}</div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
+        <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
+      </div>
+    </div>`;
+  }
 
   const pushReps = Number(h.pushup?.reps)||0;
   const pullReps = Number(h.pullup?.reps)||0;
