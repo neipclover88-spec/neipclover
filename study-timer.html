@@ -2947,6 +2947,7 @@ async function renderCert() {
           chronicPenalty: dbData[today]?.health?.vitalityChronicPenalty ?? 0,
           avg7Load: dbData[today]?.health?.vitalityAvg7Load ?? 0,
         };
+        console.log('[VITALITY DEBUG]', 'today=', today, 'health=', dbData[today]?.health, 'todayVitality=', todayVitality);
         if (dbData[today]?.health) {
           health = dbData[today].health;
         } else {
@@ -3184,8 +3185,8 @@ async function renderCert() {
       <!-- ① 날짜 + 공부시간 한 행 -->
       <div style="display:flex;align-items:baseline;justify-content:space-between;padding:14px 4px 10px;flex-shrink:0;">
         <div>
-          <span style="font-size:18px;font-weight:700;letter-spacing:-0.5px;">${today.getMonth()+1}월 ${today.getDate()}일</span>
-          <span style="font-size:13px;color:var(--text2);margin-left:5px;">${dayKr}요일</span>
+          <span style="font-size:26px;font-weight:700;letter-spacing:-0.5px;">${today.getMonth()+1}월 ${today.getDate()}일</span>
+          <span style="font-size:17px;color:var(--text2);margin-left:6px;">${dayKr}요일</span>
           ${streak>0?`<span style="font-size:11px;color:var(--amber);margin-left:8px;">🔥 ${streak}일</span>`:''}
         </div>
         <div style="text-align:right;">
@@ -3193,35 +3194,6 @@ async function renderCert() {
           <div style="font-size:10px;color:var(--text2);margin-top:2px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
         </div>
       </div>
-
-      <!-- 일상 활력 점수 -->
-      ${vit ? (()=>{
-        const tier = vitTier(vit.score);
-        return `<div style="padding:0 4px;margin-bottom:16px;">
-          <div style="background:linear-gradient(135deg,${tier.clr}22,${tier.clr}08);border:1px solid ${tier.clr}33;border-radius:10px;padding:10px 12px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div>
-                <div style="font-size:9px;color:${tier.clr}cc;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">오늘의 일상 활력</div>
-                <div style="display:flex;align-items:baseline;gap:6px;">
-                  <span style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:${tier.clr};line-height:1;">${vit.score}</span>
-                  <span style="font-size:11px;color:${tier.clr};font-weight:700;">${tier.label}</span>
-                </div>
-              </div>
-              <div style="display:flex;gap:3px;">
-                ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗']].map(([k,ico])=>{
-                  const v = vit.comps[k];
-                  const c = v===null?'var(--text2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
-                  return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--border)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1};">${ico}</div>`;
-                }).join('')}
-              </div>
-            </div>
-            <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:8px;">
-              <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;"></div>
-            </div>
-            ${vit.chronicPenalty>0?`<div style="font-size:9px;color:#e74c3c;margin-top:6px;">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
-          </div>
-        </div>`;
-      })() : ''}
 
       <!-- ② 하루 타임라인 -->
       <div style="padding:0 4px;flex-shrink:0;margin-bottom:16px;">
@@ -3253,6 +3225,35 @@ async function renderCert() {
         <div style="font-size:9px;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">📊 정복지도</div>
         ${jbBarsHtml}
       </div>` : ''}
+
+      <!-- 일상 활력 점수 -->
+      ${vit ? (()=>{
+        const tier = vitTier(vit.score);
+        return `<div style="padding:0 4px;margin-bottom:16px;">
+          <div style="background:linear-gradient(135deg,${tier.clr}22,${tier.clr}08);border:1px solid ${tier.clr}33;border-radius:10px;padding:10px 12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div style="font-size:9px;color:${tier.clr}cc;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">오늘의 일상 활력</div>
+                <div style="display:flex;align-items:baseline;gap:6px;">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:${tier.clr};line-height:1;">${vit.score}</span>
+                  <span style="font-size:11px;color:${tier.clr};font-weight:700;">${tier.label}</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:3px;">
+                ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗']].map(([k,ico])=>{
+                  const v = vit.comps[k];
+                  const c = v===null?'var(--text2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
+                  return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--border)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1};">${ico}</div>`;
+                }).join('')}
+              </div>
+            </div>
+            <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:8px;">
+              <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;"></div>
+            </div>
+            ${vit.chronicPenalty>0?`<div style="font-size:9px;color:#e74c3c;margin-top:6px;">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
+          </div>
+        </div>`;
+      })() : ''}
 
       <!-- ④ 수면 + 운동 -->
       <div style="display:flex;gap:8px;padding:0 4px;flex-shrink:0;margin-bottom:16px;">
