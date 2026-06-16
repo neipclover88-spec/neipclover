@@ -3227,7 +3227,7 @@ async function renderCert() {
             <div style="font-size:8px;color:var(--text2);margin-bottom:4px;">실제 수면 시간</div>
             <div style="display:flex;justify-content:space-between;align-items:flex-end;">
               <div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${q};line-height:1;">${slpH}h${slpM?slpM+'m':''}</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${q};line-height:1;">${slpH?slpH+'시간 ':''}${slpM?slpM+'분':''}</div>
                 <div style="font-size:9px;color:${q};margin-top:2px;">${qLbl} (권장 7–9h)</div>
               </div>
               ${slpScore?`<div style="text-align:right;"><div style="font-size:9px;color:var(--text2);">점수</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${slpScore>=85?'#4f8ef7':slpScore>=70?'#27c96e':slpScore>=55?'#f5a623':'#e74c3c'};line-height:1;">${slpScore}</div></div>`:''}
@@ -3242,9 +3242,22 @@ async function renderCert() {
           const r=health?.running||{}, sw=health?.swimming||{}, cy=health?.cycling||{};
           const pu=health?.pushup||{}, pl=health?.pullup||{}, lr=health?.legraise||{};
           const swM = Number(sw.m)||0;
-          if(r.km>0)   items.push({ico:'🏃',txt:`${r.km}km${r.runM?` · ${r.runM}분`:''}`});
-          if(swM>0)    items.push({ico:'🏊',txt:`${swM}m${sw.swimM?` · ${sw.swimM}분${sw.swimS?sw.swimS+'초':''}`:''}`});
-          if(cy.km>0)  items.push({ico:'🚴',txt:`${cy.km}km`});
+          // 시간 포맷 함수
+          function fmtTime(h, m, s) {
+            h=Number(h)||0; m=Number(m)||0; s=Number(s)||0;
+            if(!h&&!m&&!s) return '';
+            let r='';
+            if(h) r+=h+'시간 ';
+            if(m) r+=m+'분 ';
+            if(s) r+=s+'초';
+            return r.trim();
+          }
+          const runTime = fmtTime(0, r.runM, r.runS);
+          const swimTime = fmtTime(0, sw.swimM, sw.swimS);
+          const cycTime = fmtTime(cy.cycH, cy.cycM, 0);
+          if(r.km>0)    items.push({ico:'🏃',txt:`${r.km}km${runTime?' · '+runTime:''}`});
+          if(swM>0)     items.push({ico:'🏊',txt:`${swM}m${swimTime?' · '+swimTime:''}`});
+          if(cy.km>0)   items.push({ico:'🚴',txt:`${cy.km}km${cycTime?' · '+cycTime:''}`});
           if(pu.reps>0) items.push({ico:'💪',txt:`${pu.reps}회`});
           if(pl.reps>0) items.push({ico:'🏋️',txt:`${pl.reps}회`});
           if(lr.reps>0) items.push({ico:'🦵',txt:`${lr.reps}회`});
@@ -3253,10 +3266,11 @@ async function renderCert() {
             <div style="font-size:11px;color:var(--text2);">기록 없음</div>
             <div style="font-size:9px;color:var(--text2);margin-top:4px;opacity:.6;">↺ 새로고침 눌러보세요</div>
           </div>`;
-          const totalExMin=(r?.runM||0)+(sw?.swimM||0)+((cy?.cycH||0)*60+(cy?.cycM||0));
+          const totalExMin=(Number(r.runM)||0)+(Number(sw.swimM)||0)+((Number(cy.cycH)||0)*60+(Number(cy.cycM)||0));
+          const totalExTime = fmtTime(Math.floor(totalExMin/60), totalExMin%60, 0);
           return `<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;border-left:3px solid ${EXC};">
             <div style="font-size:9px;color:${EXC};letter-spacing:1px;margin-bottom:6px;">🏃 운동</div>
-            ${totalExMin>0?`<div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${EXC};line-height:1;margin-bottom:5px;">${totalExMin}m</div>`:''}
+            ${totalExTime?`<div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:${EXC};line-height:1;margin-bottom:5px;">${totalExTime}</div>`:''}
             <div style="display:flex;flex-direction:column;gap:2px;">
               ${items.map(i=>`<div style="font-size:11px;color:var(--text);">${i.ico} <span style="color:${EXC};">${i.txt}</span></div>`).join('')}
             </div>
