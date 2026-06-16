@@ -2915,6 +2915,7 @@ async function renderCert() {
   let jbBooks = [];
   let schedSessions = [];
   let dbData = {};
+  let todayVitality = null;
 
   if (rtdb) {
     const t = ms => new Promise(r=>setTimeout(r,ms));
@@ -2936,10 +2937,16 @@ async function renderCert() {
           if (!goals[s]) goals[s] = [];
         });
       }
-      // health: 오늘 먼저, 없으면 가장 최근 날짜
+      // health: 오늘 먼저, 없으면 가장 최근 날짜 (단, 활력점수는 항상 오늘 값 사용)
       if (dbSnap?.exists()) {
         dbData = dbSnap.val();
         const today = todayStr();
+        todayVitality = {
+          score: dbData[today]?.health?.vitalityScore ?? null,
+          comps: dbData[today]?.health?.vitalityComps ?? null,
+          chronicPenalty: dbData[today]?.health?.vitalityChronicPenalty ?? 0,
+          avg7Load: dbData[today]?.health?.vitalityAvg7Load ?? 0,
+        };
         if (dbData[today]?.health) {
           health = dbData[today].health;
         } else {
@@ -2985,16 +2992,10 @@ async function renderCert() {
   const dayKr = ['일','월','화','수','목','금','토'][today.getDay()];
   const EX_COLOR = '#f4a0b0';
 
-  // ── 일상 활력 점수 (대시보드에서 계산·저장한 값을 그대로 읽음) ──
+  // ── 일상 활력 점수 (대시보드에서 계산·저장한 값을 그대로 읽음, 항상 오늘 값) ──
   const vit = (() => {
-    const score = health?.vitalityScore;
-    if (score === null || score === undefined) return null;
-    return {
-      score,
-      comps: health?.vitalityComps || {},
-      chronicPenalty: health?.vitalityChronicPenalty || 0,
-      avg7Load: health?.vitalityAvg7Load || 0,
-    };
+    if (!todayVitality || todayVitality.score === null || todayVitality.score === undefined) return null;
+    return todayVitality;
   })();
   function vitTier(score) {
     if (score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
