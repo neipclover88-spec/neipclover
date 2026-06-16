@@ -260,7 +260,7 @@ function loadDate(dk) {
   curDate = dk;
   document.getElementById('dateLbl').textContent = fmtLabel(dk);
   setSyncDot('busy');
-  fbDb.ref(`${FB_PATH}/${dk}/diet`).once('value').then(snap => {
+  fbDb.ref(`${FB_PATH}/db/${dk}/diet`).once('value').then(snap => {
     dietData = snap.val() || {};
     render();
     setSyncDot('ok');
@@ -268,7 +268,7 @@ function loadDate(dk) {
 }
 function saveData() {
   setSyncDot('busy');
-  fbDb.ref(`${FB_PATH}/${curDate}/diet`).set(dietData)
+  fbDb.ref(`${FB_PATH}/db/${curDate}/diet`).set(dietData)
     .then(() => setSyncDot('ok'))
     .catch(() => setSyncDot('err'));
 }
