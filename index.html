@@ -310,7 +310,7 @@ const TOTAL_PRINCIPAL = LOANS.reduce((t,l)=>t+l.principal,0); // 20,200,000
 let sel   = todayStr();
 let db    = {};
 let openS    = {};
-let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, leg:false, hobby:false};
+let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, leg:false, wellness:false, hobby:false};
 let openShoe = false;
 let fbApp    = null;
 let deductRate = 10;
@@ -390,6 +390,8 @@ function dayData(k) {
   if(!h.pushup)   h.pushup   = {reps:0};
   if(!h.pullup)   h.pullup   = {reps:0};
   if(!h.legraise) h.legraise = {reps:0};
+  if(!h.wellness) h.wellness = {fatigue:0,soreness:0,stress:0,mood:0};
+  if(!h.water)    h.water    = {count:0};
   if(h.hobby===undefined) h.hobby = "";
   return d;
 }
@@ -657,9 +659,16 @@ function calcVitality(dk) {
   DIET_EXTRAS.forEach(k=>{ dTotal++; if(dietChecks[k]) dDone++; });
   const dietComp = dTotal>0 ? (dDone/dTotal*100) : null;
 
+  // 5. 컨디션 자가평가 — Hooper-Mackinnon Wellness Index 방식
+  //    피로감/근육통/스트레스/기분을 각 1~5점으로 자가평가, 평균을 0~100으로 환산
+  //    숫자 지표(수면·운동·근무)가 못 잡는 "몸살기, 컨디션 난조"를 보완
+  const wl = h.wellness || {};
+  const wlVals = [wl.fatigue, wl.soreness, wl.stress, wl.mood].filter(v=>Number(v)>0).map(Number);
+  const wellnessComp = wlVals.length>0 ? (wlVals.reduce((a,b)=>a+b,0)/wlVals.length-1)/4*100 : null;
+
   // ── 가중합산 (데이터 없는 영역은 자동 재분배) ──
-  const weights = {sleep:0.40, activity:0.25, load:0.20, diet:0.15};
-  const comps   = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp};
+  const weights = {sleep:0.35, activity:0.20, load:0.20, diet:0.10, wellness:0.15};
+  const comps   = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp};
   let usedW=0, sum=0;
   Object.entries(comps).forEach(([k,v])=>{
     if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
@@ -1275,7 +1284,7 @@ function renderHealth() {
           </div>
         </div>
         <div style="display:flex;gap:3px">
-          ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗']].map(([k,ico])=>{
+          ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗'],['wellness','🧘']].map(([k,ico])=>{
             const v=vit.comps[k];
             const c=v===null?'var(--m2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
             return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1}">${ico}</div>`;
@@ -1390,7 +1399,28 @@ function renderHealth() {
 
   `;
 
-  // 2. SWIMMING (collapsible)
+  // 2. 수분 섭취 (500ml 기준 카운터) — 식단 바로 아래
+  const waterCount = Number(h.water?.count)||0;
+  const waterMl = waterCount*500;
+  out += `<div class="hact">
+    <div class="hact-hdr">
+      <span class="hico">💧</span>
+      <span class="hact-name">수분</span>
+      <span class="hact-val" style="color:#4fc3f7">${waterCount>0?waterCount+'병 ('+(waterMl/1000).toFixed(1)+'L)':''}</span>
+    </div>
+    <div class="hact-body" style="display:flex">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <button onclick="addWater(-1)" style="background:var(--s2);border:1px solid var(--b);color:var(--m);border-radius:6px;width:30px;height:30px;font-size:16px;cursor:pointer;flex-shrink:0">−</button>
+        <div style="flex:1;text-align:center">
+          <div style="font-family:var(--bebas);font-size:20px;color:#4fc3f7">${waterCount}<span style="font-size:11px;color:var(--m)"> 병 (500ml)</span></div>
+          <div style="font-size:8px;color:var(--m)">총 ${(waterMl/1000).toFixed(1)}L</div>
+        </div>
+        <button onclick="addWater(1)" style="background:rgba(79,195,247,.15);border:1px solid rgba(79,195,247,.4);color:#4fc3f7;border-radius:6px;width:30px;height:30px;font-size:16px;cursor:pointer;flex-shrink:0">+</button>
+      </div>
+    </div>
+  </div>`;
+
+  // 3. SWIMMING (collapsible)
   out += hItem('swim','🏊','수영', swimStr,
     `<div class="hrow">
         <span class="hlbl">거리</span>
@@ -1519,13 +1549,50 @@ function renderHealth() {
       </div>`
   );
 
-  // 8. HOBBY (collapsible)
+  // 8. 컨디션 자가평가 (Hooper-Mackinnon Wellness Index)
+  const wl = h.wellness || {};
+  const WELLNESS_Q = [
+    ['fatigue','피로감'],['soreness','근육통'],['stress','스트레스'],['mood','기분']
+  ];
+  const wlSet = WELLNESS_Q.map(([k])=>Number(wl[k])||0).filter(v=>v>0);
+  const wlAvg = wlSet.length>0 ? (wlSet.reduce((a,b)=>a+b,0)/wlSet.length) : 0;
+  const wlLabel = wlAvg>=4.5?'아주 좋음':wlAvg>=3.5?'좋음':wlAvg>=2.5?'보통':wlAvg>=1.5?'안좋음':wlAvg>0?'매우 안좋음':'';
+  out += hItem('wellness','🧘','컨디션', wlAvg>0?wlLabel:'',
+    WELLNESS_Q.map(([key,name])=>{
+      const cur = Number(wl[key])||0;
+      return `<div class="hrow" style="margin-bottom:2px">
+        <span class="hlbl" style="width:38px">${name}</span>
+        <div style="display:flex;gap:3px;flex:1">
+          ${[1,2,3,4,5].map(v=>{
+            const filled = v<=cur;
+            return `<button onclick="setWellness('${key}',${v})" style="flex:1;background:${filled?'rgba(245,200,30,.18)':'var(--s2)'};border:1px solid ${filled?'#f5c81e':'var(--b)'};border-radius:5px;padding:5px 0;cursor:pointer;font-size:15px;line-height:1;color:${filled?'#f5c81e':'var(--m2)'}">★</button>`;
+          }).join('')}
+        </div>
+        <span style="font-family:var(--bebas);font-size:13px;color:${cur>0?'#f5c81e':'var(--m2)'};width:14px;text-align:right;flex-shrink:0">${cur||''}</span>
+      </div>`;
+    }).join('') + (wlAvg>0?`<div class="hcalc" style="color:#a855f7">평균 ${wlAvg.toFixed(1)} / 5 — ${wlLabel}</div>`:'')
+  );
+
+  // 9. HOBBY (collapsible)
   out += hItem('hobby','🎮','취미', h.hobby?h.hobby.slice(0,8):'',
     `<input class="hinp" type="text" value="${esc(h.hobby||'')}" placeholder="오늘의 취미 활동"
         onchange="updHTxt('hobby',this.value)">`
   );
 
   document.getElementById('pHealth').innerHTML = out;
+}
+
+function setWellness(key, val) {
+  const h = dayData(sel).health;
+  if(!h.wellness) h.wellness = {};
+  h.wellness[key] = h.wellness[key]===val ? 0 : val; // 같은 값 다시 누르면 해제
+  save(); renderHealth();
+}
+function addWater(delta) {
+  const h = dayData(sel).health;
+  if(!h.water) h.water = {count:0};
+  h.water.count = Math.max(0, (Number(h.water.count)||0)+delta);
+  save(); renderHealth();
 }
 
 // ════════════════════════════════════════════════
@@ -1684,7 +1751,7 @@ function updWorkSave(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps','fatigue','soreness','stress','mood','count'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1695,7 +1762,7 @@ function updH(cat, fld, val) {
 }
 // 저장만 하고 렌더링 안 함
 function updHSave(cat, fld, val) {
-  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps','fatigue','soreness','stress','mood','count'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save();
 }
