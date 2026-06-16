@@ -299,9 +299,12 @@ let openMeal = null;
 
 // 아이템 키 생성
 function itemKey(mealKey, idx) { return mealKey + '_' + idx; }
+function subKey(mealKey) { return mealKey + '_sub'; }
+function subNoteKey(mealKey) { return mealKey + '_subNote'; }
 
-// 밀 아이템 체크 수
+// 밀 아이템 체크 수 (대체식이면 전체 완료로 인정)
 function mealCheckedCount(meal) {
+  if(dietData[subKey(meal.key)]) return meal.items.length;
   return meal.items.filter((_, i) => dietData[itemKey(meal.key, i)]).length;
 }
 function mealAllDone(meal) {
@@ -309,11 +312,13 @@ function mealAllDone(meal) {
 }
 
 function render() {
-  // 전체 아이템 수 기준 진행률
-  const allItems = MEALS.filter(m => MAIN_KEYS.includes(m.key))
-    .flatMap(m => m.items.map((_, i) => itemKey(m.key, i)));
-  const doneItems = allItems.filter(k => dietData[k]).length;
-  const total = allItems.length;
+  // 전체 아이템 수 기준 진행률 (대체식인 끼니는 항목 전체를 완료로 카운트)
+  const mainMeals = MEALS.filter(m => MAIN_KEYS.includes(m.key));
+  let doneItems = 0, total = 0;
+  mainMeals.forEach(m => {
+    total += m.items.length;
+    doneItems += dietData[subKey(m.key)] ? m.items.length : m.items.filter((_, i) => dietData[itemKey(m.key, i)]).length;
+  });
   const pct   = total > 0 ? Math.round(doneItems / total * 100) : 0;
   const clr   = pct >= 80 ? '#27c96e' : pct >= 50 ? '#f5c200' : '#e74c3c';
   const msgs  = ['오늘 식단을 기록해봐요 💪', '절반 왔어요, 조금 더!', '잘 하고 있어요 👍', '완벽해요! 🎉'];
@@ -330,28 +335,32 @@ function render() {
 
   const list = document.getElementById('mealList');
   list.innerHTML = MEALS.map(meal => {
+    const isSub   = !!dietData[subKey(meal.key)];
+    const subNote = dietData[subNoteKey(meal.key)] || '';
     const checked = mealCheckedCount(meal);
     const mTotal  = meal.items.length;
     const allDone = checked === mTotal;
     const mPct    = Math.round(checked / mTotal * 100);
-    const mClr    = allDone ? '#27c96e' : checked > 0 ? '#f5c200' : 'var(--m2)';
+    const mClr    = isSub ? '#f5a623' : allDone ? '#27c96e' : checked > 0 ? '#f5c200' : 'var(--m2)';
     const isOpen  = openMeal === meal.key;
 
     return `
     <div class="meal-card ${allDone ? 'done' : ''}" id="mc-${meal.key}">
       <div class="meal-hdr" onclick="handleMealTap('${meal.key}')">
-        <div class="meal-check" style="border-color:${mClr};${allDone?'background:#27c96e':''}">
-          ${allDone ? '✓' : checked > 0 ? checked : ''}
+        <div class="meal-check" style="border-color:${mClr};${allDone?'background:'+mClr:''}">
+          ${isSub ? '🔄' : allDone ? '✓' : checked > 0 ? checked : ''}
         </div>
         <span class="meal-time">${meal.time}</span>
-        <span class="meal-name" style="color:${allDone?'#27c96e':'var(--t)'}">${meal.emoji} ${meal.name}</span>
+        <span class="meal-name" style="color:${allDone?mClr:'var(--t)'}">${meal.emoji} ${meal.name}</span>
         <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
-          <span style="font-size:9px;color:${mClr};font-family:'Barlow Condensed',sans-serif;font-weight:700">${checked}/${mTotal}</span>
+          ${isSub
+            ? `<span style="font-size:9px;color:#f5a623;font-weight:700">대체식</span>`
+            : `<span style="font-size:9px;color:${mClr};font-family:'Barlow Condensed',sans-serif;font-weight:700">${checked}/${mTotal}</span>`}
           <span style="font-size:9px;color:var(--m)">${isOpen?'▲':'▼'}</span>
         </div>
       </div>
       <div class="meal-detail ${isOpen ? 'open' : ''}">
-        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;opacity:${isSub?0.35:1};pointer-events:${isSub?'none':'auto'}">
           ${meal.items.map((it, i) => {
             const ik = itemKey(meal.key, i);
             const iDone = !!dietData[ik];
@@ -370,6 +379,20 @@ function render() {
           }).join('')}
         </div>
         ${meal.note ? `<div class="meal-note">💡 ${meal.note}</div>` : ''}
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.1)">
+          <div onclick="toggleSub('${meal.key}')" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <div style="width:18px;height:18px;border-radius:5px;border:2px solid ${isSub?'#f5a623':'var(--m2)'};
+              background:${isSub?'#f5a623':'none'};display:flex;align-items:center;justify-content:center;
+              flex-shrink:0;font-size:10px;color:#fff">${isSub?'✓':''}</div>
+            <span style="font-size:12px;color:${isSub?'#f5a623':'var(--m)'};font-weight:${isSub?700:400}">🔄 다른 음식으로 대체했어요</span>
+          </div>
+          ${isSub?`
+          <input type="text" value="${esc(subNote)}" placeholder="무엇을 먹었나요? (예: 뼈해장국)"
+            onchange="updSubNote('${meal.key}',this.value)"
+            style="width:100%;margin-top:8px;background:var(--s2);border:1px solid rgba(245,166,35,.3);
+              border-radius:8px;color:var(--t);font-size:12px;padding:8px 10px;outline:none">
+          `:''}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -387,6 +410,20 @@ function toggleItem(mealKey, idx) {
   dietData[k] = !dietData[k];
   render();
   saveData();
+}
+
+function toggleSub(mealKey) {
+  const k = subKey(mealKey);
+  dietData[k] = !dietData[k];
+  render();
+  saveData();
+}
+function updSubNote(mealKey, val) {
+  dietData[subNoteKey(mealKey)] = val;
+  saveData();
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function renderExtras() {
