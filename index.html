@@ -677,6 +677,18 @@ function vitalityTier(score) {
 
 // ─── PERSIST ───
 function save() {
+  // 오늘 활력 점수를 db에 저장 (열공타이머 등 외부 연동용)
+  try {
+    const todayK = todayStr();
+    const vit = calcVitality(todayK);
+    if(db[todayK]) {
+      if(!db[todayK].health) db[todayK].health = {};
+      db[todayK].health.vitalityScore = vit ? vit.score : null;
+      db[todayK].health.vitalityComps = vit ? vit.comps : null;
+      db[todayK].health.vitalityChronicPenalty = vit ? vit.chronicPenalty : 0;
+      db[todayK].health.vitalityAvg7Load = vit ? vit.avg7Load : 0;
+    }
+  } catch(e){}
   try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
   fbSave();
 }
