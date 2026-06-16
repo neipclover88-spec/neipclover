@@ -609,31 +609,29 @@ function calcVitality(dk) {
   else loadComp = Math.max(20, 60-(totalLoad-840)/60*15);        // 14h+ : 급격 감소(운전 피로 위험구간)
   if(totalLoad>780 && sleepComp!==null && sleepComp<60) loadComp = Math.max(0, loadComp-15); // 과부하+수면부족 이중감점
 
-  // 3-1. 최근 7일 내 진짜 휴식일이 있었는지 자동 체크 (휴식일 = 부하<2h & 운동 안 함)
-  //      누적 피로는 하루 단위로 안 잡히므로 주간 패턴까지 함께 본다
-  function isRestDay(k) {
-    const dh = db[k]?.health || {};
-    const dw = db[k]?.work || {};
-    const wMin = hmToMins(dw.workH, dw.workM);
-    const sMin = totalStudyMins(k);
-    const rMin = ((Number(dh.running?.runM)||0)*60+(Number(dh.running?.runS)||0))/60;
-    const swMin = (Number(dh.swimming?.swimM)||0)+(Number(dh.swimming?.swimS)||0)/60;
-    const cMin = hmToMins(dh.cycling?.cycH, dh.cycling?.cycM);
-    const strength = (Number(dh.pushup?.reps)||0)>0 || (Number(dh.pullup?.reps)||0)>0 || (Number(dh.legraise?.reps)||0)>0;
-    return (wMin+sMin)<120 && rMin+swMin+cMin<=0 && !strength;
-  }
+  // 3-1. 최근 7일 평균 부하(근무+공부) 기준 만성 과부하 체크
+  //      매일 운동·근무가 섞여 있는 생활이라 "완전 휴식일"을 찾는 건 의미가 없음 →
+  //      대신 트레이닝 부하 모니터링에서 쓰는 acute:chronic 개념처럼 7일 평균을 본다.
+  //      하루 14시간(운전 피로 안전기준)을 매일 반복하는 게 진짜 위험한 패턴이지,
+  //      쉬는 날이 하루 있었는지 여부는 중요하지 않음.
   const dDate = parseD(dk);
-  let foundRest = false;
+  let sum7 = 0, n7 = 0;
   for(let i=0;i<7;i++) {
     const x = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate()-i);
-    if(isRestDay(dateFmt(x))) { foundRest = true; break; }
+    const xk = dateFmt(x);
+    const xw = db[xk]?.work || {};
+    const xWorkMin = hmToMins(xw.workH, xw.workM);
+    const xStudyMin = totalStudyMins(xk);
+    if(db[xk]) { sum7 += (xWorkMin+xStudyMin); n7++; }
   }
-  const noRestPenalty = (!foundRest && totalLoad>0) ? 8 : 0; // 7일간 휴식일 없으면 -8
+  const avg7Load = n7>0 ? sum7/n7 : totalLoad;
+  // 평균이 12h(720분)를 넘으면 만성 누적 페널티 시작, 15h(900분)에서 최대 -15
+  const chronicPenalty = avg7Load>720 ? Math.min(15, Math.round((avg7Load-720)/180*15)) : 0;
 
   // 4. 식단 관리 — 체크리스트 완료율 (diet.html과 동일 계산)
   const dietChecks = d.diet || {};
-  const DIET_MEAL_ITEMS = {'아침':6,'점심':2,'오후':1,'저녁':4,'야식':1};
-  const DIET_EXTRAS = ['마그네슘'];
+  const DIET_MEAL_ITEMS = {'아침':6,'점심':2,'저녁':4,'야식':1}; // 오후는 선택사항 — diet.html과 동일하게 진행률에서 제외
+  const DIET_EXTRAS = []; // 마그네슘은 별도 트래킹 — 메인 진행률에 포함 안 함 (diet.html과 동일)
   let dTotal=0, dDone=0;
   Object.entries(DIET_MEAL_ITEMS).forEach(([m,c])=>{
     for(let i=0;i<c;i++){ dTotal++; if(dietChecks[m+'_'+i]) dDone++; }
@@ -649,8 +647,8 @@ function calcVitality(dk) {
     if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
   });
   if(usedW===0) return null;
-  const score = Math.max(0, Math.round(sum/usedW) - noRestPenalty);
-  return {score, comps, noRestPenalty, totalLoad};
+  const score = Math.max(0, Math.round(sum/usedW) - chronicPenalty);
+  return {score, comps, chronicPenalty, totalLoad, avg7Load};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -1257,7 +1255,7 @@ function renderHealth() {
       <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
-      ${vit.noRestPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일간 휴식일 없음 (-${vit.noRestPenalty}점)</div>`:''}
+      ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
     </div>`;
   }
 
@@ -1328,9 +1326,9 @@ function renderHealth() {
     const dietChecks = db[sel]?.diet || {};
     // 개별 아이템 키 기준으로 계산 (diet.html과 동일 방식)
     const DIET_MEAL_ITEMS = {
-      '아침': 6, '점심': 2, '오후': 1, '저녁': 4, '야식': 1
+      '아침': 6, '점심': 2, '저녁': 4, '야식': 1 // 오후는 선택사항 — diet.html과 동일하게 제외
     };
-    const DIET_EXTRAS = ['마그네슘'];
+    const DIET_EXTRAS = []; // 마그네슘은 별도 트래킹 — 메인 진행률에 포함 안 함
     let dietDone = 0, dietTotal = 0;
     Object.entries(DIET_MEAL_ITEMS).forEach(([meal, count]) => {
       for(let i=0; i<count; i++) { dietTotal++; if(dietChecks[meal+'_'+i]) dietDone++; }
