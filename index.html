@@ -651,7 +651,8 @@ function calcVitality(dk) {
   const DIET_EXTRAS = []; // 마그네슘은 별도 트래킹 — 메인 진행률에 포함 안 함 (diet.html과 동일)
   let dTotal=0, dDone=0;
   Object.entries(DIET_MEAL_ITEMS).forEach(([m,c])=>{
-    for(let i=0;i<c;i++){ dTotal++; if(dietChecks[m+'_'+i]) dDone++; }
+    dTotal += c;
+    dDone  += dietChecks[m+'_sub'] ? c : Array.from({length:c}).filter((_,i)=>dietChecks[m+'_'+i]).length;
   });
   DIET_EXTRAS.forEach(k=>{ dTotal++; if(dietChecks[k]) dDone++; });
   const dietComp = dTotal>0 ? (dDone/dTotal*100) : null;
@@ -1360,7 +1361,8 @@ function renderHealth() {
     const DIET_EXTRAS = []; // 마그네슘은 별도 트래킹 — 메인 진행률에 포함 안 함
     let dietDone = 0, dietTotal = 0;
     Object.entries(DIET_MEAL_ITEMS).forEach(([meal, count]) => {
-      for(let i=0; i<count; i++) { dietTotal++; if(dietChecks[meal+'_'+i]) dietDone++; }
+      dietTotal += count;
+      dietDone  += dietChecks[meal+'_sub'] ? count : Array.from({length:count}).filter((_,i)=>dietChecks[meal+'_'+i]).length;
     });
     DIET_EXTRAS.forEach(k => { dietTotal++; if(dietChecks[k]) dietDone++; });
     const dietPct   = dietTotal>0 ? Math.round(dietDone/dietTotal*100) : 0;
