@@ -680,12 +680,14 @@ function save() {
   // 오늘 활력 점수를 db에 저장 (열공타이머 등 외부 연동용)
   try {
     const todayK = todayStr();
-    dayData(todayK); // db[todayK] 및 health 하위 구조 보장
     const vit = calcVitality(todayK);
-    db[todayK].health.vitalityScore = vit ? vit.score : null;
-    db[todayK].health.vitalityComps = vit ? vit.comps : null;
-    db[todayK].health.vitalityChronicPenalty = vit ? vit.chronicPenalty : 0;
-    db[todayK].health.vitalityAvg7Load = vit ? vit.avg7Load : 0;
+    if(db[todayK]) {
+      if(!db[todayK].health) db[todayK].health = {};
+      db[todayK].health.vitalityScore = vit ? vit.score : null;
+      db[todayK].health.vitalityComps = vit ? vit.comps : null;
+      db[todayK].health.vitalityChronicPenalty = vit ? vit.chronicPenalty : 0;
+      db[todayK].health.vitalityAvg7Load = vit ? vit.avg7Load : 0;
+    }
   } catch(e){}
   try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
   fbSave();
@@ -2321,7 +2323,7 @@ function renderModalHealth() {
 
   // ③ 러닝 바 차트 (데이터 있을 때)
   // 요일별 운동 통합 차트 (수영/러닝/자전거 중 기록된 것 표시)
-  const hasCardio = totalRunKm>0 || totalSwimLaps>0 || totalCycKm>0;
+  const hasCardio = totalRunKm>0 || totalSwimM>0 || totalCycKm>0;
   if(hasCardio) {
     // 각 날의 운동 종류와 수치를 통합 (하루 하나씩)
     const dailyExercise = dates.map((dk,i) => {
@@ -2359,7 +2361,7 @@ function renderModalHealth() {
     });
     b += `</div>
       <div style="display:flex;gap:10px;margin-top:8px;font-size:8px;color:var(--m)">
-        ${totalSwimLaps>0?'<div style="display:flex;align-items:center;gap:3px"><span>🏊</span><span>수영</span></div>':''}
+        ${totalSwimM>0?'<div style="display:flex;align-items:center;gap:3px"><span>🏊</span><span>수영</span></div>':''}
         ${totalRunKm>0?'<div style="display:flex;align-items:center;gap:3px"><span>🏃</span><span>러닝</span></div>':''}
         ${totalCycKm>0?'<div style="display:flex;align-items:center;gap:3px"><span>🚴</span><span>자전거</span></div>':''}
       </div>
