@@ -371,6 +371,7 @@ function dayData(k) {
   if(!d.study) d.study = {};
   if(!d.work)  d.work  = {incomeAmount:0,deliveries:0,workH:0,workM:0};
   if(!d.work.expenses) d.work.expenses = [];
+  if(!d.weather) d.weather = {temp:'',condition:''};
   if(!d.health) d.health = {};
   // goals are global (not per-day)
   if(!db._goals) db._goals = {};
@@ -627,6 +628,26 @@ function calcVitality(dk, _depth=0) {
   const MAX_DEPLETION = 40;
   let depletion = Math.min(MAX_DEPLETION, MAX_DEPLETION*Math.pow(Math.max(0,effectiveLoad)/840, 0.7));
 
+  // 3-0. 날씨 기반 추가 피로도 — 폭염/한파/우천 시 배달이 훨씬 힘들어짐
+  //      근무시간이 0이면 날씨 영향 없음(안 나갔으니까), 근무시간에 비례해서 스케일
+  const wx = d.weather || {};
+  const wxTemp = (wx.temp!==undefined && wx.temp!=='') ? Number(wx.temp) : null;
+  const wxCond = wx.condition || '';
+  let weatherPenalty = 0;
+  if(workMin>0) {
+    let tempPen = 0;
+    if(wxTemp!==null) {
+      if(wxTemp>=33) tempPen = Math.min(10, (wxTemp-33)*1.5+3);      // 폭염
+      else if(wxTemp>=30) tempPen = wxTemp-30;                        // 더움
+      else if(wxTemp<=0) tempPen = Math.min(10, (0-wxTemp)*1.2+3);    // 한파
+      else if(wxTemp<=5) tempPen = (5-wxTemp)*0.8;                    // 추움
+    }
+    let condPen = wxCond==='비' ? 5 : wxCond==='눈' ? 6 : wxCond==='강풍' ? 3 : 0;
+    const scale = Math.min(1, workMin/480); // 8시간 기준 풀스케일
+    weatherPenalty = (tempPen+condPen)*scale;
+  }
+  depletion = Math.min(50, depletion + weatherPenalty); // 날씨 가산은 기존 캡(40) 위에 추가 허용
+
   // 3-1. 최근 7일 평균 부하 — 일별 소모 곡선이 이제 충분히 민감해졌으므로(4h만 일해도 -21점)
   //      만성 페널티는 "매일 극단적으로 과한 패턴"에만 걸리는 안전장치로 축소 (이중 페널티 방지)
   const dDate = parseD(dk);
@@ -712,7 +733,7 @@ function calcVitality(dk, _depth=0) {
   const score = Math.max(0, Math.round(raw) - chronicPenalty);
   const comps = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp, energy:energyComp};
   return {score, comps, chronicPenalty, totalLoad, avg7Load, prevEndScore,
-    sleepEffect, activityBonus, dietBonus, wellnessAdj, depletion};
+    sleepEffect, activityBonus, dietBonus, wellnessAdj, depletion, weatherPenalty};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -806,10 +827,14 @@ function renderCal() {
     const isT=dk===t, isSel=dk===sel, isSun=i===0, isSat=i===6;
     const cls=['cday',isT?'today':'',isSel?'sel':'',isSun?'dsun':'',isSat?'dsat':''].filter(Boolean).join(' ');
 
-    // sleep tag in header
-    const slp = db[dk]?.health?.sleep;
-    const slpScore = Number(slp?.score)||0;
-    const slpTag = slpScore>0 ? slpScore+'점' : '';
+    // weather tag in header (수면점수 자리 대체)
+    const wx = db[dk]?.weather || {};
+    const wxTempRaw = (wx.temp!==undefined && wx.temp!=='') ? Number(wx.temp) : null;
+    const wxCond = wx.condition || '';
+    const WX_ICON = {'맑음':'☀️','흐림':'☁️','비':'🌧️','눈':'❄️','강풍':'💨'};
+    const wxIcon = WX_ICON[wxCond] || '';
+    const wxTag = (wxTempRaw!==null || wxCond) ? (wxIcon + (wxTempRaw!==null ? wxTempRaw+'°' : '')) : '';
+    const wxClr = wxTempRaw!==null && (wxTempRaw>=33||wxTempRaw<=0) ? '#e74c3c' : wxTempRaw!==null && (wxTempRaw>=30||wxTempRaw<=5) ? '#f5a623' : '#7fb3e0';
 
     // study
     const stMin = totalStudyMins(dk);
@@ -840,7 +865,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpTag?('<span class="dsleep-tag" style="color:'+(slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':'#f5a623')+'">💤'+slpTag+'</span>'):''}
+        ${wxTag?('<span class="dsleep-tag" style="color:'+wxClr+'">'+wxTag+'</span>'):''}
       </div>
       <div class="dbody">
         <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
@@ -885,6 +910,18 @@ function renderStudy() {
     <span class="ptitle">공부</span>
     <span class="ptotal" style="color:#4f8ef7">${totalStr}</span>
     <span style="font-size:9px;color:var(--m);margin-left:4px">↗</span>
+  </div>
+  <div style="padding:7px 9px;border-bottom:1px solid var(--b);display:flex;gap:5px;align-items:center;background:rgba(127,179,224,.05)">
+    <span style="font-size:9px;color:#7fb3e0;flex-shrink:0">🌡️오늘</span>
+    <input type="number" value="${dd.weather?.temp??''}" placeholder="온도" step="0.1"
+      style="width:48px;background:var(--s2);border:1px solid rgba(127,179,224,.3);border-radius:5px;color:#7fb3e0;font-family:var(--bebas);font-size:13px;padding:3px 5px;outline:none;text-align:center"
+      onchange="updWeather('temp',this.value)">
+    <span style="font-size:9px;color:var(--m);flex-shrink:0">°C</span>
+    <select style="flex:1;background:var(--s2);border:1px solid rgba(127,179,224,.3);border-radius:5px;color:var(--t);font-size:10px;padding:3px 5px;outline:none;-webkit-appearance:none;appearance:none"
+      onchange="updWeather('condition',this.value)">
+      <option value="">날씨 선택</option>
+      ${['맑음','흐림','비','눈','강풍'].map(w=>`<option value="${w}"${dd.weather?.condition===w?' selected':''}>${w}</option>`).join('')}
+    </select>
   </div>`;
 
   for(const s of SUBJS) {
@@ -1651,6 +1688,15 @@ function clickDay(dk) {
   sel = dk;
   save();
   renderAll();
+}
+
+function updWeather(field, val) {
+  const d = dayData(sel);
+  if(!d.weather) d.weather = {temp:'',condition:''};
+  d.weather[field] = val;
+  save();
+  renderCal();
+  renderHealth(); // 활력 점수의 날씨 피로도 반영을 위해 재계산
 }
 
 function toggleS(s) {
