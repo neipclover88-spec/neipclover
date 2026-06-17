@@ -689,7 +689,13 @@ function calcVitality(dk, _depth=0) {
   const recoveryBasis = energyComp!==null
     ? (sleepComp!==null ? (sleepComp+energyComp)/2 : energyComp)
     : sleepComp;
-  const sleepRecoveryBonus = recoveryBasis!==null ? (recoveryBasis/100)*25 : 0;
+  // 75점(보통/좋음 경계) 근방이 제일 가파르고 양극단은 완만한 S자형 — 로지스틱 함수로 매끄럽게 구현
+  // (구간별 직선과 거의 동일한 모양이지만 꺾이는 지점 없이 연속적으로 이어짐)
+  // 0→-99.6, 30→-88.8, 50→-58.9, 60→-35.0, 75→-1.0, 85→+13.8, 100→+25.0
+  function sleepEffectCurve(rb) {
+    return -101 + 132/(1+Math.exp(-0.076*(rb-60)));
+  }
+  const sleepEffect = recoveryBasis!==null ? sleepEffectCurve(recoveryBasis) : 0;
 
   // 활동 보너스 — 운동하면 충전, 최대 +15
   const activityBonus = (activityComp/100)*15;
@@ -704,13 +710,13 @@ function calcVitality(dk, _depth=0) {
   let depletion = (100-loadComp)/100*35;
   if(totalLoad>780 && recoveryBasis!==null && recoveryBasis<60) depletion = Math.min(40, depletion+8); // 과부하+수면부족 가산
 
-  let raw = prevEndScore + sleepRecoveryBonus + activityBonus + dietBonus + wellnessAdj - depletion;
+  let raw = prevEndScore + sleepEffect + activityBonus + dietBonus + wellnessAdj - depletion;
   raw = Math.max(0, Math.min(100, raw));
 
   const score = Math.max(0, Math.round(raw) - chronicPenalty);
   const comps = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp, energy:energyComp};
   return {score, comps, chronicPenalty, totalLoad, avg7Load, prevEndScore,
-    sleepRecoveryBonus, activityBonus, dietBonus, wellnessAdj, depletion};
+    sleepEffect, activityBonus, dietBonus, wellnessAdj, depletion};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -1329,7 +1335,7 @@ function renderHealth() {
       <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
-      ${(vit.sleepRecoveryBonus>0||vit.activityBonus>0||vit.dietBonus>0||vit.depletion>0)?`<div style="font-size:8px;color:var(--m);margin-top:5px">전일 ${vit.prevEndScore}점 ${vit.sleepRecoveryBonus>=0.5?'+ 수면 '+vit.sleepRecoveryBonus.toFixed(0):''}${vit.activityBonus>=0.5?' + 활동 '+vit.activityBonus.toFixed(0):''}${vit.dietBonus>=0.5?' + 식단 '+vit.dietBonus.toFixed(0):''}${vit.wellnessAdj>=0.5?' + 컨디션 '+vit.wellnessAdj.toFixed(0):''}${vit.depletion>=0.5?' − 부하 '+vit.depletion.toFixed(0):''}</div>`:''}
+      ${(Math.abs(vit.sleepEffect)>=0.5||vit.activityBonus>=0.5||vit.dietBonus>=0.5||vit.depletion>=0.5)?`<div style="font-size:8px;color:var(--m);margin-top:5px">전일 ${vit.prevEndScore}점 ${Math.abs(vit.sleepEffect)>=0.5?(vit.sleepEffect>0?' + 수면 ':' − 수면 ')+Math.abs(vit.sleepEffect).toFixed(0):''}${vit.activityBonus>=0.5?' + 활동 '+vit.activityBonus.toFixed(0):''}${vit.dietBonus>=0.5?' + 식단 '+vit.dietBonus.toFixed(0):''}${Math.abs(vit.wellnessAdj)>=0.5?(vit.wellnessAdj>0?' + 컨디션 ':' − 컨디션 ')+Math.abs(vit.wellnessAdj).toFixed(0):''}${vit.depletion>=0.5?' − 부하 '+vit.depletion.toFixed(0):''}</div>`:''}
       ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
     </div>`;
   }
