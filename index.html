@@ -619,14 +619,14 @@ function calcVitality(dk, _depth=0) {
 
   // 3. 일일 총 부하 — 오토바이 배달은 균형·날씨노출·정차반복이 있는 실질적 신체노동이라
   //    앉아서 하는 공부보다 체력 소모가 훨씬 큼. 근무시간에 1.4배, 공부시간에 0.8배 가중치를 줘서
-  //    "일 자체의 신체적 부담"을 더 무겁게 반영하고, 초반 몇 시간부터 바로 체감되도록 제곱근 곡선 사용
-  //    (제곱근 곡선 = 초반에 빠르게 깎이고 후반엔 완만해지는 모양 — 4시간만 일해도 바로 크게 깎임)
+  //    "일 자체의 신체적 부담"을 반영하되, 공부는 훨씬 가볍게 + 근무도 과하지 않게 완화
+  //    (멱함수 곡선 — 초반에 좀 더 깎이고 후반엔 완만해지는 모양, 단 너무 가파르지 않게 조정)
   const workMin  = hmToMins(work.workH, work.workM);
   const studyMin = totalStudyMins(dk);
   const totalLoad = workMin + studyMin; // 쉬는날/만성과부하 체크용 (가중치 없는 순수 시간)
-  const effectiveLoad = workMin*1.4 + studyMin*0.8; // 소모 계산용 (신체노동 가중)
-  const MAX_DEPLETION = 40;
-  let depletion = Math.min(MAX_DEPLETION, MAX_DEPLETION*Math.pow(Math.max(0,effectiveLoad)/840, 0.7));
+  const effectiveLoad = workMin*1.15 + studyMin*0.4; // 소모 계산용 — 공부는 훨씬 가볍게, 근무도 소폭 완화
+  const MAX_DEPLETION = 35;
+  let depletion = Math.min(MAX_DEPLETION, MAX_DEPLETION*Math.pow(Math.max(0,effectiveLoad)/840, 0.85));
 
   // 3-0. 날씨 기반 추가 피로도 — 폭염/한파/우천 시 배달이 훨씬 힘들어짐
   //      근무시간이 0이면 날씨 영향 없음(안 나갔으니까), 근무시간에 비례해서 스케일
@@ -646,7 +646,7 @@ function calcVitality(dk, _depth=0) {
     const scale = Math.min(1, workMin/480); // 8시간 기준 풀스케일
     weatherPenalty = (tempPen+condPen)*scale;
   }
-  depletion = Math.min(50, depletion + weatherPenalty); // 날씨 가산은 기존 캡(40) 위에 추가 허용
+  depletion = Math.min(45, depletion + weatherPenalty); // 날씨 가산은 기존 캡(35) 위에 추가 허용
 
   // 3-1. 최근 7일 평균 부하 — 일별 소모 곡선이 이제 충분히 민감해졌으므로(4h만 일해도 -21점)
   //      만성 페널티는 "매일 극단적으로 과한 패턴"에만 걸리는 안전장치로 축소 (이중 페널티 방지)
