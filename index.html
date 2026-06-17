@@ -616,36 +616,38 @@ function calcVitality(dk, _depth=0) {
   }
   if(hasStrength && cardioMin>0) activityComp = Math.min(100, activityComp+10);
 
-  // 3. 일일 총 부하 (근무+공부 합산) — 화물운전자 근무시간 안전기준(14h 듀티한도)에 착안
-  //    배달은 신체노동, 공부는 인지노동이지만 둘 다 회복을 갉아먹는 누적 부하로 간주
-  //    부하 0(휴일)이면 소모가 전혀 없어야 하므로 100을 기준점으로 잡음 (배터리 모델)
+  // 3. 일일 총 부하 — 오토바이 배달은 균형·날씨노출·정차반복이 있는 실질적 신체노동이라
+  //    앉아서 하는 공부보다 체력 소모가 훨씬 큼. 근무시간에 1.4배, 공부시간에 0.8배 가중치를 줘서
+  //    "일 자체의 신체적 부담"을 더 무겁게 반영하고, 초반 몇 시간부터 바로 체감되도록 제곱근 곡선 사용
+  //    (제곱근 곡선 = 초반에 빠르게 깎이고 후반엔 완만해지는 모양 — 4시간만 일해도 바로 크게 깎임)
   const workMin  = hmToMins(work.workH, work.workM);
   const studyMin = totalStudyMins(dk);
-  const totalLoad = workMin + studyMin;
-  let loadComp;
-  if(totalLoad<=0) loadComp = 100;                          // 완전 휴식일 — 소모 없음
-  else if(totalLoad<=600) loadComp = 100-(totalLoad/600*20); // 0~10h: 100→80 완만히 감소
-  else if(totalLoad<=840) loadComp = 80-(totalLoad-600)/240*20; // 10~14h: 80→60
-  else loadComp = Math.max(20, 60-(totalLoad-840)/60*15);    // 14h+ : 급격 감소(운전 피로 위험구간)
+  const totalLoad = workMin + studyMin; // 쉬는날/만성과부하 체크용 (가중치 없는 순수 시간)
+  const effectiveLoad = workMin*1.4 + studyMin*0.8; // 소모 계산용 (신체노동 가중)
+  const MAX_DEPLETION = 40;
+  let depletion = Math.min(MAX_DEPLETION, MAX_DEPLETION*Math.pow(Math.max(0,effectiveLoad)/840, 0.7));
 
-  // 3-1. 최근 7일 평균 부하(근무+공부) 기준 만성 과부하 체크
-  //      매일 운동·근무가 섞여 있는 생활이라 "완전 휴식일"을 찾는 건 의미가 없음 →
-  //      대신 트레이닝 부하 모니터링에서 쓰는 acute:chronic 개념처럼 7일 평균을 본다.
-  //      하루 14시간(운전 피로 안전기준)을 매일 반복하는 게 진짜 위험한 패턴이지,
-  //      쉬는 날이 하루 있었는지 여부는 중요하지 않음.
+  // 3-1. 최근 7일 — (a) 평균 부하가 만성적으로 높은지, (b) 진짜 쉬는 날이 한 번도 없었는지 둘 다 체크
+  //      "쉬는 날" = 근무+공부 합산이 낮은 날 (운동 여부는 무관 — 운동했다고 휴일 취소되면 안 됨)
+  //      매일 8시간씩만 일해도 평균(12h) 기준은 절대 안 걸리므로, 쉬는 날 자체가 없는 패턴을 따로 잡아야 함
   const dDate = parseD(dk);
-  let sum7 = 0, n7 = 0;
+  let sum7 = 0, n7 = 0, foundRestDay = false;
   for(let i=0;i<7;i++) {
     const x = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate()-i);
     const xk = dateFmt(x);
     const xw = db[xk]?.work || {};
     const xWorkMin = hmToMins(xw.workH, xw.workM);
     const xStudyMin = totalStudyMins(xk);
-    if(db[xk]) { sum7 += (xWorkMin+xStudyMin); n7++; }
+    const xTotalLoad = xWorkMin+xStudyMin;
+    if(db[xk]) { sum7 += xTotalLoad; n7++; }
+    if(db[xk] && xTotalLoad<150) foundRestDay = true; // 근무+공부 2.5h 미만이면 쉬는 날로 인정
   }
   const avg7Load = n7>0 ? sum7/n7 : totalLoad;
-  // 평균이 12h(720분)를 넘으면 만성 누적 페널티 시작, 15h(900분)에서 최대 -15
-  const chronicPenalty = avg7Load>720 ? Math.min(15, Math.round((avg7Load-720)/180*15)) : 0;
+  // 평균이 12h(720분)를 넘으면 만성 누적 페널티, 15h(900분)에서 최대 -15
+  const avgPenalty = avg7Load>720 ? Math.min(15, Math.round((avg7Load-720)/180*15)) : 0;
+  // 평균이 정상이어도 7일 내내 쉬는 날이 한 번도 없었으면 별도로 -10
+  const noRestPenalty = (n7>=5 && !foundRestDay) ? 10 : 0;
+  const chronicPenalty = Math.min(20, avgPenalty + noRestPenalty);
 
   // 4. 식단 관리 — 체크리스트 완료율 (diet.html과 동일 계산)
   const dietChecks = d.diet || {};
@@ -706,9 +708,9 @@ function calcVitality(dk, _depth=0) {
   // 컨디션 자가평가 보정 — 평균 3점(보통) 기준 ±10
   const wellnessAdj = wellnessComp!==null ? (wellnessComp-50)/50*10 : 0;
 
-  // 근무+공부 소모 — 누적될수록 깎임, 최대 -35 (휴일엔 0)
-  let depletion = (100-loadComp)/100*35;
-  if(totalLoad>780 && recoveryBasis!==null && recoveryBasis<60) depletion = Math.min(40, depletion+8); // 과부하+수면부족 가산
+  // 근무+공부 소모 — 위에서 이미 계산된 depletion 사용. 과부하+수면부족이면 추가 가산
+  if(effectiveLoad>700 && recoveryBasis!==null && recoveryBasis<60) depletion = Math.min(45, depletion+8);
+  const loadComp = Math.max(0, 100 - depletion/MAX_DEPLETION*100); // 아이콘 표시용 0~100 환산
 
   let raw = prevEndScore + sleepEffect + activityBonus + dietBonus + wellnessAdj - depletion;
   raw = Math.max(0, Math.min(100, raw));
@@ -1336,7 +1338,7 @@ function renderHealth() {
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
       ${(Math.abs(vit.sleepEffect)>=0.5||vit.activityBonus>=0.5||vit.dietBonus>=0.5||vit.depletion>=0.5)?`<div style="font-size:8px;color:var(--m);margin-top:5px">전일 ${vit.prevEndScore}점 ${Math.abs(vit.sleepEffect)>=0.5?(vit.sleepEffect>0?' + 수면 ':' − 수면 ')+Math.abs(vit.sleepEffect).toFixed(0):''}${vit.activityBonus>=0.5?' + 활동 '+vit.activityBonus.toFixed(0):''}${vit.dietBonus>=0.5?' + 식단 '+vit.dietBonus.toFixed(0):''}${Math.abs(vit.wellnessAdj)>=0.5?(vit.wellnessAdj>0?' + 컨디션 ':' − 컨디션 ')+Math.abs(vit.wellnessAdj).toFixed(0):''}${vit.depletion>=0.5?' − 부하 '+vit.depletion.toFixed(0):''}</div>`:''}
-      ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
+      ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ ${vit.avg7Load>720?'최근 7일 평균 부하 '+(vit.avg7Load/60).toFixed(1)+'h/일':'최근 7일간 쉬는 날 없음'} — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
     </div>`;
   }
 
