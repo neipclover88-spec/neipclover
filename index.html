@@ -1047,10 +1047,10 @@ function renderWork() {
       <span class="wlbl">근무</span>
       <div class="tpair">
         <input type="number" class="ti" min="0" value="${dd.work.workH||''}" placeholder="0"
-          style="border-color:#f5a62340" oninput="updWorkSave('workH',this.value)" onblur="renderWork()">
+          style="border-color:#f5a62340" oninput="updWorkSave('workH',this.value)" onblur="renderWork();renderHealth()">
         <span class="tu" style="color:#f5a623aa">시간</span>
         <input type="number" class="ti" min="0" max="59" value="${dd.work.workM||''}" placeholder="0"
-          style="border-color:#f5a62340" oninput="updWorkSave('workM',this.value)" onblur="renderWork()">
+          style="border-color:#f5a62340" oninput="updWorkSave('workM',this.value)" onblur="renderWork();renderHealth()">
         <span class="tu" style="color:#f5a623aa">분</span>
       </div>
     </div>
@@ -1669,6 +1669,7 @@ function updStudyTime(s, field, val) {
   else            sd.studyM = Number(val)||0;
   save();
   renderCal();
+  renderHealth(); // 활력 점수가 공부시간(부하)을 반영하므로 재계산 필요
   // update total display in panel header without full re-render
   const totalMin = totalStudyMins(sel);
   const {h,m} = minsToHM(totalMin);
