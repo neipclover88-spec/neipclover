@@ -383,7 +383,7 @@ function dayData(k) {
     }
   }
   const h = d.health;
-  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0};
+  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0,energyScore:0};
   if(!h.swimming) h.swimming = {m:0,swimM:0,swimS:0,free:0,back:0,breast:0,fly:0};
   if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
@@ -618,15 +618,15 @@ function calcVitality(dk, _depth=0) {
 
   // 3. 일일 총 부하 (근무+공부 합산) — 화물운전자 근무시간 안전기준(14h 듀티한도)에 착안
   //    배달은 신체노동, 공부는 인지노동이지만 둘 다 회복을 갉아먹는 누적 부하로 간주
+  //    부하 0(휴일)이면 소모가 전혀 없어야 하므로 100을 기준점으로 잡음 (배터리 모델)
   const workMin  = hmToMins(work.workH, work.workM);
   const studyMin = totalStudyMins(dk);
   const totalLoad = workMin + studyMin;
   let loadComp;
-  if(totalLoad<=0) loadComp = 70;                  // 완전 휴식일 — 중립
-  else if(totalLoad<=600) loadComp = 100;          // 0~10h: 지속 가능한 부하
-  else if(totalLoad<=840) loadComp = 100-(totalLoad-600)/240*40; // 10~14h: 선형 감소(14h=60점)
-  else loadComp = Math.max(20, 60-(totalLoad-840)/60*15);        // 14h+ : 급격 감소(운전 피로 위험구간)
-  if(totalLoad>780 && sleepComp!==null && sleepComp<60) loadComp = Math.max(0, loadComp-15); // 과부하+수면부족 이중감점
+  if(totalLoad<=0) loadComp = 100;                          // 완전 휴식일 — 소모 없음
+  else if(totalLoad<=600) loadComp = 100-(totalLoad/600*20); // 0~10h: 100→80 완만히 감소
+  else if(totalLoad<=840) loadComp = 80-(totalLoad-600)/240*20; // 10~14h: 80→60
+  else loadComp = Math.max(20, 60-(totalLoad-840)/60*15);    // 14h+ : 급격 감소(운전 피로 위험구간)
 
   // 3-1. 최근 7일 평균 부하(근무+공부) 기준 만성 과부하 체크
   //      매일 운동·근무가 섞여 있는 생활이라 "완전 휴식일"을 찾는 건 의미가 없음 →
@@ -666,36 +666,51 @@ function calcVitality(dk, _depth=0) {
   const wlVals = [wl.fatigue, wl.soreness, wl.stress, wl.mood].filter(v=>Number(v)>0).map(Number);
   const wellnessComp = wlVals.length>0 ? (wlVals.reduce((a,b)=>a+b,0)/wlVals.length-1)/4*100 : null;
 
-  // ── 가중합산 (데이터 없는 영역은 자동 재분배) ──
-  const weights = {sleep:0.35, activity:0.20, load:0.20, diet:0.10, wellness:0.15};
-  const comps   = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp};
-  let usedW=0, sum=0;
-  Object.entries(comps).forEach(([k,v])=>{
-    if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
-  });
-  const rawScore = usedW>0 ? sum/usedW : null;
+  // 6. 삼성헬스 에너지 점수 — HRV(심박변이도)·안정시심박수까지 반영하는 종합 회복 지표
+  const energyRaw = Number(h.sleep?.energyScore)||0;
+  const energyComp = energyRaw>0 ? energyRaw : null;
 
-  // 전일 점수 이어붙이기 — 자정 넘어가서 오늘 데이터가 아직 없어도 0으로 리셋되지 않고
-  // 전일 점수에서 시작해서, 오늘 입력하는 만큼(usedW) 점진적으로 오늘 점수로 옮겨감
-  let prevScore = null;
-  if(_depth===0) {
+  // ════════════════════════════════════════════════
+  //  배터리 모델 — 전날 마지막(가장 낮은) 점수에서 시작해서
+  //  수면으로 충전 → 운동/식사로 소폭 충전 → 근무/공부로 소모
+  //  되는 흐름을 그대로 반영. 휴일은 소모가 거의 없어 하루 종일 높게 유지되고,
+  //  자기 직전이 자연스럽게 하루 중 가장 낮은 지점이 된다.
+  // ════════════════════════════════════════════════
+
+  // 전날 마지막 점수 가져오기 (최대 2단계까지만 거슬러 올라가 무한 재귀 방지)
+  let prevEndScore = 70; // 기록이 전혀 없을 때 기본 시작값
+  if(_depth<2) {
     const prevDate = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate()-1);
-    const prevVit = calcVitality(dateFmt(prevDate), 1);
-    prevScore = prevVit ? prevVit.score : null;
+    const prevVit = calcVitality(dateFmt(prevDate), _depth+1);
+    if(prevVit) prevEndScore = prevVit.score;
   }
 
-  let blended, carried=false;
-  if(rawScore===null) {
-    if(prevScore===null) return null; // 정말 아무 데이터도 없음 (전일도 기록 없음)
-    blended = prevScore; carried = true; // 오늘 입력 전 — 전일 점수 그대로 유지
-  } else if(prevScore!==null && usedW<1) {
-    blended = rawScore*usedW + prevScore*(1-usedW); // 부분 입력 — 전일과 블렌딩
-  } else {
-    blended = rawScore;
-  }
+  // 수면(+에너지점수) 회복 보너스 — 최대 +25
+  const recoveryBasis = energyComp!==null
+    ? (sleepComp!==null ? (sleepComp+energyComp)/2 : energyComp)
+    : sleepComp;
+  const sleepRecoveryBonus = recoveryBasis!==null ? (recoveryBasis/100)*25 : 0;
 
-  const score = Math.max(0, Math.round(blended) - chronicPenalty);
-  return {score, comps, chronicPenalty, totalLoad, avg7Load, usedW, carried};
+  // 활동 보너스 — 운동하면 충전, 최대 +15
+  const activityBonus = (activityComp/100)*15;
+
+  // 식단 보너스 — 끼니 챙길 때마다 충전, 최대 +10 (지금까지 체크한 비율 그대로 반영)
+  const dietBonus = dietComp!==null ? (dietComp/100)*10 : 0;
+
+  // 컨디션 자가평가 보정 — 평균 3점(보통) 기준 ±10
+  const wellnessAdj = wellnessComp!==null ? (wellnessComp-50)/50*10 : 0;
+
+  // 근무+공부 소모 — 누적될수록 깎임, 최대 -35 (휴일엔 0)
+  let depletion = (100-loadComp)/100*35;
+  if(totalLoad>780 && recoveryBasis!==null && recoveryBasis<60) depletion = Math.min(40, depletion+8); // 과부하+수면부족 가산
+
+  let raw = prevEndScore + sleepRecoveryBonus + activityBonus + dietBonus + wellnessAdj - depletion;
+  raw = Math.max(0, Math.min(100, raw));
+
+  const score = Math.max(0, Math.round(raw) - chronicPenalty);
+  const comps = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp, energy:energyComp};
+  return {score, comps, chronicPenalty, totalLoad, avg7Load, prevEndScore,
+    sleepRecoveryBonus, activityBonus, dietBonus, wellnessAdj, depletion};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -1303,18 +1318,18 @@ function renderHealth() {
             <span style="font-size:11px;color:${tier.clr};font-weight:700">${tier.label}</span>
           </div>
         </div>
-        <div style="display:flex;gap:3px">
-          ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗'],['wellness','🧘']].map(([k,ico])=>{
+        <div style="display:flex;gap:2px;flex-shrink:0">
+          ${[['sleep','😴'],['energy','⚡'],['activity','🏃'],['load','🔥'],['diet','🥗'],['wellness','🧘']].map(([k,ico])=>{
             const v=vit.comps[k];
             const c=v===null?'var(--m2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
-            return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1}">${ico}</div>`;
+            return `<div style="width:19px;height:19px;border-radius:5px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:9px;opacity:${v===null?.3:1};flex-shrink:0">${ico}</div>`;
           }).join('')}
         </div>
       </div>
       <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
-      ${vit.carried?`<div style="font-size:8px;color:#4f8ef7;margin-top:5px">↻ 전일 점수 유지 중 — 오늘 데이터를 입력하면 갱신돼요</div>`:''}
+      ${(vit.sleepRecoveryBonus>0||vit.activityBonus>0||vit.dietBonus>0||vit.depletion>0)?`<div style="font-size:8px;color:var(--m);margin-top:5px">전일 ${vit.prevEndScore}점 ${vit.sleepRecoveryBonus>=0.5?'+ 수면 '+vit.sleepRecoveryBonus.toFixed(0):''}${vit.activityBonus>=0.5?' + 활동 '+vit.activityBonus.toFixed(0):''}${vit.dietBonus>=0.5?' + 식단 '+vit.dietBonus.toFixed(0):''}${vit.wellnessAdj>=0.5?' + 컨디션 '+vit.wellnessAdj.toFixed(0):''}${vit.depletion>=0.5?' − 부하 '+vit.depletion.toFixed(0):''}</div>`:''}
       ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
     </div>`;
   }
@@ -1365,6 +1380,17 @@ function renderHealth() {
           style="border-color:#a855f740;color:${scoreClr}"
           oninput="updHSave('sleep','score',this.value)" onblur="renderHealth();renderCal()">
         ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=85?'매우좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심필요'}</span>`:''}
+      </div>
+      <div class="hrow">
+        <span class="hlbl" style="color:#f5a623aa">⚡에너지</span>
+        ${(()=>{
+          const eScore = Number(h.sleep.energyScore)||0;
+          const eClr = eScore>=85?'#4f8ef7':eScore>=70?'#27c96e':eScore>=50?'#f5c200':eScore>0?'#f5a623':'var(--m)';
+          return `<input type="number" class="hinp" min="0" max="100" step="0.1" value="${eScore||''}" placeholder="삼성헬스 에너지 점수"
+            style="border-color:#f5a62340;color:${eClr}"
+            oninput="updHSave('sleep','energyScore',this.value)" onblur="renderHealth();renderCal()">
+          ${eScore>0?`<span style="font-size:9px;color:${eClr};flex-shrink:0;font-weight:700">${eScore>=85?'매우좋음':eScore>=70?'좋음':eScore>=50?'보통':'낮음'}</span>`:''}`;
+        })()}
       </div>
       <div class="hrow">
         <span class="hlbl" style="color:#a855f766;font-size:8px">낮잠</span>
@@ -1772,7 +1798,7 @@ function updWorkSave(fld, val) {
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps','fatigue','soreness','stress','mood','count'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','energyScore','reps','fatigue','soreness','stress','mood','count'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1783,7 +1809,7 @@ function updH(cat, fld, val) {
 }
 // 저장만 하고 렌더링 안 함
 function updHSave(cat, fld, val) {
-  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps','fatigue','soreness','stress','mood','count'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','energyScore','reps','fatigue','soreness','stress','mood','count'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save();
 }
