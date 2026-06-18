@@ -3182,15 +3182,15 @@ async function renderCert() {
     <div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;">
 
       <!-- ① 날짜 + 공부시간 한 행 -->
-      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:14px 4px 10px;flex-shrink:0;">
-        <div>
+      <div style="display:flex;align-items:baseline;padding:14px 4px 10px;flex-shrink:0;">
+        <div style="flex-shrink:0;">
           <span style="font-size:26px;font-weight:700;letter-spacing:-0.5px;">${today.getMonth()+1}월 ${today.getDate()}일</span>
           <span style="font-size:17px;color:var(--text2);margin-left:6px;">${dayKr}요일</span>
           ${streak>0?`<span style="font-size:11px;color:var(--amber);margin-left:8px;">🔥 ${streak}일</span>`:''}
         </div>
-        <div style="text-align:right;">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px;">${fmtMin(totalSec/60)}</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:2px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
+        <div style="flex:1; text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;color:var(--amber);line-height:1;letter-spacing:-1px;">${fmtMin(totalSec/60)}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:3px;">목표 ${goalHours}h · ${totalSec>0?Math.min(100,Math.round(totalSec/(goalHours*3600)*100)):0}%</div>
         </div>
       </div>
 
