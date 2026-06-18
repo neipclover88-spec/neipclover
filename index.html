@@ -642,7 +642,12 @@ function calcVitality(dk, _depth=0) {
       else if(wxTemp<=0) tempPen = Math.min(10, (0-wxTemp)*1.2+3);    // 한파
       else if(wxTemp<=5) tempPen = (5-wxTemp)*0.8;                    // 추움
     }
-    let condPen = wxCond==='비' ? 5 : wxCond==='눈' ? 6 : wxCond==='강풍' ? 3 : 0;
+    let condPen = ({
+      '맑음':0, '구름조금':0, '구름많음':1, '흐림':1,
+      '약한비':3, '비':5, '강한비':8,
+      '약한눈':4, '눈':6, '강한눈':9,
+      '강풍':3
+    })[wxCond] || 0;
     const scale = Math.min(1, workMin/480); // 8시간 기준 풀스케일
     weatherPenalty = (tempPen+condPen)*scale;
   }
@@ -831,7 +836,12 @@ function renderCal() {
     const wx = db[dk]?.weather || {};
     const wxTempRaw = (wx.temp!==undefined && wx.temp!=='') ? Number(wx.temp) : null;
     const wxCond = wx.condition || '';
-    const WX_ICON = {'맑음':'☀️','흐림':'☁️','비':'🌧️','눈':'❄️','강풍':'💨'};
+    const WX_ICON = {
+      '맑음':'☀️', '구름조금':'🌤️', '구름많음':'⛅', '흐림':'☁️',
+      '약한비':'🌦️', '비':'🌧️', '강한비':'⛈️',
+      '약한눈':'🌨️', '눈':'❄️', '강한눈':'☃️',
+      '강풍':'💨'
+    };
     const wxIcon = WX_ICON[wxCond] || '';
     const wxTag = (wxTempRaw!==null || wxCond) ? (wxIcon + (wxTempRaw!==null ? wxTempRaw+'°' : '')) : '';
     const wxClr = wxTempRaw!==null && (wxTempRaw>=33||wxTempRaw<=0) ? '#e74c3c' : wxTempRaw!==null && (wxTempRaw>=30||wxTempRaw<=5) ? '#f5a623' : '#7fb3e0';
@@ -920,7 +930,7 @@ function renderStudy() {
     <select style="flex:1;background:var(--s2);border:1px solid rgba(127,179,224,.3);border-radius:5px;color:var(--t);font-size:10px;padding:3px 5px;outline:none;-webkit-appearance:none;appearance:none"
       onchange="updWeather('condition',this.value)">
       <option value="">날씨 선택</option>
-      ${['맑음','흐림','비','눈','강풍'].map(w=>`<option value="${w}"${dd.weather?.condition===w?' selected':''}>${w}</option>`).join('')}
+      ${['맑음','구름조금','구름많음','흐림','약한비','비','강한비','약한눈','눈','강한눈','강풍'].map(w=>`<option value="${w}"${dd.weather?.condition===w?' selected':''}>${w}</option>`).join('')}
     </select>
   </div>`;
 
