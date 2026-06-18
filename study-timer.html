@@ -3029,16 +3029,16 @@ async function renderCert() {
     const pct = getJbPct(name);
     if (pct === null) return '';
     const color = info.color;
-    return `<div style="margin-bottom:14px;">
+    return `<div style="margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
         <span style="font-size:12px;font-weight:700;color:${color};">${name}</span>
         <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);">${fmtMin(info.total/60)}</span>
       </div>
-      <div style="position:relative;padding-bottom:16px;">
-        <!-- 화살표 + % 라벨 -->
-        <div style="position:absolute;bottom:0;left:calc(${pct}% - 16px);width:32px;text-align:center;">
+      <div style="position:relative;padding-top:18px;">
+        <!-- % 라벨 + 화살표 (바 위) -->
+        <div style="position:absolute;top:0;left:${Math.max(4, Math.min(96, pct))}%;transform:translateX(-50%);width:36px;text-align:center;">
           <div style="font-size:10px;font-weight:700;color:${color};line-height:1;">${pct}%</div>
-          <div style="font-size:8px;color:${color};line-height:1;">▲</div>
+          <div style="font-size:8px;color:${color};line-height:1;">▼</div>
         </div>
         <!-- 바 -->
         <div style="height:16px;background:var(--surface2);border-radius:8px;overflow:hidden;">
