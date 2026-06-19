@@ -369,7 +369,9 @@ function dayData(k) {
   if(!db[k]) db[k] = {};
   const d = db[k];
   if(!d.study) d.study = {};
-  if(!d.work)  d.work  = {incomeAmount:0,deliveries:0,workH:0,workM:0};
+  if(!d.work)  d.work  = {incomeAmount:0,incomeBaemin:0,incomeCoupang:0,deliveries:0,workH:0,workM:0};
+  if(d.work.incomeBaemin===undefined)  d.work.incomeBaemin = 0;
+  if(d.work.incomeCoupang===undefined) d.work.incomeCoupang = 0;
   if(!d.work.expenses) d.work.expenses = [];
   if(!d.weather) d.weather = {temp:'',condition:''};
   if(!d.health) d.health = {};
@@ -1070,10 +1072,23 @@ function renderWork() {
       </div>
     </div>
     <div class="wrow">
-      <span class="wlbl">총수입</span>
-      <input class="winp" type="number" value="${todayGross||''}" placeholder="0"
-        oninput="updWorkSave('incomeAmount',this.value)" onblur="renderWork();renderCal()">
+      <span class="wlbl" style="color:#5ac8fa">배민</span>
+      <input class="winp" type="number" value="${dd.work.incomeBaemin||''}" placeholder="0"
+        style="border-color:rgba(90,200,250,.3)"
+        oninput="updIncomeSplit('incomeBaemin',this.value)" onblur="renderWork();renderCal()">
       <span class="wunit">원</span>
+    </div>
+    <div class="wrow">
+      <span class="wlbl" style="color:#ff6b6b">쿠팡</span>
+      <input class="winp" type="number" value="${dd.work.incomeCoupang||''}" placeholder="0"
+        style="border-color:rgba(255,107,107,.3)"
+        oninput="updIncomeSplit('incomeCoupang',this.value)" onblur="renderWork();renderCal()">
+      <span class="wunit">원</span>
+    </div>
+    <div class="wrow" style="opacity:.85">
+      <span class="wlbl">총수입</span>
+      <span class="winp" style="display:flex;align-items:center">${todayGross>0?'₩'+todayGross.toLocaleString():''}</span>
+      <span class="wunit"></span>
     </div>
     ${todayGross>0?`<div class="wrow" style="opacity:.7">
       <span class="wlbl" style="color:#ffd060">실수령</span>
@@ -1852,6 +1867,13 @@ function updWork(fld, val) {
 // 저장만 하고 렌더링 안 함 (입력 중 사용)
 function updWorkSave(fld, val) {
   dayData(sel).work[fld] = Number(val)||0;
+  save();
+}
+// 배민/쿠팡 수입 분리 입력 — 합계를 incomeAmount에 자동 동기화 (기존 통계 로직 그대로 호환)
+function updIncomeSplit(fld, val) {
+  const w = dayData(sel).work;
+  w[fld] = Number(val)||0;
+  w.incomeAmount = (Number(w.incomeBaemin)||0) + (Number(w.incomeCoupang)||0);
   save();
 }
 
