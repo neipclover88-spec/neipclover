@@ -377,9 +377,11 @@ function dayData(k) {
   if(!d.work.expenses) d.work.expenses = [];
   if(!d.weather) d.weather = {temp:'',condition:''};
   if(!d.dailyPlan) {
-    const tmpl = db._dailyPlanTemplate || [];
+    // 전날 계획을 그대로 가져와서 오늘 목록으로 띄움 (완료 상태는 초기화) — 원하지 않는 항목은 X로 제거
+    const prevDate = new Date(parseD(k).getFullYear(), parseD(k).getMonth(), parseD(k).getDate()-1);
+    const prevItems = db[dateFmt(prevDate)]?.dailyPlan?.items || [];
     d.dailyPlan = {
-      items: tmpl.map(name => ({id: 'p'+Date.now()+Math.floor(Math.random()*10000), name, done:false})),
+      items: prevItems.map(it => ({id: genPlanId(), name: it.name, done:false})),
       isRest:false, isSpecialRest:false
     };
   }
@@ -2178,6 +2180,7 @@ function renderPlanModal() {
   if(!dp.isRest && !dp.isSpecialRest) {
     b += `<div style="display:flex;flex-direction:column;gap:6px">
       <div style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</div>
+      <div style="font-size:8px;color:var(--m2);margin-top:-4px">매일 전날 목록이 자동으로 이어져요 · 원치 않는 항목은 ✕로 제거</div>
       ${dp.items.map(it=>`
         <div style="display:flex;align-items:center;gap:8px;background:${it.done?'rgba(39,201,110,.08)':'rgba(255,255,255,.03)'};border:1px solid ${it.done?'rgba(39,201,110,.25)':'var(--b)'};border-radius:8px;padding:8px 10px">
           <div onclick="togglePlanItem('${it.id}')" style="width:22px;height:22px;border-radius:50%;border:2px solid ${it.done?'#27c96e':'var(--m2)'};background:${it.done?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:12px;color:#fff">${it.done?'✓':''}</div>
@@ -2190,9 +2193,6 @@ function renderPlanModal() {
           onkeydown="if(event.key==='Enter')addPlanItem()">
         <button onclick="addPlanItem()" style="background:rgba(245,200,30,.15);border:1px solid rgba(245,200,30,.4);color:#f5c81e;border-radius:7px;padding:0 12px;cursor:pointer;font-size:13px;font-weight:700">+</button>
       </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
-        ${['기상','운동','공부 2시간','물건 1개 비우기'].map(q=>`<button onclick="quickAddPlanItem('${q}')" style="background:var(--s2);border:1px dashed var(--b2);color:var(--m);border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">+ ${q}</button>`).join('')}
-      </div>
     </div>
 
     <div style="background:var(--s2);border-radius:10px;padding:10px 12px">
@@ -2201,9 +2201,7 @@ function renderPlanModal() {
         <span style="font-family:var(--bebas);font-size:22px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'0원'}</span>
       </div>
       <div style="font-size:8px;color:var(--m2);line-height:1.5">계획 3개 기준 · 달성 ${ps.achieved}개 ${ps.achieved>=3?'→ 벌금 없음':'→ 미달성 '+(3-ps.achieved)+'개 × 500원'}</div>
-    </div>
-
-    <button onclick="saveAsPlanTemplate()" style="background:none;border:1px dashed var(--b2);color:var(--m);border-radius:8px;padding:8px;font-size:10px;cursor:pointer">📌 오늘 계획을 기본값으로 저장 (매일 자동 입력)</button>`;
+    </div>`;
   } else {
     b += `<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">오늘은 ${dp.isSpecialRest?'특휴':'휴무'}일이라 계획/벌금이 적용되지 않아요.</div>`;
   }
@@ -2225,11 +2223,6 @@ function addPlanItem() {
   inp.value='';
   save(); renderPlanModal();
 }
-function quickAddPlanItem(name) {
-  const dp = dayData(sel).dailyPlan;
-  dp.items.push({id:genPlanId(), name, done:false});
-  save(); renderPlanModal();
-}
 function delPlanItem(id) {
   const dp = dayData(sel).dailyPlan;
   dp.items = dp.items.filter(i=>i.id!==id);
@@ -2241,12 +2234,6 @@ function togglePlanRest(field) {
   if(field==='isRest' && dp.isRest) dp.isSpecialRest=false;
   if(field==='isSpecialRest' && dp.isSpecialRest) dp.isRest=false;
   save(); renderPlanModal();
-}
-function saveAsPlanTemplate() {
-  const dp = dayData(sel).dailyPlan;
-  db._dailyPlanTemplate = dp.items.map(i=>i.name);
-  save();
-  renderPlanModal();
 }
 
 // ─── 오답노트 ───
