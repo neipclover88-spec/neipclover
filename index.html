@@ -280,6 +280,7 @@ const FIREBASE_CONFIG = {
   measurementId:     "G-CGM0M6HLHS"
 };
 const FB_PATH = "bdh3"; // Firebase Realtime DB 루트 경로
+const TIMER_FB_PATH = "bdh3_t"; // 열공타이머(열품타) 전용 경로 — 정복지도 읽기용
 // ════════════════════════════════════════════════
 
 // ─── CONSTANTS ───
@@ -309,8 +310,9 @@ const TOTAL_PRINCIPAL = LOANS.reduce((t,l)=>t+l.principal,0); // 20,200,000
 // ─── STATE ───
 let sel   = todayStr();
 let db    = {};
+let jbBooks = []; // 정복지도(열공타이머) 책 목록 — 국어/수학 진도 동기화용
 let openS    = {};
-let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, leg:false, hobby:false};
+let openH    = {swim:false, run:false, cyc:false, push:false, pull:false, leg:false, wellness:false, hobby:false};
 let openShoe = false;
 let fbApp    = null;
 let deductRate = 10;
@@ -369,8 +371,22 @@ function dayData(k) {
   if(!db[k]) db[k] = {};
   const d = db[k];
   if(!d.study) d.study = {};
-  if(!d.work)  d.work  = {incomeAmount:0,deliveries:0,workH:0,workM:0};
+  if(!d.work)  d.work  = {incomeAmount:0,incomeBaemin:0,incomeCoupang:0,deliveries:0,workH:0,workM:0};
+  if(d.work.incomeBaemin===undefined)  d.work.incomeBaemin = 0;
+  if(d.work.incomeCoupang===undefined) d.work.incomeCoupang = 0;
   if(!d.work.expenses) d.work.expenses = [];
+  if(!d.weather) d.weather = {temp:'',condition:''};
+  if(!d.dailyPlan) {
+    // 전날 계획을 그대로 가져와서 오늘 목록으로 띄움 (완료 상태는 초기화) — 원하지 않는 항목은 X로 제거
+    const prevDate = new Date(parseD(k).getFullYear(), parseD(k).getMonth(), parseD(k).getDate()-1);
+    const prevItems = db[dateFmt(prevDate)]?.dailyPlan?.items || [];
+    d.dailyPlan = {
+      items: prevItems.map(it => ({id: genPlanId(), name: it.name, done:false})),
+      isRest:false, isSpecialRest:false
+    };
+  }
+  if(d.dailyPlan.isRest===undefined) d.dailyPlan.isRest = false;
+  if(d.dailyPlan.isSpecialRest===undefined) d.dailyPlan.isSpecialRest = false;
   if(!d.health) d.health = {};
   // goals are global (not per-day)
   if(!db._goals) db._goals = {};
@@ -383,13 +399,15 @@ function dayData(k) {
     }
   }
   const h = d.health;
-  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0};
+  if(!h.sleep)    h.sleep    = {sleepH:0,sleepM:0,score:0,napH:0,napM:0,energyScore:0};
   if(!h.swimming) h.swimming = {m:0,swimM:0,swimS:0,free:0,back:0,breast:0,fly:0};
   if(!h.running)  h.running  = {km:0,runM:0,runS:0,shoe:"젤카야노"};
   if(!h.cycling)  h.cycling  = {km:0,cycH:0,cycM:0};
   if(!h.pushup)   h.pushup   = {reps:0};
   if(!h.pullup)   h.pullup   = {reps:0};
   if(!h.legraise) h.legraise = {reps:0};
+  if(!h.wellness) h.wellness = {fatigue:0,soreness:0,stress:0,mood:0};
+  if(!h.water)    h.water    = {count:0};
   if(h.hobby===undefined) h.hobby = "";
   return d;
 }
@@ -557,11 +575,74 @@ function weeklySubjProgress(dates, subj) {
 }
 
 // ════════════════════════════════════════════════
+//  정복지도(열공타이머) 동기화 — 국어/수학 전용
+//  bdh3_t/timer/jeongbok 의 책 데이터를 읽어 진도율 계산
+//  국어(type:'oxp') = items 중 t:'q'인 문제의 채점(v) 비율
+//  수학(type:'status') = cells 중 상태가 채워진(unsolved 제외) 비율
+// ════════════════════════════════════════════════
+const JB_SUBJ_MATCH = {
+  '국어': ['국어','korean'],
+  '수학': ['수학','math'],
+};
+function getJeongbokProgress(subj) {
+  const matchKeys = JB_SUBJ_MATCH[subj];
+  if(!matchKeys || !jbBooks.length) return null;
+  const books = jbBooks.filter(b => {
+    const s = (b.subject||'').toLowerCase();
+    return matchKeys.some(k => s === k.toLowerCase() || s.includes(k.toLowerCase()));
+  });
+  if(!books.length) return null;
+
+  let total = 0, done = 0;
+  books.forEach(b => {
+    if(b.type==='oxp') {
+      const items = (Array.isArray(b.items)?b.items:Object.values(b.items||{})).filter(i=>i && i.t==='q');
+      total += b.qn || items.length;
+      done  += items.filter(i => i.v && i.v!=='').length;
+    } else if(b.type==='page') {
+      const pages = Array.isArray(b.pages)?b.pages:Object.values(b.pages||{});
+      total += b.pn || pages.length;
+      done  += pages.filter(p => p && Number(p.lvl)>0).length;
+    } else { // status (수학 등)
+      const cells = Array.isArray(b.cells)?b.cells:Object.values(b.cells||{});
+      total += b.n || cells.length;
+      done  += cells.filter(c => c && c.st && c.st!=='unsolved').length;
+    }
+  });
+  if(total<=0) return null;
+  return {pct:Math.min(100,Math.round(done/total*100)), comp:done, tot:total, bookCount:books.length};
+}
+
+// ════════════════════════════════════════════════
+//  오늘 해야할 일 (인증스터디 규칙: 계획·인증·휴무·벌금)
+//  계획 3개 기준 — 달성 3개 이상이면 벌금 없음, 미달성분은 1개당 500원
+//  (예: 0개 달성=1500원 / 1개 달성=1000원 / 5개 중 3개 달성=0원)
+// ════════════════════════════════════════════════
+function calcPlanStatus(dk) {
+  const dp = db[dk]?.dailyPlan;
+  if(!dp) return null;
+  const total = dp.items.length;
+  const achieved = dp.items.filter(i=>i.done).length;
+  const isOff = dp.isRest || dp.isSpecialRest;
+  const fine = isOff ? 0 : Math.max(0, 3-achieved)*500;
+  return {total, achieved, fine, isOff, isRest:dp.isRest, isSpecialRest:dp.isSpecialRest};
+}
+// 이번 주 휴무 사용 횟수 (주 2회 한도) / 이번 달 특휴 사용 횟수 (월 2회 한도)
+function calcRestUsage(dk) {
+  const dates = weekDates(dk);
+  const weekUsed = dates.filter(x=>db[x]?.dailyPlan?.isRest).length;
+  const ym = dk.slice(0,7);
+  const monthUsed = monthKeys(ym).filter(x=>db[x]?.dailyPlan?.isSpecialRest).length;
+  return {weekUsed, weekLimit:2, monthUsed, monthLimit:2};
+}
+function genPlanId() { return 'p'+Date.now()+Math.floor(Math.random()*10000); }
+
+// ════════════════════════════════════════════════
 //  일상 활력 점수 (Daily Vitality Score)
 //  4개 영역 가중합산: 수면40% · 활동25% · 근무20% · 식단15%
 //  데이터 없는 영역은 자동으로 가중치 재분배 (가용 데이터만으로 계산)
 // ════════════════════════════════════════════════
-function calcVitality(dk) {
+function calcVitality(dk, _depth=0) {
   const d = db[dk] || {};
   const h = d.health || {};
   const work = d.work || {};
@@ -614,23 +695,44 @@ function calcVitality(dk) {
   }
   if(hasStrength && cardioMin>0) activityComp = Math.min(100, activityComp+10);
 
-  // 3. 일일 총 부하 (근무+공부 합산) — 화물운전자 근무시간 안전기준(14h 듀티한도)에 착안
-  //    배달은 신체노동, 공부는 인지노동이지만 둘 다 회복을 갉아먹는 누적 부하로 간주
+  // 3. 일일 총 부하 — 오토바이 배달은 균형·날씨노출·정차반복이 있는 실질적 신체노동이라
+  //    앉아서 하는 공부보다 체력 소모가 훨씬 큼. 근무시간에 1.4배, 공부시간에 0.8배 가중치를 줘서
+  //    "일 자체의 신체적 부담"을 반영하되, 공부는 훨씬 가볍게 + 근무도 과하지 않게 완화
+  //    (멱함수 곡선 — 초반에 좀 더 깎이고 후반엔 완만해지는 모양, 단 너무 가파르지 않게 조정)
   const workMin  = hmToMins(work.workH, work.workM);
   const studyMin = totalStudyMins(dk);
-  const totalLoad = workMin + studyMin;
-  let loadComp;
-  if(totalLoad<=0) loadComp = 70;                  // 완전 휴식일 — 중립
-  else if(totalLoad<=600) loadComp = 100;          // 0~10h: 지속 가능한 부하
-  else if(totalLoad<=840) loadComp = 100-(totalLoad-600)/240*40; // 10~14h: 선형 감소(14h=60점)
-  else loadComp = Math.max(20, 60-(totalLoad-840)/60*15);        // 14h+ : 급격 감소(운전 피로 위험구간)
-  if(totalLoad>780 && sleepComp!==null && sleepComp<60) loadComp = Math.max(0, loadComp-15); // 과부하+수면부족 이중감점
+  const totalLoad = workMin + studyMin; // 쉬는날/만성과부하 체크용 (가중치 없는 순수 시간)
+  const effectiveLoad = workMin*1.15 + studyMin*0.4; // 소모 계산용 — 공부는 훨씬 가볍게, 근무도 소폭 완화
+  const MAX_DEPLETION = 35;
+  let depletion = Math.min(MAX_DEPLETION, MAX_DEPLETION*Math.pow(Math.max(0,effectiveLoad)/840, 0.85));
 
-  // 3-1. 최근 7일 평균 부하(근무+공부) 기준 만성 과부하 체크
-  //      매일 운동·근무가 섞여 있는 생활이라 "완전 휴식일"을 찾는 건 의미가 없음 →
-  //      대신 트레이닝 부하 모니터링에서 쓰는 acute:chronic 개념처럼 7일 평균을 본다.
-  //      하루 14시간(운전 피로 안전기준)을 매일 반복하는 게 진짜 위험한 패턴이지,
-  //      쉬는 날이 하루 있었는지 여부는 중요하지 않음.
+  // 3-0. 날씨 기반 추가 피로도 — 폭염/한파/우천 시 배달이 훨씬 힘들어짐
+  //      근무시간이 0이면 날씨 영향 없음(안 나갔으니까), 근무시간에 비례해서 스케일
+  const wx = d.weather || {};
+  const wxTemp = (wx.temp!==undefined && wx.temp!=='') ? Number(wx.temp) : null;
+  const wxCond = wx.condition || '';
+  let weatherPenalty = 0;
+  if(workMin>0) {
+    let tempPen = 0;
+    if(wxTemp!==null) {
+      if(wxTemp>=33) tempPen = Math.min(10, (wxTemp-33)*1.5+3);      // 폭염
+      else if(wxTemp>=30) tempPen = wxTemp-30;                        // 더움
+      else if(wxTemp<=0) tempPen = Math.min(10, (0-wxTemp)*1.2+3);    // 한파
+      else if(wxTemp<=5) tempPen = (5-wxTemp)*0.8;                    // 추움
+    }
+    let condPen = ({
+      '맑음':0, '구름조금':0, '구름많음':1, '흐림':1,
+      '약한비':3, '비':5, '강한비':8,
+      '약한눈':4, '눈':6, '강한눈':9,
+      '강풍':3
+    })[wxCond] || 0;
+    const scale = Math.min(1, workMin/480); // 8시간 기준 풀스케일
+    weatherPenalty = (tempPen+condPen)*scale;
+  }
+  depletion = Math.min(45, depletion + weatherPenalty); // 날씨 가산은 기존 캡(35) 위에 추가 허용
+
+  // 3-1. 최근 7일 평균 부하 — 일별 소모 곡선이 이제 충분히 민감해졌으므로(4h만 일해도 -21점)
+  //      만성 페널티는 "매일 극단적으로 과한 패턴"에만 걸리는 안전장치로 축소 (이중 페널티 방지)
   const dDate = parseD(dk);
   let sum7 = 0, n7 = 0;
   for(let i=0;i<7;i++) {
@@ -642,8 +744,8 @@ function calcVitality(dk) {
     if(db[xk]) { sum7 += (xWorkMin+xStudyMin); n7++; }
   }
   const avg7Load = n7>0 ? sum7/n7 : totalLoad;
-  // 평균이 12h(720분)를 넘으면 만성 누적 페널티 시작, 15h(900분)에서 최대 -15
-  const chronicPenalty = avg7Load>720 ? Math.min(15, Math.round((avg7Load-720)/180*15)) : 0;
+  // 평균이 13h(780분)를 넘는 극단적 패턴에서만 작동, 16h(960분)에서 최대 -8
+  const chronicPenalty = avg7Load>780 ? Math.min(8, Math.round((avg7Load-780)/180*8)) : 0;
 
   // 4. 식단 관리 — 체크리스트 완료율 (diet.html과 동일 계산)
   const dietChecks = d.diet || {};
@@ -651,21 +753,70 @@ function calcVitality(dk) {
   const DIET_EXTRAS = []; // 마그네슘은 별도 트래킹 — 메인 진행률에 포함 안 함 (diet.html과 동일)
   let dTotal=0, dDone=0;
   Object.entries(DIET_MEAL_ITEMS).forEach(([m,c])=>{
-    for(let i=0;i<c;i++){ dTotal++; if(dietChecks[m+'_'+i]) dDone++; }
+    dTotal += c;
+    dDone  += dietChecks[m+'_sub'] ? c : Array.from({length:c}).filter((_,i)=>dietChecks[m+'_'+i]).length;
   });
   DIET_EXTRAS.forEach(k=>{ dTotal++; if(dietChecks[k]) dDone++; });
   const dietComp = dTotal>0 ? (dDone/dTotal*100) : null;
 
-  // ── 가중합산 (데이터 없는 영역은 자동 재분배) ──
-  const weights = {sleep:0.40, activity:0.25, load:0.20, diet:0.15};
-  const comps   = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp};
-  let usedW=0, sum=0;
-  Object.entries(comps).forEach(([k,v])=>{
-    if(v!==null) { sum += v*weights[k]; usedW += weights[k]; }
-  });
-  if(usedW===0) return null;
-  const score = Math.max(0, Math.round(sum/usedW) - chronicPenalty);
-  return {score, comps, chronicPenalty, totalLoad, avg7Load};
+  // 5. 컨디션 자가평가 — Hooper-Mackinnon Wellness Index 방식
+  //    피로감/근육통/스트레스/기분을 각 1~5점으로 자가평가, 평균을 0~100으로 환산
+  //    숫자 지표(수면·운동·근무)가 못 잡는 "몸살기, 컨디션 난조"를 보완
+  const wl = h.wellness || {};
+  const wlVals = [wl.fatigue, wl.soreness, wl.stress, wl.mood].filter(v=>Number(v)>0).map(Number);
+  const wellnessComp = wlVals.length>0 ? (wlVals.reduce((a,b)=>a+b,0)/wlVals.length-1)/4*100 : null;
+
+  // 6. 삼성헬스 에너지 점수 — HRV(심박변이도)·안정시심박수까지 반영하는 종합 회복 지표
+  const energyRaw = Number(h.sleep?.energyScore)||0;
+  const energyComp = energyRaw>0 ? energyRaw : null;
+
+  // ════════════════════════════════════════════════
+  //  배터리 모델 — 전날 마지막(가장 낮은) 점수에서 시작해서
+  //  수면으로 충전 → 운동/식사로 소폭 충전 → 근무/공부로 소모
+  //  되는 흐름을 그대로 반영. 휴일은 소모가 거의 없어 하루 종일 높게 유지되고,
+  //  자기 직전이 자연스럽게 하루 중 가장 낮은 지점이 된다.
+  // ════════════════════════════════════════════════
+
+  // 전날 마지막 점수 가져오기 (최대 2단계까지만 거슬러 올라가 무한 재귀 방지)
+  let prevEndScore = 70; // 기록이 전혀 없을 때 기본 시작값
+  if(_depth<2) {
+    const prevDate = new Date(dDate.getFullYear(), dDate.getMonth(), dDate.getDate()-1);
+    const prevVit = calcVitality(dateFmt(prevDate), _depth+1);
+    if(prevVit) prevEndScore = prevVit.score;
+  }
+
+  // 수면(+에너지점수) 회복 보너스 — 최대 +25
+  const recoveryBasis = energyComp!==null
+    ? (sleepComp!==null ? (sleepComp+energyComp)/2 : energyComp)
+    : sleepComp;
+  // 75점(보통/좋음 경계) 근방이 제일 가파르고 양극단은 완만한 S자형 — 로지스틱 함수로 매끄럽게 구현
+  // (구간별 직선과 거의 동일한 모양이지만 꺾이는 지점 없이 연속적으로 이어짐)
+  // 0→-99.6, 30→-88.8, 50→-58.9, 60→-35.0, 75→-1.0, 85→+13.8, 100→+25.0
+  function sleepEffectCurve(rb) {
+    return -101 + 132/(1+Math.exp(-0.076*(rb-60)));
+  }
+  const sleepEffect = recoveryBasis!==null ? sleepEffectCurve(recoveryBasis) : 0;
+
+  // 활동 보너스 — 운동하면 충전, 최대 +15
+  const activityBonus = (activityComp/100)*15;
+
+  // 식단 보너스 — 끼니 챙길 때마다 충전, 최대 +10 (지금까지 체크한 비율 그대로 반영)
+  const dietBonus = dietComp!==null ? (dietComp/100)*10 : 0;
+
+  // 컨디션 자가평가 보정 — 평균 3점(보통) 기준 ±10
+  const wellnessAdj = wellnessComp!==null ? (wellnessComp-50)/50*10 : 0;
+
+  // 근무+공부 소모 — 위에서 이미 계산된 depletion 사용. 과부하+수면부족이면 추가 가산
+  if(effectiveLoad>700 && recoveryBasis!==null && recoveryBasis<60) depletion = Math.min(45, depletion+8);
+  const loadComp = Math.max(0, 100 - depletion/MAX_DEPLETION*100); // 아이콘 표시용 0~100 환산
+
+  let raw = prevEndScore + sleepEffect + activityBonus + dietBonus + wellnessAdj - depletion;
+  raw = Math.max(0, Math.min(100, raw));
+
+  const score = Math.max(0, Math.round(raw) - chronicPenalty);
+  const comps = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp, energy:energyComp};
+  return {score, comps, chronicPenalty, totalLoad, avg7Load, prevEndScore,
+    sleepEffect, activityBonus, dietBonus, wellnessAdj, depletion, weatherPenalty};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -680,13 +831,15 @@ function save() {
   // 오늘 활력 점수를 db에 저장 (열공타이머 등 외부 연동용)
   try {
     const todayK = todayStr();
-    dayData(todayK); // db[todayK] 및 health 하위 구조 보장
     const vit = calcVitality(todayK);
-    db[todayK].health.vitalityScore = vit ? vit.score : null;
-    db[todayK].health.vitalityComps = vit ? vit.comps : null;
-    db[todayK].health.vitalityChronicPenalty = vit ? vit.chronicPenalty : 0;
-    db[todayK].health.vitalityAvg7Load = vit ? vit.avg7Load : 0;
-  } catch(e) { console.warn('[vitality save]', e); }
+    if(db[todayK]) {
+      if(!db[todayK].health) db[todayK].health = {};
+      db[todayK].health.vitalityScore = vit ? vit.score : null;
+      db[todayK].health.vitalityComps = vit ? vit.comps : null;
+      db[todayK].health.vitalityChronicPenalty = vit ? vit.chronicPenalty : 0;
+      db[todayK].health.vitalityAvg7Load = vit ? vit.avg7Load : 0;
+    }
+  } catch(e){}
   try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
   fbSave();
 }
@@ -726,6 +879,15 @@ function initFirebase() {
       const isTyping = active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.tagName==='SELECT');
       if(!isTyping) renderAll();
     }, () => setSyncDot('err'));
+
+    // 정복지도(열공타이머) 실시간 구독 — 국어/수학 진도 동기화용
+    firebase.database().ref(TIMER_FB_PATH+'/timer/jeongbok').on('value', snap => {
+      const val = snap.val();
+      jbBooks = val?.books ? (Array.isArray(val.books)?val.books:Object.values(val.books)) : [];
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName==='INPUT'||active.tagName==='TEXTAREA'||active.tagName==='SELECT');
+      if(!isTyping) renderStudy();
+    }, () => {});
   } catch(e) { setSyncDot('err'); console.error('Firebase init error:',e); }
 }
 function fbSave() {
@@ -757,10 +919,19 @@ function renderCal() {
     const isT=dk===t, isSel=dk===sel, isSun=i===0, isSat=i===6;
     const cls=['cday',isT?'today':'',isSel?'sel':'',isSun?'dsun':'',isSat?'dsat':''].filter(Boolean).join(' ');
 
-    // sleep tag in header
-    const slp = db[dk]?.health?.sleep;
-    const slpScore = Number(slp?.score)||0;
-    const slpTag = slpScore>0 ? slpScore+'점' : '';
+    // weather tag in header (수면점수 자리 대체)
+    const wx = db[dk]?.weather || {};
+    const wxTempRaw = (wx.temp!==undefined && wx.temp!=='') ? Number(wx.temp) : null;
+    const wxCond = wx.condition || '';
+    const WX_ICON = {
+      '맑음':'☀️', '구름조금':'🌤️', '구름많음':'⛅', '흐림':'☁️',
+      '약한비':'🌦️', '비':'🌧️', '강한비':'⛈️',
+      '약한눈':'🌨️', '눈':'❄️', '강한눈':'☃️',
+      '강풍':'💨'
+    };
+    const wxIcon = WX_ICON[wxCond] || '';
+    const wxTag = (wxTempRaw!==null || wxCond) ? (wxIcon + (wxTempRaw!==null ? wxTempRaw+'°' : '')) : '';
+    const wxClr = wxTempRaw!==null && (wxTempRaw>=33||wxTempRaw<=0) ? '#e74c3c' : wxTempRaw!==null && (wxTempRaw>=30||wxTempRaw<=5) ? '#f5a623' : '#7fb3e0';
 
     // study
     const stMin = totalStudyMins(dk);
@@ -791,7 +962,7 @@ function renderCal() {
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${slpTag?('<span class="dsleep-tag" style="color:'+(slpScore>=85?'#4f8ef7':slpScore>=75?'#27c96e':slpScore>=60?'#f5c200':'#f5a623')+'">💤'+slpTag+'</span>'):''}
+        ${wxTag?('<span class="dsleep-tag" style="color:'+wxClr+'">'+wxTag+'</span>'):''}
       </div>
       <div class="dbody">
         <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
@@ -836,19 +1007,55 @@ function renderStudy() {
     <span class="ptitle">공부</span>
     <span class="ptotal" style="color:#4f8ef7">${totalStr}</span>
     <span style="font-size:9px;color:var(--m);margin-left:4px">↗</span>
-  </div>`;
+  </div>
+  <div style="padding:7px 9px;border-bottom:1px solid var(--b);display:flex;gap:5px;align-items:center;background:rgba(127,179,224,.05)">
+    <span style="font-size:9px;color:#7fb3e0;flex-shrink:0">🌡️오늘</span>
+    <input type="number" value="${dd.weather?.temp??''}" placeholder="온도" step="0.1"
+      style="width:48px;background:var(--s2);border:1px solid rgba(127,179,224,.3);border-radius:5px;color:#7fb3e0;font-family:var(--bebas);font-size:13px;padding:3px 5px;outline:none;text-align:center"
+      onchange="updWeather('temp',this.value)">
+    <span style="font-size:9px;color:var(--m);flex-shrink:0">°C</span>
+    <select style="flex:1;background:var(--s2);border:1px solid rgba(127,179,224,.3);border-radius:5px;color:var(--t);font-size:10px;padding:3px 5px;outline:none;-webkit-appearance:none;appearance:none"
+      onchange="updWeather('condition',this.value)">
+      <option value="">날씨 선택</option>
+      ${['맑음','구름조금','구름많음','흐림','약한비','비','강한비','약한눈','눈','강한눈','강풍'].map(w=>`<option value="${w}"${dd.weather?.condition===w?' selected':''}>${w}</option>`).join('')}
+    </select>
+  </div>
+  ${(()=>{
+    const ps = calcPlanStatus(sel);
+    if(!ps) return `<div onclick="openPlanModal()" style="padding:7px 9px;border-bottom:1px solid var(--b);cursor:pointer;display:flex;align-items:center;gap:6px;background:rgba(245,200,30,.05)">
+      <span style="font-size:9px;color:#f5c81e">✅ 오늘 해야할 일</span>
+      <span style="font-size:9px;color:var(--m);margin-left:auto">설정하기 ›</span>
+    </div>`;
+    const fineClr = ps.fine>0 ? '#e74c3c' : '#27c96e';
+    return `<div onclick="openPlanModal()" style="padding:7px 9px;border-bottom:1px solid var(--b);cursor:pointer;background:rgba(245,200,30,.05)">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:#f5c81e;flex-shrink:0">✅ 오늘 해야할 일</span>
+        ${ps.isOff
+          ? `<span style="font-size:9px;color:#7fb3e0;font-weight:700;margin-left:auto">😌 ${ps.isSpecialRest?'특휴':'휴무'}</span>`
+          : `<span style="font-family:var(--bebas);font-size:13px;color:#f5c81e;margin-left:auto">${ps.achieved}/${ps.total}</span>
+             <span style="font-size:9px;color:${fineClr};font-weight:700">${ps.fine>0?'₩'+ps.fine.toLocaleString():'벌금없음'}</span>`
+        }
+        <span style="font-size:9px;color:var(--m)">›</span>
+      </div>
+      ${!ps.isOff && ps.total>0?`<div style="height:4px;background:var(--b);border-radius:2px;overflow:hidden;margin-top:5px">
+        <div style="height:100%;width:${Math.round(ps.achieved/ps.total*100)}%;background:#f5c81e;border-radius:2px"></div>
+      </div>`:''}
+    </div>`;
+  })()}`;
 
   for(const s of SUBJS) {
     const sd  = dd.study[s];
     const clr = SCLR[s];
     const isOpen = !!openS[s];
-    const wp = weeklySubjProgress(dates, s);
+    const isSynced = (s==='국어' || s==='수학'); // 정복지도와 동기화되는 과목
+    const wp = isSynced ? getJeongbokProgress(s) : weeklySubjProgress(dates, s);
 
     h+=`<div class="scard">
       <div class="scard-hdr" onclick="toggleS('${s}')">
         <div class="sdot" style="background:${clr}"></div>
         <span class="sname">${s}</span>
-        <span class="schev${isOpen?' op':''}" id="schev-${s}">▼목표</span>
+        ${isSynced?`<span style="font-size:8px;color:${clr}88;margin-right:2px">🔗정복지도</span>`:''}
+        <span class="schev${isOpen?' op':''}" id="schev-${s}">${isSynced?'▼상세':'▼목표'}</span>
       </div>
 
       <div class="scard-vis">
@@ -864,7 +1071,7 @@ function renderStudy() {
           </div>
         </div>
         <div class="sweek-row">
-          <span class="sweek-lbl">주간</span>
+          <span class="sweek-lbl">${isSynced?'정복':'주간'}</span>
           <div class="bw">
             <div class="bf" style="width:${wp?wp.pct:0}%;background:${clr}"></div>
           </div>
@@ -872,49 +1079,61 @@ function renderStudy() {
             ${wp?wp.pct+'%':'–'}
           </span>
         </div>
-        ${wp?`<div class="sweek-sub" style="color:${clr}80">${wp.comp} / ${wp.tot} 달성</div>`:''}
+        ${wp?`<div class="sweek-sub" style="color:${clr}80">${wp.comp} / ${wp.tot} 달성</div>`:isSynced?`<div class="sweek-sub" style="color:var(--m2)">정복지도 데이터 없음</div>`:''}
       </div>
 
       <div class="scard-body${isOpen?' op':''}" id="sbody-${s}">`;
 
-    sd.goals = db._goals[s] || [];
-    sd.goals.forEach((g,gi)=>{
-      const pct = g.targetVal>0 ? Math.min(100,Math.round(g.completedVal/g.targetVal*100)) : 0;
-      h+=`<div class="goal-item">
-        <div class="gtop">
-          <span class="gn">${esc(g.name)}</span>
-          <span class="gu">${esc(g.targetUnit||'')}</span>
-          <button class="gdel" onclick="delGoal('${s}',${gi})">✕</button>
+    if(isSynced) {
+      // 정복지도 동기화 과목 — 읽기 전용, 수동 목표 입력 없음
+      h+=`<div style="padding:8px 0;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:9px;color:var(--m);line-height:1.5">
+          이 과목은 열공타이머의 <b style="color:${clr}">정복지도</b>와 자동으로 동기화돼요.
+          ${wp?`현재 ${wp.bookCount}권 · ${wp.comp}/${wp.tot} 완료`:'아직 정복지도에 등록된 교재가 없어요.'}
         </div>
-        <div class="ginps">
-          <div class="gfield">
-            <label>목표</label>
-            <input type="number" value="${g.targetVal||''}" placeholder="0"
-              onchange="updGoal('${s}',${gi},'targetVal',this.value)">
-            <span class="gu" style="color:var(--m)">${esc(g.targetUnit||'')}</span>
-          </div>
-          <div class="gfield">
-            <label>완료</label>
-            <input type="number" value="${g.completedVal||''}" placeholder="0"
-              onchange="updGoal('${s}',${gi},'completedVal',this.value)">
-          </div>
-        </div>
-        <div class="gpct-row">
-          <span class="gpct-n" style="color:${clr}">${pct}%</span>
-          <div class="bw"><div class="bf" style="width:${pct}%;background:${clr}"></div></div>
-        </div>
+        <button onclick="window.open('study-timer.html','_blank')" style="background:${clr}1a;border:1px solid ${clr}55;color:${clr};border-radius:7px;padding:7px 0;font-size:11px;font-weight:700;cursor:pointer">📖 정복지도에서 진도 입력하기</button>
       </div>`;
-    });
+    } else {
+      sd.goals = db._goals[s] || [];
+      sd.goals.forEach((g,gi)=>{
+        const pct = g.targetVal>0 ? Math.min(100,Math.round(g.completedVal/g.targetVal*100)) : 0;
+        h+=`<div class="goal-item">
+          <div class="gtop">
+            <span class="gn">${esc(g.name)}</span>
+            <span class="gu">${esc(g.targetUnit||'')}</span>
+            <button class="gdel" onclick="delGoal('${s}',${gi})">✕</button>
+          </div>
+          <div class="ginps">
+            <div class="gfield">
+              <label>목표</label>
+              <input type="number" value="${g.targetVal||''}" placeholder="0"
+                onchange="updGoal('${s}',${gi},'targetVal',this.value)">
+              <span class="gu" style="color:var(--m)">${esc(g.targetUnit||'')}</span>
+            </div>
+            <div class="gfield">
+              <label>완료</label>
+              <input type="number" value="${g.completedVal||''}" placeholder="0"
+                onchange="updGoal('${s}',${gi},'completedVal',this.value)">
+            </div>
+          </div>
+          <div class="gpct-row">
+            <span class="gpct-n" style="color:${clr}">${pct}%</span>
+            <div class="bw"><div class="bf" style="width:${pct}%;background:${clr}"></div></div>
+          </div>
+        </div>`;
+      });
 
-    h+=`<div class="gadd">
-        <div class="gadd-row">
-          <input class="gin sm txt" type="text" placeholder="목표 이름" id="gn-${s}" style="flex:2">
-          <input class="gin sm" type="number" placeholder="목표값" id="gv-${s}" style="width:44px">
-          <input class="gin sm txt" type="text" placeholder="단위" id="gu-${s}" style="width:32px">
-        </div>
-        <button class="btn-sm" onclick="addGoal('${s}')">+ 목표 추가</button>
-      </div>
-      </div>`; // scard-body 닫기
+      h+=`<div class="gadd">
+          <div class="gadd-row">
+            <input class="gin sm txt" type="text" placeholder="목표 이름" id="gn-${s}" style="flex:2">
+            <input class="gin sm" type="number" placeholder="목표값" id="gv-${s}" style="width:44px">
+            <input class="gin sm txt" type="text" placeholder="단위" id="gu-${s}" style="width:32px">
+          </div>
+          <button class="btn-sm" onclick="addGoal('${s}')">+ 목표 추가</button>
+        </div>`;
+    }
+
+    h+=`</div>`; // scard-body 닫기
 
     // 국어 전용 버튼: 항상 노출
     if(s==='국어') {
@@ -974,10 +1193,23 @@ function renderWork() {
       </div>
     </div>
     <div class="wrow">
-      <span class="wlbl">총수입</span>
-      <input class="winp" type="number" value="${todayGross||''}" placeholder="0"
-        oninput="updWorkSave('incomeAmount',this.value)" onblur="renderWork();renderCal()">
+      <span class="wlbl" style="color:#5ac8fa">배민</span>
+      <input class="winp" type="number" value="${dd.work.incomeBaemin||''}" placeholder="0"
+        style="border-color:rgba(90,200,250,.3)"
+        oninput="updIncomeSplit('incomeBaemin',this.value)" onblur="renderWork();renderCal()">
       <span class="wunit">원</span>
+    </div>
+    <div class="wrow">
+      <span class="wlbl" style="color:#ff6b6b">쿠팡</span>
+      <input class="winp" type="number" value="${dd.work.incomeCoupang||''}" placeholder="0"
+        style="border-color:rgba(255,107,107,.3)"
+        oninput="updIncomeSplit('incomeCoupang',this.value)" onblur="renderWork();renderCal()">
+      <span class="wunit">원</span>
+    </div>
+    <div class="wrow" style="opacity:.85">
+      <span class="wlbl">총수입</span>
+      <span class="winp" style="display:flex;align-items:center">${todayGross>0?'₩'+todayGross.toLocaleString():''}</span>
+      <span class="wunit"></span>
     </div>
     ${todayGross>0?`<div class="wrow" style="opacity:.7">
       <span class="wlbl" style="color:#ffd060">실수령</span>
@@ -994,10 +1226,10 @@ function renderWork() {
       <span class="wlbl">근무</span>
       <div class="tpair">
         <input type="number" class="ti" min="0" value="${dd.work.workH||''}" placeholder="0"
-          style="border-color:#f5a62340" oninput="updWorkSave('workH',this.value)" onblur="renderWork()">
+          style="border-color:#f5a62340" oninput="updWorkSave('workH',this.value)" onblur="renderWork();renderHealth()">
         <span class="tu" style="color:#f5a623aa">시간</span>
         <input type="number" class="ti" min="0" max="59" value="${dd.work.workM||''}" placeholder="0"
-          style="border-color:#f5a62340" oninput="updWorkSave('workM',this.value)" onblur="renderWork()">
+          style="border-color:#f5a62340" oninput="updWorkSave('workM',this.value)" onblur="renderWork();renderHealth()">
         <span class="tu" style="color:#f5a623aa">분</span>
       </div>
     </div>
@@ -1271,17 +1503,18 @@ function renderHealth() {
             <span style="font-size:11px;color:${tier.clr};font-weight:700">${tier.label}</span>
           </div>
         </div>
-        <div style="display:flex;gap:3px">
-          ${[['sleep','😴'],['activity','🏃'],['load','🔥'],['diet','🥗']].map(([k,ico])=>{
+        <div style="display:flex;gap:2px;flex-shrink:0">
+          ${[['sleep','😴'],['energy','⚡'],['activity','🏃'],['load','🔥'],['diet','🥗'],['wellness','🧘']].map(([k,ico])=>{
             const v=vit.comps[k];
             const c=v===null?'var(--m2)':v>=70?tier.clr:v>=40?'#f5a623':'#e74c3c';
-            return `<div style="width:22px;height:22px;border-radius:6px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:10px;opacity:${v===null?.3:1}">${ico}</div>`;
+            return `<div style="width:19px;height:19px;border-radius:5px;background:${v===null?'rgba(255,255,255,.03)':c+'22'};border:1px solid ${v===null?'var(--b)':c+'55'};display:flex;align-items:center;justify-content:center;font-size:9px;opacity:${v===null?.3:1};flex-shrink:0">${ico}</div>`;
           }).join('')}
         </div>
       </div>
       <div style="height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin-top:8px">
         <div style="height:100%;width:${vit.score}%;background:${tier.clr};border-radius:3px;transition:width .4s"></div>
       </div>
+      ${(Math.abs(vit.sleepEffect)>=0.5||vit.activityBonus>=0.5||vit.dietBonus>=0.5||vit.depletion>=0.5)?`<div style="font-size:8px;color:var(--m);margin-top:5px">전일 ${vit.prevEndScore}점 ${Math.abs(vit.sleepEffect)>=0.5?(vit.sleepEffect>0?' + 수면 ':' − 수면 ')+Math.abs(vit.sleepEffect).toFixed(0):''}${vit.activityBonus>=0.5?' + 활동 '+vit.activityBonus.toFixed(0):''}${vit.dietBonus>=0.5?' + 식단 '+vit.dietBonus.toFixed(0):''}${Math.abs(vit.wellnessAdj)>=0.5?(vit.wellnessAdj>0?' + 컨디션 ':' − 컨디션 ')+Math.abs(vit.wellnessAdj).toFixed(0):''}${vit.depletion>=0.5?' − 부하 '+vit.depletion.toFixed(0):''}</div>`:''}
       ${vit.chronicPenalty>0?`<div style="font-size:8px;color:#e74c3c;margin-top:5px">⚠ 최근 7일 평균 부하 ${(vit.avg7Load/60).toFixed(1)}h/일 — 만성 누적 위험 (-${vit.chronicPenalty}점)</div>`:''}
     </div>`;
   }
@@ -1334,6 +1567,17 @@ function renderHealth() {
         ${slpScore>0?`<span style="font-size:9px;color:${scoreClr};flex-shrink:0;font-weight:700">${slpScore>=85?'매우좋음':slpScore>=75?'좋음':slpScore>=60?'보통':'관심필요'}</span>`:''}
       </div>
       <div class="hrow">
+        <span class="hlbl" style="color:#f5a623aa">⚡에너지</span>
+        ${(()=>{
+          const eScore = Number(h.sleep.energyScore)||0;
+          const eClr = eScore>=85?'#4f8ef7':eScore>=70?'#27c96e':eScore>=50?'#f5c200':eScore>0?'#f5a623':'var(--m)';
+          return `<input type="number" class="hinp" min="0" max="100" step="0.1" value="${eScore||''}" placeholder="삼성헬스 에너지 점수"
+            style="border-color:#f5a62340;color:${eClr}"
+            oninput="updHSave('sleep','energyScore',this.value)" onblur="renderHealth();renderCal()">
+          ${eScore>0?`<span style="font-size:9px;color:${eClr};flex-shrink:0;font-weight:700">${eScore>=85?'매우좋음':eScore>=70?'좋음':eScore>=50?'보통':'낮음'}</span>`:''}`;
+        })()}
+      </div>
+      <div class="hrow">
         <span class="hlbl" style="color:#a855f766;font-size:8px">낮잠</span>
         <div class="tpair">
           <input type="number" class="ti" min="0" value="${Number(h.sleep.napH)||''}" placeholder="0"
@@ -1358,7 +1602,8 @@ function renderHealth() {
     const DIET_EXTRAS = []; // 마그네슘은 별도 트래킹 — 메인 진행률에 포함 안 함
     let dietDone = 0, dietTotal = 0;
     Object.entries(DIET_MEAL_ITEMS).forEach(([meal, count]) => {
-      for(let i=0; i<count; i++) { dietTotal++; if(dietChecks[meal+'_'+i]) dietDone++; }
+      dietTotal += count;
+      dietDone  += dietChecks[meal+'_sub'] ? count : Array.from({length:count}).filter((_,i)=>dietChecks[meal+'_'+i]).length;
     });
     DIET_EXTRAS.forEach(k => { dietTotal++; if(dietChecks[k]) dietDone++; });
     const dietPct   = dietTotal>0 ? Math.round(dietDone/dietTotal*100) : 0;
@@ -1386,7 +1631,28 @@ function renderHealth() {
 
   `;
 
-  // 2. SWIMMING (collapsible)
+  // 2. 수분 섭취 (500ml 기준 카운터) — 식단 바로 아래
+  const waterCount = Number(h.water?.count)||0;
+  const waterMl = waterCount*500;
+  out += `<div class="hact">
+    <div class="hact-hdr">
+      <span class="hico">💧</span>
+      <span class="hact-name">수분</span>
+      <span class="hact-val" style="color:#4fc3f7">${waterCount>0?waterCount+'병 ('+(waterMl/1000).toFixed(1)+'L)':''}</span>
+    </div>
+    <div class="hact-body" style="display:flex">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <button onclick="addWater(-1)" style="background:var(--s2);border:1px solid var(--b);color:var(--m);border-radius:6px;width:30px;height:30px;font-size:16px;cursor:pointer;flex-shrink:0">−</button>
+        <div style="flex:1;text-align:center">
+          <div style="font-family:var(--bebas);font-size:20px;color:#4fc3f7">${waterCount}<span style="font-size:11px;color:var(--m)"> 병 (500ml)</span></div>
+          <div style="font-size:8px;color:var(--m)">총 ${(waterMl/1000).toFixed(1)}L</div>
+        </div>
+        <button onclick="addWater(1)" style="background:rgba(79,195,247,.15);border:1px solid rgba(79,195,247,.4);color:#4fc3f7;border-radius:6px;width:30px;height:30px;font-size:16px;cursor:pointer;flex-shrink:0">+</button>
+      </div>
+    </div>
+  </div>`;
+
+  // 3. SWIMMING (collapsible)
   out += hItem('swim','🏊','수영', swimStr,
     `<div class="hrow">
         <span class="hlbl">거리</span>
@@ -1515,13 +1781,50 @@ function renderHealth() {
       </div>`
   );
 
-  // 8. HOBBY (collapsible)
+  // 8. 컨디션 자가평가 (Hooper-Mackinnon Wellness Index)
+  const wl = h.wellness || {};
+  const WELLNESS_Q = [
+    ['fatigue','피로감'],['soreness','근육통'],['stress','스트레스'],['mood','기분']
+  ];
+  const wlSet = WELLNESS_Q.map(([k])=>Number(wl[k])||0).filter(v=>v>0);
+  const wlAvg = wlSet.length>0 ? (wlSet.reduce((a,b)=>a+b,0)/wlSet.length) : 0;
+  const wlLabel = wlAvg>=4.5?'아주 좋음':wlAvg>=3.5?'좋음':wlAvg>=2.5?'보통':wlAvg>=1.5?'안좋음':wlAvg>0?'매우 안좋음':'';
+  out += hItem('wellness','🧘','컨디션', wlAvg>0?wlLabel:'',
+    WELLNESS_Q.map(([key,name])=>{
+      const cur = Number(wl[key])||0;
+      return `<div class="hrow" style="margin-bottom:2px">
+        <span class="hlbl" style="width:38px">${name}</span>
+        <div style="display:flex;gap:3px;flex:1">
+          ${[1,2,3,4,5].map(v=>{
+            const filled = v<=cur;
+            return `<button onclick="setWellness('${key}',${v})" style="flex:1;background:${filled?'rgba(245,200,30,.18)':'var(--s2)'};border:1px solid ${filled?'#f5c81e':'var(--b)'};border-radius:5px;padding:5px 0;cursor:pointer;font-size:15px;line-height:1;color:${filled?'#f5c81e':'var(--m2)'}">★</button>`;
+          }).join('')}
+        </div>
+        <span style="font-family:var(--bebas);font-size:13px;color:${cur>0?'#f5c81e':'var(--m2)'};width:14px;text-align:right;flex-shrink:0">${cur||''}</span>
+      </div>`;
+    }).join('') + (wlAvg>0?`<div class="hcalc" style="color:#a855f7">평균 ${wlAvg.toFixed(1)} / 5 — ${wlLabel}</div>`:'')
+  );
+
+  // 9. HOBBY (collapsible)
   out += hItem('hobby','🎮','취미', h.hobby?h.hobby.slice(0,8):'',
     `<input class="hinp" type="text" value="${esc(h.hobby||'')}" placeholder="오늘의 취미 활동"
         onchange="updHTxt('hobby',this.value)">`
   );
 
   document.getElementById('pHealth').innerHTML = out;
+}
+
+function setWellness(key, val) {
+  const h = dayData(sel).health;
+  if(!h.wellness) h.wellness = {};
+  h.wellness[key] = h.wellness[key]===val ? 0 : val; // 같은 값 다시 누르면 해제
+  save(); renderHealth();
+}
+function addWater(delta) {
+  const h = dayData(sel).health;
+  if(!h.water) h.water = {count:0};
+  h.water.count = Math.max(0, (Number(h.water.count)||0)+delta);
+  save(); renderHealth();
 }
 
 // ════════════════════════════════════════════════
@@ -1531,6 +1834,15 @@ function clickDay(dk) {
   sel = dk;
   save();
   renderAll();
+}
+
+function updWeather(field, val) {
+  const d = dayData(sel);
+  if(!d.weather) d.weather = {temp:'',condition:''};
+  d.weather[field] = val;
+  save();
+  renderCal();
+  renderHealth(); // 활력 점수의 날씨 피로도 반영을 위해 재계산
 }
 
 function toggleS(s) {
@@ -1545,6 +1857,7 @@ function updStudyTime(s, field, val) {
   else            sd.studyM = Number(val)||0;
   save();
   renderCal();
+  renderHealth(); // 활력 점수가 공부시간(부하)을 반영하므로 재계산 필요
   // update total display in panel header without full re-render
   const totalMin = totalStudyMins(sel);
   const {h,m} = minsToHM(totalMin);
@@ -1677,10 +1990,17 @@ function updWorkSave(fld, val) {
   dayData(sel).work[fld] = Number(val)||0;
   save();
 }
+// 배민/쿠팡 수입 분리 입력 — 합계를 incomeAmount에 자동 동기화 (기존 통계 로직 그대로 호환)
+function updIncomeSplit(fld, val) {
+  const w = dayData(sel).work;
+  w[fld] = Number(val)||0;
+  w.incomeAmount = (Number(w.incomeBaemin)||0) + (Number(w.incomeCoupang)||0);
+  save();
+}
 
 let _healthTimer = null;
 function updH(cat, fld, val) {
-  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','energyScore','reps','fatigue','soreness','stress','mood','count'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save(); renderCal();
   clearTimeout(_healthTimer);
@@ -1691,7 +2011,7 @@ function updH(cat, fld, val) {
 }
 // 저장만 하고 렌더링 안 함
 function updHSave(cat, fld, val) {
-  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','reps'];
+  const numFlds = ['m','swimM','swimS','free','back','breast','fly','km','runM','runS','cycH','cycM','sleepH','sleepM','napH','napM','score','energyScore','reps','fatigue','soreness','stress','mood','count'];
   dayData(sel).health[cat][fld] = numFlds.includes(fld) ? (Number(val)||0) : val;
   save();
 }
@@ -1828,6 +2148,92 @@ function saveGrammarCard() {
     closeAddGrammar();
     loadGrammarCards();
   });
+}
+
+// ─── 오늘 해야할 일 (계획·인증·휴무·벌금) ───
+function openPlanModal() {
+  document.getElementById('planBg').style.display='flex';
+  renderPlanModal();
+}
+function closePlanModal() {
+  document.getElementById('planBg').style.display='none';
+  renderStudy(); // 위젯 갱신
+}
+function renderPlanModal() {
+  const dp = dayData(sel).dailyPlan;
+  const ps = calcPlanStatus(sel);
+  const ru = calcRestUsage(sel);
+
+  const fineClr = ps.fine>0 ? '#e74c3c' : '#27c96e';
+
+  let b = `<div style="background:linear-gradient(135deg,rgba(245,200,30,.1),rgba(245,200,30,.03));border:1px solid rgba(245,200,30,.25);border-radius:10px;padding:10px 12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <button onclick="togglePlanRest('isRest')" style="flex:1;margin-right:5px;background:${dp.isRest?'rgba(127,179,224,.2)':'var(--s2)'};border:1px solid ${dp.isRest?'#7fb3e0':'var(--b)'};color:${dp.isRest?'#7fb3e0':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">😌 휴무 ${dp.isRest?'✓':''}</button>
+      <button onclick="togglePlanRest('isSpecialRest')" style="flex:1;background:${dp.isSpecialRest?'rgba(168,85,247,.2)':'var(--s2)'};border:1px solid ${dp.isSpecialRest?'#a855f7':'var(--b)'};color:${dp.isSpecialRest?'#a855f7':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">🎁 특휴 ${dp.isSpecialRest?'✓':''}</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--m)">
+      <span>이번주 휴무 <b style="color:${ru.weekUsed>=ru.weekLimit?'#e74c3c':'var(--t)'}">${ru.weekUsed}/${ru.weekLimit}</b></span>
+      <span>이번달 특휴 <b style="color:${ru.monthUsed>=ru.monthLimit?'#e74c3c':'var(--t)'}">${ru.monthUsed}/${ru.monthLimit}</b></span>
+    </div>
+  </div>`;
+
+  if(!dp.isRest && !dp.isSpecialRest) {
+    b += `<div style="display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</div>
+      <div style="font-size:8px;color:var(--m2);margin-top:-4px">매일 전날 목록이 자동으로 이어져요 · 원치 않는 항목은 ✕로 제거</div>
+      ${dp.items.map(it=>`
+        <div style="display:flex;align-items:center;gap:8px;background:${it.done?'rgba(39,201,110,.08)':'rgba(255,255,255,.03)'};border:1px solid ${it.done?'rgba(39,201,110,.25)':'var(--b)'};border-radius:8px;padding:8px 10px">
+          <div onclick="togglePlanItem('${it.id}')" style="width:22px;height:22px;border-radius:50%;border:2px solid ${it.done?'#27c96e':'var(--m2)'};background:${it.done?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:12px;color:#fff">${it.done?'✓':''}</div>
+          <span onclick="togglePlanItem('${it.id}')" style="flex:1;font-size:12px;color:${it.done?'#27c96e':'var(--t)'};text-decoration:${it.done?'line-through':'none'};cursor:pointer">${esc(it.name)}</span>
+          <button onclick="delPlanItem('${it.id}')" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:11px;padding:0">✕</button>
+        </div>`).join('') || '<div style="font-size:10px;color:var(--m2);padding:6px 0">계획을 추가해보세요</div>'}
+      <div style="display:flex;gap:5px;margin-top:2px">
+        <input id="planItemInp" type="text" placeholder="할 일 (예: 기상 8:00)"
+          style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:7px;color:var(--t);font-size:11px;padding:7px 9px;outline:none"
+          onkeydown="if(event.key==='Enter')addPlanItem()">
+        <button onclick="addPlanItem()" style="background:rgba(245,200,30,.15);border:1px solid rgba(245,200,30,.4);color:#f5c81e;border-radius:7px;padding:0 12px;cursor:pointer;font-size:13px;font-weight:700">+</button>
+      </div>
+    </div>
+
+    <div style="background:var(--s2);border-radius:10px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 벌금</span>
+        <span style="font-family:var(--bebas);font-size:22px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'0원'}</span>
+      </div>
+      <div style="font-size:8px;color:var(--m2);line-height:1.5">계획 3개 기준 · 달성 ${ps.achieved}개 ${ps.achieved>=3?'→ 벌금 없음':'→ 미달성 '+(3-ps.achieved)+'개 × 500원'}</div>
+    </div>`;
+  } else {
+    b += `<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">오늘은 ${dp.isSpecialRest?'특휴':'휴무'}일이라 계획/벌금이 적용되지 않아요.</div>`;
+  }
+
+  document.getElementById('planBody').innerHTML = b;
+}
+function togglePlanItem(id) {
+  const dp = dayData(sel).dailyPlan;
+  const it = dp.items.find(i=>i.id===id);
+  if(it) it.done = !it.done;
+  save(); renderPlanModal();
+}
+function addPlanItem() {
+  const inp = document.getElementById('planItemInp');
+  const name = inp?.value.trim();
+  if(!name) return;
+  const dp = dayData(sel).dailyPlan;
+  dp.items.push({id:genPlanId(), name, done:false});
+  inp.value='';
+  save(); renderPlanModal();
+}
+function delPlanItem(id) {
+  const dp = dayData(sel).dailyPlan;
+  dp.items = dp.items.filter(i=>i.id!==id);
+  save(); renderPlanModal();
+}
+function togglePlanRest(field) {
+  const dp = dayData(sel).dailyPlan;
+  dp[field] = !dp[field];
+  if(field==='isRest' && dp.isRest) dp.isSpecialRest=false;
+  if(field==='isSpecialRest' && dp.isSpecialRest) dp.isRest=false;
+  save(); renderPlanModal();
 }
 
 // ─── 오답노트 ───
@@ -2321,7 +2727,7 @@ function renderModalHealth() {
 
   // ③ 러닝 바 차트 (데이터 있을 때)
   // 요일별 운동 통합 차트 (수영/러닝/자전거 중 기록된 것 표시)
-  const hasCardio = totalRunKm>0 || totalSwimLaps>0 || totalCycKm>0;
+  const hasCardio = totalRunKm>0 || totalSwimM>0 || totalCycKm>0;
   if(hasCardio) {
     // 각 날의 운동 종류와 수치를 통합 (하루 하나씩)
     const dailyExercise = dates.map((dk,i) => {
@@ -2359,7 +2765,7 @@ function renderModalHealth() {
     });
     b += `</div>
       <div style="display:flex;gap:10px;margin-top:8px;font-size:8px;color:var(--m)">
-        ${totalSwimLaps>0?'<div style="display:flex;align-items:center;gap:3px"><span>🏊</span><span>수영</span></div>':''}
+        ${totalSwimM>0?'<div style="display:flex;align-items:center;gap:3px"><span>🏊</span><span>수영</span></div>':''}
         ${totalRunKm>0?'<div style="display:flex;align-items:center;gap:3px"><span>🏃</span><span>러닝</span></div>':''}
         ${totalCycKm>0?'<div style="display:flex;align-items:center;gap:3px"><span>🚴</span><span>자전거</span></div>':''}
       </div>
@@ -2444,6 +2850,12 @@ document.getElementById('todayBtn').onclick = () => {
 
 // ─── INIT ───
 load();
+// 국어/수학은 이제 정복지도와 동기화되므로 기존 수동 입력 목표는 정리
+if(db._goals?.국어?.length || db._goals?.수학?.length) {
+  if(db._goals.국어) db._goals.국어 = [];
+  if(db._goals.수학) db._goals.수학 = [];
+  save();
+}
 autoDeductCardLoans();
 renderAll();
 initFirebase();
@@ -2528,6 +2940,17 @@ initFirebase();
     <div id="odapList" style="flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px">
       <div style="text-align:center;padding:20px;color:var(--m);font-size:11px">불러오는 중...</div>
     </div>
+  </div>
+</div>
+
+<!-- 오늘 해야할 일 팝업 -->
+<div id="planBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;align-items:center;justify-content:center" onclick="if(event.target===this)closePlanModal()">
+  <div style="background:#0e1320;border:1px solid rgba(245,200,30,.3);border-radius:16px;width:340px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--b);flex-shrink:0">
+      <span style="font-size:13px;font-weight:700;color:#f5c81e">✅ 오늘 해야할 일</span>
+      <button onclick="closePlanModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div id="planBody" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px"></div>
   </div>
 </div>
 </body>
