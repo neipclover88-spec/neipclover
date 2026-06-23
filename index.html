@@ -2224,12 +2224,19 @@ function renderPlanModal() {
       </div>
     </div>
 
-    <div style="background:var(--s2);border-radius:10px;padding:10px 14px;text-align:center">
-      <div style="font-family:var(--bebas);font-size:36px;letter-spacing:1px;line-height:1;color:#f5c81e">
-        ${ps.achieved}<span style="font-size:22px;color:#f5c81e88">/${ps.total}</span>
-        <span style="font-size:20px;color:#f5c81e"> 달성!</span>
+    <div style="background:var(--s2);border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:8px">
+        ${dp.items.map((it,idx)=>{
+          const isDone = !!it.done;
+          const isFail = !!it.fail;
+          if(isDone) return `<span style="font-size:32px;line-height:1;filter:drop-shadow(0 0 6px #27c96e88);transition:all .3s">🍀</span>`;
+          if(isFail) return `<span style="font-size:32px;line-height:1;filter:grayscale(1) sepia(1) saturate(3) hue-rotate(300deg);opacity:.7">🍀</span>`;
+          return `<span style="font-size:32px;line-height:1;opacity:.18;filter:grayscale(1)">🍀</span>`;
+        }).join('')}
       </div>
-      <div style="font-size:10px;color:var(--m);margin-top:4px">계획 ${ps.total}개 중 ${ps.achieved}개 완료${ps.failed>0?' · 실패 '+ps.failed+'개':''}</div>
+      <div style="font-family:var(--bebas);font-size:18px;color:#f5c81e;letter-spacing:.5px">
+        ${ps.achieved}/${ps.total} 달성${ps.failed>0?` · <span style="color:#e74c3c">✗${ps.failed}</span>`:''}
+      </div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:9px;color:var(--m)">오늘 벌금</span>
         <span style="font-family:var(--bebas);font-size:18px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'없음 🎉'}</span>
