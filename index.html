@@ -680,6 +680,8 @@ function calcVitality(dk, _depth=0) {
   }
 
   // 2. 신체활동 — 유산소(러닝+수영+자전거) + 근력운동 보너스
+  //    적당한 운동(~60분)은 활력을 올리지만, 장시간 극강 운동(90분+)은 회복 부채가 쌓여 오히려 지침
+  //    70km 자전거처럼 3시간+ 강도 운동은 보너스보다 소모가 더 커지는 게 현실적
   const runMin  = ((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60;
   const swimMin = (Number(h.swimming?.swimM)||0)+(Number(h.swimming?.swimS)||0)/60;
   const cycMin  = hmToMins(h.cycling?.cycH, h.cycling?.cycM);
@@ -687,14 +689,22 @@ function calcVitality(dk, _depth=0) {
   const hasStrength = (Number(h.pushup?.reps)||0)>0 || (Number(h.pullup?.reps)||0)>0 || (Number(h.legraise?.reps)||0)>0;
   let activityComp = 0;
   if(cardioMin>0) {
-    if(cardioMin<30) activityComp = cardioMin/30*70;        // WHO 일일 권장 30분 기준
+    if(cardioMin<30) activityComp = cardioMin/30*70;
     else if(cardioMin<60) activityComp = 70+(cardioMin-30)/30*30;
     else activityComp = 100;
-    if(cardioMin>120) activityComp = Math.max(0, activityComp-(cardioMin-120)*0.3); // 과훈련 소폭 감점
+    if(cardioMin>120) activityComp = Math.max(0, activityComp-(cardioMin-120)*0.3);
   } else if(hasStrength) {
-    activityComp = 55; // 근력운동만 한 경우 기본점
+    activityComp = 55;
   }
   if(hasStrength && cardioMin>0) activityComp = Math.min(100, activityComp+10);
+  // 활동 보너스: 60분 기준 최대 +15, 90분 넘어가면 보너스가 줄어들고
+  // 90분+ 극강 운동은 depletion에 추가 가산 (회복 부채)
+  const activityBonus = cardioMin<=90
+    ? (activityComp/100)*15
+    : Math.max(0, 15 - (cardioMin-90)*0.08);
+  const cardioDepletion = cardioMin>90
+    ? Math.min(20, (cardioMin-90)*0.13)
+    : 0;
 
   // 3. 일일 총 부하 — 오토바이 배달은 균형·날씨노출·정차반복이 있는 실질적 신체노동이라
   //    앉아서 하는 공부보다 체력 소모가 훨씬 큼. 근무시간에 1.4배, 공부시간에 0.8배 가중치를 줘서
@@ -730,7 +740,9 @@ function calcVitality(dk, _depth=0) {
     const scale = Math.min(1, workMin/480); // 8시간 기준 풀스케일
     weatherPenalty = (tempPen+condPen)*scale;
   }
-  depletion = Math.min(45, depletion + weatherPenalty); // 날씨 가산은 기존 캡(35) 위에 추가 허용
+  depletion = Math.min(45, depletion + weatherPenalty + cardioDepletion);
+  // 완전 휴일이라도 일상 기본 에너지 소모는 존재 (최소 4점)
+  depletion = Math.max(4, depletion);
 
   // 3-1. 최근 7일 평균 부하 — 일별 소모 곡선이 이제 충분히 민감해졌으므로(4h만 일해도 -21점)
   //      만성 페널티는 "매일 극단적으로 과한 패턴"에만 걸리는 안전장치로 축소 (이중 페널티 방지)
@@ -798,9 +810,6 @@ function calcVitality(dk, _depth=0) {
   }
   const sleepEffect = recoveryBasis!==null ? sleepEffectCurve(recoveryBasis) : 0;
 
-  // 활동 보너스 — 운동하면 충전, 최대 +15
-  const activityBonus = (activityComp/100)*15;
-
   // 식단 보너스 — 끼니 챙길 때마다 충전, 최대 +10 (지금까지 체크한 비율 그대로 반영)
   const dietBonus = dietComp!==null ? (dietComp/100)*10 : 0;
 
@@ -817,7 +826,7 @@ function calcVitality(dk, _depth=0) {
   const score = Math.max(0, Math.round(raw) - chronicPenalty);
   const comps = {sleep:sleepComp, activity:activityComp, load:loadComp, diet:dietComp, wellness:wellnessComp, energy:energyComp};
   return {score, comps, chronicPenalty, totalLoad, avg7Load, prevEndScore,
-    sleepEffect, activityBonus, dietBonus, wellnessAdj, depletion, weatherPenalty};
+    sleepEffect, activityBonus, dietBonus, wellnessAdj, depletion, weatherPenalty, cardioDepletion};
 }
 function vitalityTier(score) {
   if(score>=85) return {label:'매우 좋음', clr:'#4f8ef7'};
@@ -2215,12 +2224,17 @@ function renderPlanModal() {
       </div>
     </div>
 
-    <div style="background:var(--s2);border-radius:10px;padding:10px 12px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-        <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 벌금</span>
-        <span style="font-family:var(--bebas);font-size:22px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'0원'}</span>
+    <div style="background:var(--s2);border-radius:10px;padding:12px 14px;text-align:center">
+      <div style="font-family:var(--bebas);font-size:36px;letter-spacing:1px;line-height:1;color:#f5c81e">
+        ${ps.achieved}<span style="font-size:22px;color:#f5c81e88">/${ps.total}</span>
+        <span style="font-size:20px;color:#f5c81e"> 달성!</span>
       </div>
-      <div style="font-size:8px;color:var(--m2);line-height:1.5">계획 3개 기준 · 달성 ${ps.achieved}개 ${ps.achieved>=3?'→ 벌금 없음':'→ 미달성 '+(3-ps.achieved)+'개 × 500원'}</div>
+      <div style="font-size:10px;color:var(--m);margin-top:4px">계획 ${ps.total}개 중 ${ps.achieved}개 완료${ps.failed>0?' · 실패 '+ps.failed+'개':''}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:9px;color:var(--m)">오늘 벌금</span>
+        <span style="font-family:var(--bebas);font-size:18px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'없음 🎉'}</span>
+      </div>
+      ${ps.fine>0?`<div style="font-size:8px;color:#e74c3caa;margin-top:3px;text-align:right">미달성 ${3-ps.achieved}개 × 500원</div>`:''}
     </div>`;
   } else {
     b += `<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">오늘은 ${dp.isSpecialRest?'특휴':'휴무'}일이라 계획/벌금이 적용되지 않아요.</div>`;
