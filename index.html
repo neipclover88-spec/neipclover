@@ -623,9 +623,10 @@ function calcPlanStatus(dk) {
   if(!dp) return null;
   const total = dp.items.length;
   const achieved = dp.items.filter(i=>i.done).length;
+  const failed   = dp.items.filter(i=>i.fail).length;
   const isOff = dp.isRest || dp.isSpecialRest;
   const fine = isOff ? 0 : Math.max(0, 3-achieved)*500;
-  return {total, achieved, fine, isOff, isRest:dp.isRest, isSpecialRest:dp.isSpecialRest};
+  return {total, achieved, failed, fine, isOff, isRest:dp.isRest, isSpecialRest:dp.isSpecialRest};
 }
 // 이번 주 휴무 사용 횟수 (주 2회 한도) / 이번 달 특휴 사용 횟수 (월 2회 한도)
 function calcRestUsage(dk) {
@@ -1033,6 +1034,7 @@ function renderStudy() {
         ${ps.isOff
           ? `<span style="font-size:9px;color:#7fb3e0;font-weight:700;margin-left:auto">😌 ${ps.isSpecialRest?'특휴':'휴무'}</span>`
           : `<span style="font-family:var(--bebas);font-size:13px;color:#f5c81e;margin-left:auto">${ps.achieved}/${ps.total}</span>
+             ${ps.failed>0?`<span style="font-size:9px;color:#e74c3c;font-weight:700">✗${ps.failed}</span>`:''}
              <span style="font-size:9px;color:${fineClr};font-weight:700">${ps.fine>0?'₩'+ps.fine.toLocaleString():'벌금없음'}</span>`
         }
         <span style="font-size:9px;color:var(--m)">›</span>
@@ -2188,12 +2190,23 @@ function renderPlanModal() {
     b += `<div style="display:flex;flex-direction:column;gap:6px">
       <div style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</div>
       <div style="font-size:8px;color:var(--m2);margin-top:-4px">매일 전날 목록이 자동으로 이어져요 · 원치 않는 항목은 ✕로 제거</div>
-      ${dp.items.map(it=>`
-        <div style="display:flex;align-items:center;gap:8px;background:${it.done?'rgba(39,201,110,.08)':'rgba(255,255,255,.03)'};border:1px solid ${it.done?'rgba(39,201,110,.25)':'var(--b)'};border-radius:8px;padding:8px 10px">
-          <div onclick="togglePlanItem('${it.id}')" style="width:22px;height:22px;border-radius:50%;border:2px solid ${it.done?'#27c96e':'var(--m2)'};background:${it.done?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:12px;color:#fff">${it.done?'✓':''}</div>
-          <span onclick="togglePlanItem('${it.id}')" style="flex:1;font-size:12px;color:${it.done?'#27c96e':'var(--t)'};text-decoration:${it.done?'line-through':'none'};cursor:pointer">${esc(it.name)}</span>
-          <button onclick="delPlanItem('${it.id}')" style="background:none;border:none;color:var(--m);cursor:pointer;font-size:11px;padding:0">✕</button>
-        </div>`).join('') || '<div style="font-size:10px;color:var(--m2);padding:6px 0">계획을 추가해보세요</div>'}
+      ${dp.items.map(it=>{
+        const isDone = !!it.done;
+        const isFail = !!it.fail;
+        const bg = isDone ? 'rgba(39,201,110,.08)' : isFail ? 'rgba(231,76,60,.08)' : 'rgba(255,255,255,.03)';
+        const border = isDone ? 'rgba(39,201,110,.25)' : isFail ? 'rgba(231,76,60,.25)' : 'var(--b)';
+        const textClr = isDone ? '#27c96e' : isFail ? '#e74c3c88' : 'var(--t)';
+        const textDeco = isDone || isFail ? 'line-through' : 'none';
+        return `
+        <div style="display:flex;align-items:center;gap:8px;background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 10px">
+          <div onclick="togglePlanItem('${it.id}')" style="width:22px;height:22px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c44':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:12px;color:#fff">${isDone?'✓':''}</div>
+          <span onclick="togglePlanItem('${it.id}')" style="flex:1;font-size:12px;color:${textClr};text-decoration:${textDeco};cursor:pointer">${esc(it.name)}</span>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <button onclick="failPlanItem('${it.id}')" title="못했어요" style="width:22px;height:22px;border-radius:50%;border:2px solid ${isFail?'#e74c3c':'var(--m2)'};background:${isFail?'#e74c3c':'none'};color:${isFail?'#fff':'var(--m2)'};font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✗</button>
+            <button onclick="delPlanItem('${it.id}')" style="background:none;border:none;color:var(--m2);cursor:pointer;font-size:10px;padding:0;opacity:.5">🗑</button>
+          </div>
+        </div>`;
+      }).join('') || '<div style="font-size:10px;color:var(--m2);padding:6px 0">계획을 추가해보세요</div>'}
       <div style="display:flex;gap:5px;margin-top:2px">
         <input id="planItemInp" type="text" placeholder="할 일 (예: 기상 8:00)"
           style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:7px;color:var(--t);font-size:11px;padding:7px 9px;outline:none"
@@ -2218,7 +2231,13 @@ function renderPlanModal() {
 function togglePlanItem(id) {
   const dp = dayData(sel).dailyPlan;
   const it = dp.items.find(i=>i.id===id);
-  if(it) it.done = !it.done;
+  if(it) { it.done = !it.done; if(it.done) it.fail = false; }
+  save(); renderPlanModal();
+}
+function failPlanItem(id) {
+  const dp = dayData(sel).dailyPlan;
+  const it = dp.items.find(i=>i.id===id);
+  if(it) { it.fail = !it.fail; if(it.fail) it.done = false; }
   save(); renderPlanModal();
 }
 function addPlanItem() {
