@@ -2153,6 +2153,13 @@ function saveGrammarCard() {
 // ─── 오늘 해야할 일 (계획·인증·휴무·벌금) ───
 function openPlanModal() {
   document.getElementById('planBg').style.display='flex';
+  // 날짜/요일 표시
+  const [y,m,d] = sel.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const dayNames = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+  const dayClr = dt.getDay()===0?'#e74c3c':dt.getDay()===6?'#7fa8f7':'var(--m)';
+  const el = document.getElementById('planModalDate');
+  if(el) el.innerHTML = `<span style="color:var(--t)">${m}월 ${d}일</span> <span style="color:${dayClr}">${dayNames[dt.getDay()]}</span>`;
   renderPlanModal();
 }
 function closePlanModal() {
@@ -2947,7 +2954,10 @@ initFirebase();
 <div id="planBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;align-items:center;justify-content:center" onclick="if(event.target===this)closePlanModal()">
   <div style="background:#0e1320;border:1px solid rgba(245,200,30,.3);border-radius:16px;width:340px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--b);flex-shrink:0">
-      <span style="font-size:13px;font-weight:700;color:#f5c81e">✅ 오늘 해야할 일</span>
+      <div>
+        <span style="font-size:13px;font-weight:700;color:#f5c81e">✅ 오늘 해야할 일</span>
+        <div id="planModalDate" style="font-size:16px;font-weight:700;margin-top:3px;letter-spacing:-.3px"></div>
+      </div>
       <button onclick="closePlanModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
     </div>
     <div id="planBody" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px"></div>
