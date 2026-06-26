@@ -2244,7 +2244,73 @@ function renderPlanModal() {
       ${ps.fine>0?`<div style="font-size:8px;color:#e74c3caa;margin-top:3px;text-align:right">미달성 ${3-ps.achieved}개 × 500원</div>`:''}
     </div>`;
   } else {
-    b += `<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">오늘은 ${dp.isSpecialRest?'특휴':'휴무'}일이라 계획/벌금이 적용되지 않아요.</div>`;
+    const isSpecial = dp.isSpecialRest;
+    const restLabel = isSpecial ? '특별 휴가' : '오늘은 휴무!';
+    const restSub   = isSpecial ? '충전하고 돌아와요 🌟' : '푹 쉬어가요 😌';
+    b += `<div style="display:flex;flex-direction:column;align-items:center;padding:10px 0 4px">
+      <svg viewBox="0 0 200 210" width="200" height="210" xmlns="http://www.w3.org/2000/svg">
+        <!-- 빛 배경 glow -->
+        <radialGradient id="rg" cx="50%" cy="48%" r="42%">
+          <stop offset="0%" stop-color="#27c96e" stop-opacity=".18"/>
+          <stop offset="100%" stop-color="#27c96e" stop-opacity="0"/>
+        </radialGradient>
+        <ellipse cx="100" cy="98" rx="72" ry="68" fill="url(#rg)"/>
+
+        <!-- 클로버 잎 4개 (원 4개 + 각도 45도 회전 그룹) -->
+        <g transform="translate(100,98) rotate(45)">
+          <circle cx="0"   cy="-28" r="28" fill="#27c96e" opacity=".95"/>
+          <circle cx="28"  cy="0"   r="28" fill="#27c96e" opacity=".95"/>
+          <circle cx="0"   cy="28"  r="28" fill="#27c96e" opacity=".95"/>
+          <circle cx="-28" cy="0"   r="28" fill="#27c96e" opacity=".95"/>
+          <!-- 잎 중앙 밝은 하이라이트 -->
+          <circle cx="0"   cy="-28" r="10" fill="#52e69a" opacity=".4"/>
+          <circle cx="28"  cy="0"   r="10" fill="#52e69a" opacity=".4"/>
+          <circle cx="0"   cy="28"  r="10" fill="#52e69a" opacity=".4"/>
+          <circle cx="-28" cy="0"   r="10" fill="#52e69a" opacity=".4"/>
+          <!-- 중앙 -->
+          <circle cx="0" cy="0" r="14" fill="#1faa5a"/>
+        </g>
+
+        <!-- 줄기 -->
+        <path d="M100 126 Q108 148 100 164" stroke="#1faa5a" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+        <!-- 작은 클로버 왼쪽 -->
+        <g transform="translate(42,140) rotate(15) scale(.45)">
+          <circle cx="0"  cy="-22" r="22" fill="#27c96e" opacity=".7"/>
+          <circle cx="22" cy="0"   r="22" fill="#27c96e" opacity=".7"/>
+          <circle cx="0"  cy="22"  r="22" fill="#27c96e" opacity=".7"/>
+          <circle cx="-22" cy="0"  r="22" fill="#27c96e" opacity=".7"/>
+          <circle cx="0" cy="0" r="10" fill="#1faa5a" opacity=".8"/>
+        </g>
+        <path d="M42 154 Q46 164 42 172" stroke="#1faa5a" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+
+        <!-- 작은 클로버 오른쪽 -->
+        <g transform="translate(158,136) rotate(-20) scale(.38)">
+          <circle cx="0"  cy="-22" r="22" fill="#27c96e" opacity=".65"/>
+          <circle cx="22" cy="0"   r="22" fill="#27c96e" opacity=".65"/>
+          <circle cx="0"  cy="22"  r="22" fill="#27c96e" opacity=".65"/>
+          <circle cx="-22" cy="0"  r="22" fill="#27c96e" opacity=".65"/>
+          <circle cx="0" cy="0" r="10" fill="#1faa5a" opacity=".8"/>
+        </g>
+        <path d="M158 150 Q162 160 158 168" stroke="#1faa5a" stroke-width="3" fill="none" stroke-linecap="round" opacity=".5"/>
+
+        <!-- 반짝이 별들 -->
+        <text x="38"  y="62"  font-size="13" text-anchor="middle" opacity=".8">✦</text>
+        <text x="162" y="58"  font-size="10" text-anchor="middle" opacity=".6">✦</text>
+        <text x="26"  y="108" font-size="8"  text-anchor="middle" opacity=".5">✦</text>
+        <text x="174" y="110" font-size="11" text-anchor="middle" opacity=".7">✦</text>
+        <text x="100" y="46"  font-size="9"  text-anchor="middle" opacity=".5">✦</text>
+
+        <!-- 달 -->
+        <text x="168" y="42" font-size="18" text-anchor="middle" opacity=".85">🌙</text>
+
+        <!-- 텍스트 -->
+        <text x="100" y="188" font-size="18" font-weight="700" text-anchor="middle"
+          fill="#27c96e" font-family="'Noto Sans KR',sans-serif" letter-spacing="-0.5">${restLabel}</text>
+        <text x="100" y="207" font-size="11" text-anchor="middle"
+          fill="#55558a" font-family="'Noto Sans KR',sans-serif">${restSub}</text>
+      </svg>
+    </div>`;
   }
 
   document.getElementById('planBody').innerHTML = b;
