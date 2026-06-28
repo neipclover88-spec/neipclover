@@ -630,8 +630,16 @@ function calcPlanStatus(dk) {
 }
 // 이번 주 휴무 사용 횟수 (주 2회 한도) / 이번 달 특휴 사용 횟수 (월 2회 한도)
 function calcRestUsage(dk) {
-  const dates = weekDates(dk);
-  const weekUsed = dates.filter(x=>db[x]?.dailyPlan?.isRest).length;
+  // 휴무 주간 기준: 월요일~일요일 (인증스터디 규칙)
+  const d = parseD(dk);
+  const dow = d.getDay(); // 0=일, 1=월 ... 6=토
+  const diffToMon = dow===0 ? -6 : 1-dow; // 이번 주 월요일까지 거리
+  const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate()+diffToMon);
+  const monWeekDates = Array.from({length:7}, (_,i)=>{
+    const x = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+i);
+    return dateFmt(x);
+  });
+  const weekUsed = monWeekDates.filter(x=>db[x]?.dailyPlan?.isRest).length;
   const ym = dk.slice(0,7);
   const monthUsed = monthKeys(ym).filter(x=>db[x]?.dailyPlan?.isSpecialRest).length;
   return {weekUsed, weekLimit:2, monthUsed, monthLimit:2};
