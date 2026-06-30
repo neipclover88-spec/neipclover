@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
 :root{
   --bg:#05050e;--s1:#0b0b1c;--s2:#111122;--s3:#16162a;
@@ -2186,6 +2187,33 @@ function closePlanModal() {
   document.getElementById('planBg').style.display='none';
   renderStudy(); // 위젯 갱신
 }
+function capturePlanModal() {
+  const target = document.getElementById('planCard');
+  const btn = document.getElementById('planCaptureBtn');
+  if(!target || typeof html2canvas==='undefined') return;
+  const origIcon = btn.innerHTML;
+  btn.innerHTML = '⏳';
+  btn.style.pointerEvents = 'none';
+  // 캡처 직전 버튼들(닫기/카메라) 잠깐 숨기기
+  const hdrBtns = target.querySelector('#planCaptureBtn').parentElement;
+  const prevDisplay = hdrBtns.style.display;
+  hdrBtns.style.display = 'none';
+  html2canvas(target, {backgroundColor:'#0e1320', scale:2, useCORS:true}).then(canvas => {
+    hdrBtns.style.display = prevDisplay;
+    btn.innerHTML = origIcon;
+    btn.style.pointerEvents = '';
+    const link = document.createElement('a');
+    link.download = `오늘해야할일_${sel}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(err => {
+    hdrBtns.style.display = prevDisplay;
+    btn.innerHTML = origIcon;
+    btn.style.pointerEvents = '';
+    console.error('캡처 실패:', err);
+    alert('스크린샷 저장에 실패했어요. 다시 시도해주세요.');
+  });
+}
 function renderPlanModal() {
   const dp = dayData(sel).dailyPlan;
   const ps = calcPlanStatus(sel);
@@ -2214,28 +2242,26 @@ function renderPlanModal() {
     b += `<div style="display:flex;flex-direction:column;gap:4px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</span>
-        <span style="font-size:8px;color:var(--m2)">전날 자동 이월 · ✕로 제거</span>
+        <span style="font-size:8px;color:var(--m2)">⠿ 길게 눌러 순서 변경 · ✕로 제거</span>
       </div>
-      ${dp.items.map((it,idx)=>{
+      <div id="planItemList" style="display:flex;flex-direction:column;gap:4px">
+      ${dp.items.map((it)=>{
         const isDone = !!it.done;
         const isFail = !!it.fail;
         const bg = isDone ? 'rgba(39,201,110,.08)' : isFail ? 'rgba(231,76,60,.08)' : 'rgba(255,255,255,.02)';
         const border = isDone ? 'rgba(39,201,110,.2)' : isFail ? 'rgba(231,76,60,.2)' : 'var(--b)';
         const textClr = isDone ? '#27c96e' : isFail ? '#e74c3c77' : 'var(--t)';
         const textDeco = isDone || isFail ? 'line-through' : 'none';
-        const isFirst = idx===0, isLast = idx===dp.items.length-1;
         return `
-        <div style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px">
-          <div style="display:flex;flex-direction:column;gap:0px;flex-shrink:0">
-            <button onclick="movePlanItem('${it.id}',-1)" style="background:none;border:none;color:${isFirst?'var(--b2)':'var(--m)'};cursor:${isFirst?'default':'pointer'};font-size:11px;padding:0;line-height:1;display:block" ${isFirst?'disabled':''}>▲</button>
-            <button onclick="movePlanItem('${it.id}',1)"  style="background:none;border:none;color:${isLast?'var(--b2)':'var(--m)'};cursor:${isLast?'default':'pointer'};font-size:11px;padding:0;line-height:1;display:block" ${isLast?'disabled':''}>▼</button>
-          </div>
+        <div class="plan-item-row" data-id="${it.id}" style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px;touch-action:pan-y">
+          <div class="plan-drag-handle" style="color:var(--m2);cursor:grab;flex-shrink:0;font-size:13px;padding:2px 2px 2px 0;line-height:1;user-select:none">⠿</div>
           <div onclick="togglePlanItem('${it.id}')" style="width:18px;height:18px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c33':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:10px;color:#fff">${isDone?'✓':''}</div>
           <span onclick="togglePlanItem('${it.id}')" style="flex:1;font-size:11px;color:${textClr};text-decoration:${textDeco};cursor:pointer;line-height:1.3">${esc(it.name)}</span>
           <button onclick="failPlanItem('${it.id}')" title="못했어요" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${isFail?'#e74c3c':'var(--m2)'};background:${isFail?'#e74c3c':'none'};color:${isFail?'#fff':'var(--m2)'};font-size:9px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✗</button>
           <button onclick="delPlanItem('${it.id}')" style="background:none;border:none;color:var(--m2);cursor:pointer;font-size:9px;padding:0;opacity:.4;flex-shrink:0">✕</button>
         </div>`;
       }).join('') || '<div style="font-size:10px;color:var(--m2);padding:4px 0">계획을 추가해보세요</div>'}
+      </div>
       <div style="display:flex;gap:4px;margin-top:2px">
         <input id="planItemInp" type="text" placeholder="할 일 추가..."
           style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:7px;color:var(--t);font-size:11px;padding:6px 9px;outline:none"
@@ -2334,6 +2360,7 @@ function renderPlanModal() {
   }
 
   document.getElementById('planBody').innerHTML = b;
+  initPlanDrag();
 }
 function togglePlanItem(id) {
   const dp = dayData(sel).dailyPlan;
@@ -2361,15 +2388,92 @@ function delPlanItem(id) {
   dp.items = dp.items.filter(i=>i.id!==id);
   save(); renderPlanModal();
 }
-function movePlanItem(id, dir) {
-  const dp = dayData(sel).dailyPlan;
-  const idx = dp.items.findIndex(i=>i.id===id);
-  if(idx<0) return;
-  const newIdx = idx+dir;
-  if(newIdx<0 || newIdx>=dp.items.length) return;
-  const [item] = dp.items.splice(idx,1);
-  dp.items.splice(newIdx,0,item);
-  save(); renderPlanModal();
+
+// ── 길게 눌러 드래그로 순서 변경 ──
+let _dragState = null;
+function initPlanDrag() {
+  const list = document.getElementById('planItemList');
+  if(!list) return;
+  list.querySelectorAll('.plan-item-row').forEach(row => {
+    const handle = row.querySelector('.plan-drag-handle');
+    if(!handle) return;
+    handle.onpointerdown = (e) => startPlanDrag(e, row, list);
+  });
+}
+function startPlanDrag(e, row, list) {
+  e.preventDefault();
+  const rows = Array.from(list.querySelectorAll('.plan-item-row'));
+  const startY = e.clientY;
+  const startRect = row.getBoundingClientRect();
+  const rowH = startRect.height + 4; // gap 포함 근사치
+
+  row.style.position = 'relative';
+  row.style.zIndex = '50';
+  row.style.boxShadow = '0 6px 16px rgba(0,0,0,.5)';
+  row.style.transform = 'scale(1.02)';
+  row.style.transition = 'none';
+  row.querySelector('.plan-drag-handle').style.cursor = 'grabbing';
+
+  let curOffset = 0;
+  const otherRows = rows.filter(r => r!==row);
+  otherRows.forEach(r => r.style.transition = 'transform .15s ease');
+
+  function onMove(ev) {
+    curOffset = ev.clientY - startY;
+    row.style.transform = `translateY(${curOffset}px) scale(1.02)`;
+
+    // 다른 항목들을 밀어내기 (시각적 미리보기)
+    const myIdx = rows.indexOf(row);
+    otherRows.forEach(r => {
+      const idx = rows.indexOf(r);
+      const movingDown = curOffset > 0;
+      const threshold = rowH/2;
+      let shift = 0;
+      if(movingDown && idx>myIdx && curOffset > (idx-myIdx-0.5)*rowH) shift = -rowH;
+      if(!movingDown && idx<myIdx && curOffset < -(myIdx-idx-0.5)*rowH) shift = rowH;
+      r.style.transform = `translateY(${shift}px)`;
+      r.dataset.shift = shift;
+    });
+  }
+  function onUp() {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+
+    // 최종 순서 계산
+    const myIdx = rows.indexOf(row);
+    let targetIdx = myIdx;
+    otherRows.forEach(r => {
+      if(r.dataset.shift && r.dataset.shift!=='0') {
+        const idx = rows.indexOf(r);
+        targetIdx = Number(r.dataset.shift) < 0 ? Math.max(targetIdx, idx) : Math.min(targetIdx===myIdx?idx:targetIdx, idx);
+      }
+    });
+
+    // 정리
+    row.style.position = '';
+    row.style.zIndex = '';
+    row.style.boxShadow = '';
+    row.style.transform = '';
+    row.style.transition = '';
+    otherRows.forEach(r => { r.style.transform=''; r.style.transition=''; delete r.dataset.shift; });
+
+    if(targetIdx !== myIdx) {
+      const dp = dayData(sel).dailyPlan;
+      const fromId = rows[myIdx].dataset.id;
+      const fromIdx = dp.items.findIndex(i=>i.id===fromId);
+      if(fromIdx>=0) {
+        const [item] = dp.items.splice(fromIdx,1);
+        const toIdx = Math.max(0, Math.min(dp.items.length, targetIdx));
+        dp.items.splice(toIdx,0,item);
+        save();
+      }
+    }
+    renderPlanModal();
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
 }
 function togglePlanRest(field) {
   const dp = dayData(sel).dailyPlan;
@@ -3094,13 +3198,16 @@ initFirebase();
 
 <!-- 오늘 해야할 일 팝업 -->
 <div id="planBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:300;align-items:center;justify-content:center" onclick="if(event.target===this)closePlanModal()">
-  <div style="background:#0e1320;border:1px solid rgba(245,200,30,.3);border-radius:16px;width:340px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
+  <div id="planCard" style="background:#0e1320;border:1px solid rgba(245,200,30,.3);border-radius:16px;width:340px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--b);flex-shrink:0">
       <div>
         <span style="font-size:13px;font-weight:700;color:#f5c81e">✅ 오늘 해야할 일</span>
         <div id="planModalDate" style="font-size:16px;font-weight:700;margin-top:3px;letter-spacing:-.3px"></div>
       </div>
-      <button onclick="closePlanModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <button onclick="capturePlanModal()" id="planCaptureBtn" title="스크린샷 저장" style="background:rgba(245,200,30,.12);border:1px solid rgba(245,200,30,.3);color:#f5c81e;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">📷</button>
+        <button onclick="closePlanModal()" style="background:none;border:none;color:var(--m);font-size:16px;cursor:pointer">✕</button>
+      </div>
     </div>
     <div id="planBody" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px"></div>
   </div>
