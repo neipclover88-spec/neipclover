@@ -642,7 +642,8 @@ function calcRestUsage(dk) {
   const weekUsed = monWeekDates.filter(x=>db[x]?.dailyPlan?.isRest).length;
   const ym = dk.slice(0,7);
   const monthUsed = monthKeys(ym).filter(x=>db[x]?.dailyPlan?.isSpecialRest).length;
-  return {weekUsed, weekLimit:2, monthUsed, monthLimit:2};
+  const monthSpecialDates = monthKeys(ym).filter(x=>db[x]?.dailyPlan?.isSpecialRest);
+  return {weekUsed, weekLimit:2, monthUsed, monthLimit:2, monthSpecialDates};
 }
 function genPlanId() { return 'p'+Date.now()+Math.floor(Math.random()*10000); }
 
@@ -2201,6 +2202,12 @@ function renderPlanModal() {
       <span>이번주 휴무 <b style="color:${ru.weekUsed>=ru.weekLimit?'#e74c3c':'var(--t)'}">${ru.weekUsed}/${ru.weekLimit}</b></span>
       <span>이번달 특휴 <b style="color:${ru.monthUsed>=ru.monthLimit?'#e74c3c':'var(--t)'}">${ru.monthUsed}/${ru.monthLimit}</b></span>
     </div>
+    ${ru.monthSpecialDates.length>0?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+      ${ru.monthSpecialDates.map(dk=>{
+        const [,m,d]=dk.split('-');
+        return `<span onclick="clearSpecialRest('${dk}')" style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:9px">${Number(m)}/${Number(d)} ✕</span>`;
+      }).join('')}
+    </div>`:''}
   </div>`;
 
   if(!dp.isRest && !dp.isSpecialRest) {
@@ -2209,15 +2216,20 @@ function renderPlanModal() {
         <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</span>
         <span style="font-size:8px;color:var(--m2)">전날 자동 이월 · ✕로 제거</span>
       </div>
-      ${dp.items.map(it=>{
+      ${dp.items.map((it,idx)=>{
         const isDone = !!it.done;
         const isFail = !!it.fail;
         const bg = isDone ? 'rgba(39,201,110,.08)' : isFail ? 'rgba(231,76,60,.08)' : 'rgba(255,255,255,.02)';
         const border = isDone ? 'rgba(39,201,110,.2)' : isFail ? 'rgba(231,76,60,.2)' : 'var(--b)';
         const textClr = isDone ? '#27c96e' : isFail ? '#e74c3c77' : 'var(--t)';
         const textDeco = isDone || isFail ? 'line-through' : 'none';
+        const isFirst = idx===0, isLast = idx===dp.items.length-1;
         return `
         <div style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px">
+          <div style="display:flex;flex-direction:column;gap:0px;flex-shrink:0">
+            <button onclick="movePlanItem('${it.id}',-1)" style="background:none;border:none;color:${isFirst?'var(--b2)':'var(--m)'};cursor:${isFirst?'default':'pointer'};font-size:11px;padding:0;line-height:1;display:block" ${isFirst?'disabled':''}>▲</button>
+            <button onclick="movePlanItem('${it.id}',1)"  style="background:none;border:none;color:${isLast?'var(--b2)':'var(--m)'};cursor:${isLast?'default':'pointer'};font-size:11px;padding:0;line-height:1;display:block" ${isLast?'disabled':''}>▼</button>
+          </div>
           <div onclick="togglePlanItem('${it.id}')" style="width:18px;height:18px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c33':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:10px;color:#fff">${isDone?'✓':''}</div>
           <span onclick="togglePlanItem('${it.id}')" style="flex:1;font-size:11px;color:${textClr};text-decoration:${textDeco};cursor:pointer;line-height:1.3">${esc(it.name)}</span>
           <button onclick="failPlanItem('${it.id}')" title="못했어요" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${isFail?'#e74c3c':'var(--m2)'};background:${isFail?'#e74c3c':'none'};color:${isFail?'#fff':'var(--m2)'};font-size:9px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✗</button>
@@ -2349,12 +2361,28 @@ function delPlanItem(id) {
   dp.items = dp.items.filter(i=>i.id!==id);
   save(); renderPlanModal();
 }
+function movePlanItem(id, dir) {
+  const dp = dayData(sel).dailyPlan;
+  const idx = dp.items.findIndex(i=>i.id===id);
+  if(idx<0) return;
+  const newIdx = idx+dir;
+  if(newIdx<0 || newIdx>=dp.items.length) return;
+  const [item] = dp.items.splice(idx,1);
+  dp.items.splice(newIdx,0,item);
+  save(); renderPlanModal();
+}
 function togglePlanRest(field) {
   const dp = dayData(sel).dailyPlan;
   dp[field] = !dp[field];
   if(field==='isRest' && dp.isRest) dp.isSpecialRest=false;
   if(field==='isSpecialRest' && dp.isSpecialRest) dp.isRest=false;
   save(); renderPlanModal();
+}
+function clearSpecialRest(dk) {
+  if(db[dk]?.dailyPlan) {
+    db[dk].dailyPlan.isSpecialRest = false;
+    save(); renderPlanModal();
+  }
 }
 
 // ─── 오답노트 ───
