@@ -386,6 +386,7 @@ function dayData(k) {
       isRest:false, isSpecialRest:false
     };
   }
+  if(!Array.isArray(d.dailyPlan.items)) d.dailyPlan.items = []; // Firebase에서 items 누락된 경우 방어
   if(d.dailyPlan.isRest===undefined) d.dailyPlan.isRest = false;
   if(d.dailyPlan.isSpecialRest===undefined) d.dailyPlan.isSpecialRest = false;
   if(!d.health) d.health = {};
@@ -622,11 +623,12 @@ function getJeongbokProgress(subj) {
 function calcPlanStatus(dk) {
   const dp = db[dk]?.dailyPlan;
   if(!dp) return null;
-  const total = dp.items.length;
-  const achieved = dp.items.filter(i=>i.done).length;
-  const failed   = dp.items.filter(i=>i.fail).length;
-  const isOff = dp.isRest || dp.isSpecialRest;
-  const fine = isOff ? 0 : Math.max(0, 3-achieved)*500;
+  const items    = dp.items || [];
+  const total    = items.length;
+  const achieved = items.filter(i=>i.done).length;
+  const failed   = items.filter(i=>i.fail).length;
+  const isOff    = dp.isRest || dp.isSpecialRest;
+  const fine     = isOff ? 0 : Math.max(0, 3-achieved)*500;
   return {total, achieved, failed, fine, isOff, isRest:dp.isRest, isSpecialRest:dp.isSpecialRest};
 }
 // 이번 주 휴무 사용 횟수 (주 2회 한도) / 이번 달 특휴 사용 횟수 (월 2회 한도)
@@ -2217,6 +2219,7 @@ function capturePlanModal() {
 }
 function renderPlanModal() {
   const dp = dayData(sel).dailyPlan;
+  if(!dp.items) dp.items = []; // items가 없는 경우 방어
   const ps = calcPlanStatus(sel);
   const ru = calcRestUsage(sel);
 
