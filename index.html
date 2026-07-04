@@ -891,7 +891,8 @@ function initFirebase() {
       const remoteStr = JSON.stringify(remote.db);
       if(remoteStr === JSON.stringify(db)) { setSyncDot('ok'); return; }
       db = remote.db;
-      if(remote.sel) sel = remote.sel;
+      // sel은 원격에서 덮어쓰지 않음 — 다른 기기 선택일이 현재 사용자 날짜를 강제로 바꾸는 문제 방지
+      // if(remote.sel) sel = remote.sel;
       if(remote.deductRate!==undefined) deductRate = remote.deductRate;
       try { localStorage.setItem("bdh3v3", JSON.stringify({sel,db,deductRate})); } catch(e){}
       setSyncDot('ok');
@@ -3118,10 +3119,10 @@ function renderModalHealth() {
 // ────────────────────────────────────────────────
 
 function renderAll() {
-  renderCal();
-  renderStudy();
-  renderWork();
-  renderHealth();
+  try { renderCal(); } catch(e) { console.error('[renderCal]', e); }
+  try { renderStudy(); } catch(e) { console.error('[renderStudy]', e); document.getElementById('pStudy').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ 공부 패널 오류: '+e.message+'</div>'; }
+  try { renderWork(); } catch(e) { console.error('[renderWork]', e); document.getElementById('pWork').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ 일 패널 오류: '+e.message+'</div>'; }
+  try { renderHealth(); } catch(e) { console.error('[renderHealth]', e); document.getElementById('pHealth').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ 건강 패널 오류: '+e.message+'</div>'; }
 }
 
 // ─── WEEK NAV ───
