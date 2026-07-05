@@ -64,13 +64,13 @@ input:focus,select:focus{outline:none}
 .cday.dsun .dname,.cday.dsun .dnum{color:var(--sun)}
 .cday.dsat .dname,.cday.dsat .dnum{color:var(--sat)}
 
-.dhdr{padding:3px 4px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:2px;min-height:22px}
+.dhdr{padding:2px 3px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:2px;min-height:20px;overflow:hidden}
 .dname{font-size:8px;color:var(--m);line-height:1;flex-shrink:0}
 .dnum{font-family:var(--bebas);font-size:15px;line-height:1;letter-spacing:.3px}
 .dsleep-tag{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:#d4a0ff;white-space:nowrap;line-height:1;margin-left:auto}
 
-.dbody{padding:2px 2px 2px;display:flex;flex-direction:column;gap:2px;min-height:42px}
-.drow{display:flex;align-items:center;gap:0;min-height:12px;border-radius:3px;overflow:hidden}
+.dbody{padding:2px;display:flex;flex-direction:column;gap:1px;min-height:36px}
+.drow{display:flex;align-items:center;gap:0;min-height:10px;border-radius:2px;overflow:hidden}
 .dbar-fill{height:100%;min-height:12px;border-radius:3px;display:flex;align-items:center;padding:0 3px;position:relative;min-width:3px}
 .dval{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;line-height:1}
 .dval.nil{color:var(--m2);opacity:.3;font-weight:400;padding:0 3px;font-size:8px}
@@ -89,7 +89,7 @@ input:focus,select:focus{outline:none}
 .tl-blk{position:absolute;top:1px;bottom:1px;border-radius:3px;cursor:pointer;transition:filter .15s}
 .tl-blk:hover{filter:brightness(1.25)}
 .tl-add-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;color:var(--m2);pointer-events:none;white-space:nowrap}
-.tl-tooltip{position:absolute;top:-26px;transform:translateX(-50%);background:#1c2540;border:1px solid #4f8ef7;color:#4f8ef7;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;pointer-events:none;white-space:nowrap;z-index:10;display:none}
+.tl-tooltip{position:fixed;transform:translateX(-50%);background:#1c2540;border:1px solid #4f8ef7;color:#4f8ef7;font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 10px;border-radius:7px;pointer-events:none;white-space:nowrap;z-index:999;display:none;box-shadow:0 4px 16px rgba(0,0,0,.5)}
 .tl-sel{position:absolute;top:0;bottom:0;background:rgba(79,142,247,.25);border:1px solid rgba(79,142,247,.6);border-radius:3px;pointer-events:none;display:none}
 .tl-axis{display:flex;justify-content:space-between;margin-top:2px}
 .tl-ax{font-family:var(--mono);font-size:6px;color:var(--m2)}
@@ -2280,49 +2280,44 @@ function capturePlanModal() {
 // ── 인증 캡처: 현재 화면에서 수입 숫자만 *** 마스킹 후 스크린샷 ──
 function openCertModal() {
   if(typeof html2canvas==='undefined'){alert('캡처 라이브러리 로딩 중...');return;}
-
-  // 수입 관련 텍스트 요소 찾기 (₩ 포함 + 일 패널 안)
-  const pWork = document.getElementById('pWork');
   const masked = [];
 
-  // ₩ 기호가 들어간 span/div 중 수입에 해당하는 것 마스킹
-  const incomeSelectors = [
-    '.ptotal',          // 패널 헤더 수입
-    '.winp',            // 총수입/실수령 표시칸
-    '.wrow .wsval',     // 주간 통계 수입 항목
-  ];
-  incomeSelectors.forEach(sel=>{
-    document.querySelectorAll(sel).forEach(el=>{
-      const txt = el.textContent || el.innerText;
-      if(txt.includes('₩') && !txt.includes('지출') && !txt.includes('이자')) {
-        masked.push({el, orig: el.innerHTML});
-        // 숫자만 ***로 (₩ 기호는 남김)
-        el.innerHTML = el.innerHTML.replace(/[\d,]+/g,'***');
-      }
-    });
+  // data-income 속성 달린 요소 마스킹
+  document.querySelectorAll('[data-income]').forEach(el=>{
+    masked.push({el, orig:el.innerHTML});
+    el.innerHTML = el.innerHTML.replace(/[\d,]+/g,'***');
   });
 
-  // 캘린더 수입 바 텍스트도 마스킹
-  document.querySelectorAll('.dinc span, .d-income span').forEach(el=>{
-    if(el.textContent.includes('₩')){
-      masked.push({el, orig: el.innerHTML});
-      el.innerHTML = el.innerHTML.replace(/[\d.,]+만?/g,'***');
+  // 왼쪽 패널 수입 금액 (₩ 포함한 fin-val 중 수입/잔액)
+  document.querySelectorAll('#pWork .fin-val, #pWork .fin-row span:last-child').forEach(el=>{
+    const txt = el.textContent.trim();
+    if(txt.match(/₩[\d,]+/) && !masked.find(m=>m.el===el)) {
+      // 지출(빨간)은 제외
+      if(!el.style.color?.includes('231')) {
+        masked.push({el, orig:el.innerHTML});
+        el.innerHTML = el.innerHTML.replace(/[\d,]+/g,'***');
+      }
     }
   });
 
-  // 잠깐 후 캡처
+  // 수입 섹션 헤더 금액
+  document.querySelectorAll('#pWork .fin-sec:first-child span').forEach(el=>{
+    const txt = el.textContent.trim();
+    if((txt.includes('₩') || txt.match(/\d+만/)) && !masked.find(m=>m.el===el)) {
+      masked.push({el, orig:el.innerHTML});
+      el.innerHTML = el.innerHTML.replace(/[\d,.]+만?/g,'***');
+    }
+  });
+
   setTimeout(()=>{
     const app = document.getElementById('app') || document.body;
     html2canvas(app, {backgroundColor:'#05050e', scale:2, useCORS:true, logging:false}).then(canvas=>{
-      // 복원
       masked.forEach(({el,orig})=>el.innerHTML=orig);
       const link=document.createElement('a');
       link.download=`연우한의_인증_${sel}.png`;
       link.href=canvas.toDataURL('image/png');
       link.click();
-    }).catch(()=>{
-      masked.forEach(({el,orig})=>el.innerHTML=orig);
-    });
+    }).catch(()=>{masked.forEach(({el,orig})=>el.innerHTML=orig);});
   }, 80);
 }
 function closeCertModal(){document.getElementById('certBg').style.display='none';}
@@ -3360,11 +3355,13 @@ function initTlDrag() {
   const sel2 = document.getElementById('tlSel');
   if(!track||!tooltip||!sel2) return;
 
-  function showTip(cx){
+  function showTip(cx, cy){
     const pct=tlGetPct(cx);
-    const r=track.getBoundingClientRect();
-    const x=Math.max(20,Math.min(r.width-20,cx-r.left));
-    tooltip.style.left=x+'px'; tooltip.style.display='block';
+    const screenX=Math.max(40,Math.min(window.innerWidth-40,cx));
+    const screenY=(cy||track.getBoundingClientRect().top)-60; // 손가락 위 60px
+    tooltip.style.left=screenX+'px';
+    tooltip.style.top=Math.max(20,screenY)+'px';
+    tooltip.style.display='block';
     tooltip.textContent=tlSnapTime(pct);
   }
   function hideTip(){tooltip.style.display='none';}
@@ -3376,13 +3373,13 @@ function initTlDrag() {
     e.preventDefault();
     track.setPointerCapture(e.pointerId);
     tlDragState={sp:tlGetPct(e.clientX),ep:tlGetPct(e.clientX),sx:e.clientX,moved:false};
-    showTip(e.clientX);
+    showTip(e.clientX,e.clientY);
   };
   track.onpointermove=e=>{
     if(!tlDragState)return;
     e.preventDefault();
     tlDragState.ep=tlGetPct(e.clientX);
-    showTip(e.clientX);
+    showTip(e.clientX,e.clientY);
     if(Math.abs(e.clientX-tlDragState.sx)>8){tlDragState.moved=true;showSel(tlDragState.sp,tlDragState.ep);}
   };
   track.onpointerup=e=>{
@@ -3482,6 +3479,9 @@ function renderWork() {
       <span class="fin-val" style="color:#e74c3c">${expTotal>0?'₩'+expTotal.toLocaleString():'–'}</span>
     </div>
     <div class="exp-inp">
+      <select id="expCat_${sel}" style="flex:1;background:var(--s2);border:1px solid rgba(231,76,60,.25);border-radius:5px;color:var(--t);font-size:9px;padding:4px 5px;outline:none;-webkit-appearance:none">
+        ${EXP_CATS.filter(c=>c!=='수입').map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
       <input type="text" placeholder="메모" id="expMemo_${sel}" style="flex:1.2;font-size:9px">
       <input type="number" placeholder="금액" id="expAmt_${sel}" style="flex:1;font-family:var(--bebas);font-size:13px">
       <button onclick="addExpQuick()" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.35);color:#e74c3c;border-radius:5px;padding:0 8px;cursor:pointer;font-size:13px;font-weight:700">+</button>
@@ -3583,12 +3583,13 @@ function renderDebtMini() {
 }
 
 function addExpQuick(){
+  const cat=document.getElementById('expCat_'+sel)?.value||'생활';
   const memo=document.getElementById('expMemo_'+sel)?.value.trim()||'';
   const amt=Number(document.getElementById('expAmt_'+sel)?.value)||0;
   if(!amt){return;}
   const w=dayData(sel).work;
   if(!w.expenses)w.expenses=[];
-  w.expenses.push({cat:'생활',memo,amount:amt,date:sel});
+  w.expenses.push({cat,memo,amount:amt,date:sel});
   save();renderWork();
 }
 
