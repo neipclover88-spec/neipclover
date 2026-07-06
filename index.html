@@ -3373,6 +3373,7 @@ let selBlkType='업무';
 function tlPct(t){const[h,m]=t.split(':').map(Number);return Math.max(0,Math.min(100,((h+m/60-TL_START)/TL_HOURS)*100));}
 function tlSnapTime(pct){const tm=Math.round((TL_START+pct/100*TL_HOURS)*60/5)*5;const h=Math.floor(tm/60),m=tm%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
 function tlGetPct(clientX){const r=document.getElementById('tlTrack').getBoundingClientRect();return Math.max(0,Math.min(100,(clientX-r.left)/r.width*100));}
+function tlLabelOf(b){ return (b.type==='기타' && b.label) ? b.label : b.type; }
 
 function renderTimeline() {
   const dk = sel;
@@ -3422,7 +3423,7 @@ function renderTimeline() {
     el.style.cssText=`left:${l}%;right:${r}%;background:${t.color}`;
     el.addEventListener('pointerdown',(e)=>{e.stopPropagation();openTlEditPop(i,b,blocks);});
     track.appendChild(el);
-    rawLabels.push({pos:mid,color:t.color,text:b.type,charW:b.type.length});
+    rawLabels.push({pos:mid,color:t.color,text:tlLabelOf(b),charW:tlLabelOf(b).length});
   });
 
   // 라벨 겹침 해소
@@ -3442,10 +3443,10 @@ function renderTimeline() {
   });
 
   // 범례 + 공부시간 요약
-  const seen=[...new Set(blocks.map(b=>b.type))];
-  document.getElementById('tlLegend').innerHTML=seen.map(k=>{
-    const t=TL_TYPES.find(t=>t.key===k)||TL_TYPES[5];
-    return `<div style="display:flex;align-items:center;gap:2px;font-size:8px;color:var(--m)"><div style="width:6px;height:6px;border-radius:1px;background:${t.color}"></div>${k}</div>`;
+  const seenLabels = [...new Map(blocks.map(b=>[tlLabelOf(b), b.type])).entries()];
+  document.getElementById('tlLegend').innerHTML=seenLabels.map(([label,type])=>{
+    const t=TL_TYPES.find(t=>t.key===type)||TL_TYPES[5];
+    return `<div style="display:flex;align-items:center;gap:2px;font-size:8px;color:var(--m)"><div style="width:6px;height:6px;border-radius:1px;background:${t.color}"></div>${label}</div>`;
   }).join('');
 
   // 운동/공부 합산 요약
@@ -3484,7 +3485,7 @@ function openTlEditPop(idx, blk, blocks) {
   }
   // 수동으로 추가한 블록은 바로 수정 가능
   selBlkType = blk.type;
-  openTlAddPop(blk.start, blk.end, manualIdx);
+  openTlAddPop(blk.start, blk.end, manualIdx, blk.label||'');
 }
 
 function initTlDrag() {
@@ -3530,7 +3531,7 @@ function initTlDrag() {
   track.onpointercancel=()=>{hideTip();hideSel();tlDragState=null;};
 }
 
-function openTlAddPop(start,end,editIdx){
+function openTlAddPop(start,end,editIdx,editLabel){
   document.getElementById('blkAddPop')?.remove();
   const isEdit = editIdx!==undefined && editIdx!==null;
   const pop=document.createElement('div');
@@ -3545,6 +3546,10 @@ function openTlAddPop(start,end,editIdx){
       <button onclick="document.getElementById('blkAddPop').remove()" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer">✕</button>
     </div>
     <div class="blk-types" id="blkTypeGrid">${typeHtml}</div>
+    <div id="tlLabelRow" style="display:${selBlkType==='기타'?'flex':'none'};align-items:center;gap:6px;margin-bottom:8px">
+      <span style="font-size:9px;color:var(--m);width:30px">내용</span>
+      <input id="tlAddLabel" type="text" placeholder="예: 병원, 은행 업무 등" value="${esc(editLabel||'')}" maxlength="20" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-size:13px;padding:7px 8px;outline:none">
+    </div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
       <span style="font-size:9px;color:var(--m);width:30px">시작</span>
       <input id="tlAddStart" type="time" value="${start||'07:00'}" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:18px;padding:6px 8px;outline:none;text-align:center">
@@ -3565,6 +3570,8 @@ function openTlAddPop(start,end,editIdx){
     btn.onclick=()=>{
       selBlkType=btn.dataset.type;
       if(!isEdit && ['수영','러닝','자전거'].includes(selBlkType)) document.getElementById('tlAddStart').value='07:00';
+      const labelRow = document.getElementById('tlLabelRow');
+      if(labelRow) labelRow.style.display = selBlkType==='기타' ? 'flex' : 'none';
       pop.querySelectorAll('[data-type]').forEach(b=>{
         const t=TL_TYPES.find(t=>t.key===b.dataset.type)||TL_TYPES[5];
         b.className='btype'+(selBlkType===b.dataset.type?' sel':'');
@@ -3579,10 +3586,15 @@ function saveTlBlock(editIdx){
   if(!s||!e){alert('시작/종료 시간을 입력해주세요.');return;}
   const d=dayData(sel);
   if(!d.tlBlocks) d.tlBlocks=[];
+  const block = {type:selBlkType, start:s, end:e};
+  if(selBlkType==='기타') {
+    const lbl = document.getElementById('tlAddLabel')?.value.trim();
+    if(lbl) block.label = lbl;
+  }
   if(editIdx!==null && editIdx!==undefined && d.tlBlocks[editIdx]) {
-    d.tlBlocks[editIdx] = {type:selBlkType, start:s, end:e};
+    d.tlBlocks[editIdx] = block;
   } else {
-    d.tlBlocks.push({type:selBlkType,start:s,end:e});
+    d.tlBlocks.push(block);
   }
   save();
   document.getElementById('blkAddPop')?.remove();
