@@ -2376,7 +2376,7 @@ function capturePlanModal() {
   const hdrBtns = target.querySelector('#planCaptureBtn').parentElement;
   const prevDisplay = hdrBtns.style.display;
   hdrBtns.style.display = 'none';
-  html2canvas(target, {backgroundColor:'#0e1320', scale:2, useCORS:true}).then(canvas => {
+  html2canvas(target, {backgroundColor:'#0e1320', scale:2, useCORS:true, scrollX:0, scrollY:0}).then(canvas => {
     hdrBtns.style.display = prevDisplay;
     btn.innerHTML = origIcon;
     btn.style.pointerEvents = '';
@@ -2433,9 +2433,12 @@ function openCertModal() {
 
   setTimeout(()=>{
     const app = document.getElementById('app') || document.body;
-    html2canvas(app, {backgroundColor:'#05050e', scale:2, useCORS:true, logging:false}).then(canvas=>{
+    const scrollBack = window.scrollY;
+    window.scrollTo(0,0);
+    html2canvas(app, {backgroundColor:'#05050e', scale:2, useCORS:true, logging:false, scrollX:0, scrollY:0, windowWidth:document.documentElement.clientWidth, windowHeight:app.scrollHeight}).then(canvas=>{
       masked.forEach(({el,orig})=>el.innerHTML=orig);
       hiddenEls.forEach((el,i)=>el.style.display=prevDisplays[i]);
+      window.scrollTo(0,scrollBack);
       const link=document.createElement('a');
       link.download=`연우한의_인증_${sel}.png`;
       link.href=canvas.toDataURL('image/png');
@@ -2443,6 +2446,7 @@ function openCertModal() {
     }).catch(()=>{
       masked.forEach(({el,orig})=>el.innerHTML=orig);
       hiddenEls.forEach((el,i)=>el.style.display=prevDisplays[i]);
+      window.scrollTo(0,scrollBack);
     });
   }, 80);
 }
