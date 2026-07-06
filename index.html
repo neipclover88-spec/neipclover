@@ -2399,6 +2399,11 @@ function openCertModal() {
   if(typeof html2canvas==='undefined'){alert('캡처 라이브러리 로딩 중...');return;}
   const masked = [];
 
+  // 이번달 재정 · 주간 합산 등 상세 재무 영역은 스크린샷에서 통째로 숨김
+  const hiddenEls = Array.from(document.querySelectorAll('.cert-hide'));
+  const prevDisplays = hiddenEls.map(el=>el.style.display);
+  hiddenEls.forEach(el=>el.style.display='none');
+
   // data-income 속성 달린 요소 마스킹
   document.querySelectorAll('[data-income]').forEach(el=>{
     masked.push({el, orig:el.innerHTML});
@@ -2430,11 +2435,15 @@ function openCertModal() {
     const app = document.getElementById('app') || document.body;
     html2canvas(app, {backgroundColor:'#05050e', scale:2, useCORS:true, logging:false}).then(canvas=>{
       masked.forEach(({el,orig})=>el.innerHTML=orig);
+      hiddenEls.forEach((el,i)=>el.style.display=prevDisplays[i]);
       const link=document.createElement('a');
       link.download=`연우한의_인증_${sel}.png`;
       link.href=canvas.toDataURL('image/png');
       link.click();
-    }).catch(()=>{masked.forEach(({el,orig})=>el.innerHTML=orig);});
+    }).catch(()=>{
+      masked.forEach(({el,orig})=>el.innerHTML=orig);
+      hiddenEls.forEach((el,i)=>el.style.display=prevDisplays[i]);
+    });
   }, 80);
 }
 function closeCertModal(){document.getElementById('certBg').style.display='none';}
@@ -3640,33 +3649,35 @@ function renderWork() {
     </div>`:''}
   </div>
 
-  <!-- 주간 합산 -->
-  <div class="wstats fin-sec">
-    <div style="font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px">주간 합산</div>
-    <div class="wstat-row"><span class="wslbl">총 수입 (공제 전)</span><span class="wsval">${ws.income>0?'₩'+ws.income.toLocaleString():'–'}</span></div>
-    <div class="wstat-row"><span class="wslbl">실수령 합계</span><span class="wsval" style="color:#ffd060">${ws.net>0?'₩'+ws.net.toLocaleString():'–'}</span></div>
-    <div class="wstat-row"><span class="wslbl">배달 건수</span><span class="wsval">${ws.deliveries||0}건</span></div>
-    <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wsH,wsM)||'–'}</span></div>
-    ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
-    ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (실수령)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.net/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
-  </div>
-
-  <!-- 이번달 재정 -->
-  <div class="fin-sec" style="border-bottom:none;flex:1">
-    <div style="font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px">${ym.slice(0,4)}년 ${Number(ym.slice(5))}월</div>
-    <div style="display:flex;gap:6px;margin-bottom:7px">
-      <div style="flex:1">
-        <div style="font-size:7px;color:var(--m);margin-bottom:2px">수입</div>
-        <div style="font-family:var(--bebas);font-size:14px;color:#ffd060" data-income>${mInc>0?(mInc/10000).toFixed(0)+'만':'–'}</div>
-        <div class="fin-bwrap"><div class="fin-bfill" style="width:${Math.min(100,Math.round(mInc/2000000*100))}%;background:#f5a623"></div></div>
-      </div>
-      <div style="flex:1">
-        <div style="font-size:7px;color:var(--m);margin-bottom:2px">지출</div>
-        <div style="font-family:var(--bebas);font-size:14px;color:#e74c3c">${mExp>0?(mExp/10000).toFixed(1)+'만':'–'}</div>
-        <div class="fin-bwrap"><div class="fin-bfill" style="width:${Math.min(100,Math.round(mExp/2000000*100))}%;background:${mExp/2000000>0.7?'#e74c3c':'#27c96e'}"></div></div>
+  <!-- 여기부터 아래는 인증 스크린샷에서 제외되는 영역 -->
+  <div class="cert-hide">
+    <!-- 이번달 재정 -->
+    <div class="fin-sec">
+      <div style="font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px">${ym.slice(0,4)}년 ${Number(ym.slice(5))}월</div>
+      <div style="display:flex;gap:6px;margin-bottom:7px">
+        <div style="flex:1">
+          <div style="font-size:7px;color:var(--m);margin-bottom:2px">수입</div>
+          <div style="font-family:var(--bebas);font-size:14px;color:#ffd060" data-income>${mInc>0?(mInc/10000).toFixed(0)+'만':'–'}</div>
+          <div class="fin-bwrap"><div class="fin-bfill" style="width:${Math.min(100,Math.round(mInc/2000000*100))}%;background:#f5a623"></div></div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:7px;color:var(--m);margin-bottom:2px">지출</div>
+          <div style="font-family:var(--bebas);font-size:14px;color:#e74c3c">${mExp>0?(mExp/10000).toFixed(1)+'만':'–'}</div>
+          <div class="fin-bwrap"><div class="fin-bfill" style="width:${Math.min(100,Math.round(mExp/2000000*100))}%;background:${mExp/2000000>0.7?'#e74c3c':'#27c96e'}"></div></div>
+        </div>
       </div>
     </div>
-    <div style="height:1px;background:var(--b);margin-bottom:6px"></div>
+
+    <!-- 주간 합산 -->
+    <div class="wstats fin-sec" style="border-bottom:none;flex:1">
+      <div style="font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px">주간 합산</div>
+      <div class="wstat-row"><span class="wslbl">총 수입 (공제 전)</span><span class="wsval">${ws.income>0?'₩'+ws.income.toLocaleString():'–'}</span></div>
+      <div class="wstat-row"><span class="wslbl">실수령 합계</span><span class="wsval" style="color:#ffd060">${ws.net>0?'₩'+ws.net.toLocaleString():'–'}</span></div>
+      <div class="wstat-row"><span class="wslbl">배달 건수</span><span class="wsval">${ws.deliveries||0}건</span></div>
+      <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wsH,wsM)||'–'}</span></div>
+      ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
+      ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (실수령)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.net/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
+    </div>
   </div>`;
 
   document.getElementById('pWork').innerHTML = `${h}
