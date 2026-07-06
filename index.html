@@ -388,22 +388,26 @@ function mmEnsureSub() {
   if(mmUnsubscribe) { mmUnsubscribe(); mmUnsubscribe = null; }
   mmSubscribedDocId = docId;
   mmUnsubscribe = mmDb.collection('miraclemorning').doc(docId).onSnapshot(snap => {
-    const data = snap.exists ? snap.data() : {};
-    mmPlanCache[docId] = data;
-    Object.entries(data).forEach(([dateKey, planData]) => {
-      if(!planData) return;
-      const dd = dayData(dateKey);
-      dd.dailyPlan = {
-        items: Array.isArray(planData.items) ? planData.items : [],
-        isRest: !!planData.isRest,
-        isSpecialRest: !!planData.isSpecialRest
-      };
-    });
+    // 주의: db(RTDB 동기화 대상)에는 절대 쓰지 않는다 — RTDB 쪽 리스너가 db를 통째로
+    // 덮어쓸 때 여기서 넣은 값이 같이 사라져버리기 때문에 별도 캐시로만 관리한다.
+    mmPlanCache[docId] = snap.exists ? snap.data() : {};
     renderCal();
     renderStudy();
     renderHealth();
     if(document.getElementById('planBg')?.style.display === 'flex') renderPlanModal();
   }, err => console.error('[mmSub]', err));
+}
+// 특정 날짜(dk)의 스터디 계획을 캐시에서 읽어옴. 아직 못 불러왔으면 null
+function mmGetPlan(dk) {
+  const [y,m] = dk.split('-').map(Number);
+  const cache = mmPlanCache[mmDocId(y,m)];
+  const p = cache && cache[dk];
+  if(!p) return null;
+  return {
+    items: Array.isArray(p.items) ? p.items : [],
+    isRest: !!p.isRest,
+    isSpecialRest: !!p.isSpecialRest
+  };
 }
 // ════════════════════════════════════════════════
 
@@ -744,7 +748,7 @@ function getJeongbokProgress(subj) {
 //  (예: 0개 달성=1500원 / 1개 달성=1000원 / 5개 중 3개 달성=0원)
 // ════════════════════════════════════════════════
 function calcPlanStatus(dk) {
-  const dp = db[dk]?.dailyPlan;
+  const dp = mmGetPlan(dk) || db[dk]?.dailyPlan;
   if(!dp) return null;
   const items    = dp.items || [];
   const total    = items.length;
@@ -765,10 +769,10 @@ function calcRestUsage(dk) {
     const x = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate()+i);
     return dateFmt(x);
   });
-  const weekUsed = monWeekDates.filter(x=>db[x]?.dailyPlan?.isRest).length;
+  const weekUsed = monWeekDates.filter(x=>(mmGetPlan(x)||db[x]?.dailyPlan)?.isRest).length;
   const ym = dk.slice(0,7);
-  const monthUsed = monthKeys(ym).filter(x=>db[x]?.dailyPlan?.isSpecialRest).length;
-  const monthSpecialDates = monthKeys(ym).filter(x=>db[x]?.dailyPlan?.isSpecialRest);
+  const monthUsed = monthKeys(ym).filter(x=>(mmGetPlan(x)||db[x]?.dailyPlan)?.isSpecialRest).length;
+  const monthSpecialDates = monthKeys(ym).filter(x=>(mmGetPlan(x)||db[x]?.dailyPlan)?.isSpecialRest);
   return {weekUsed, weekLimit:2, monthUsed, monthLimit:2, monthSpecialDates};
 }
 function genPlanId() { return 'p'+Date.now()+Math.floor(Math.random()*10000); }
@@ -1093,7 +1097,7 @@ function renderCal() {
     const expPct = expTotal>0?Math.min(100,Math.round(expTotal/MAX_EXP*100)):0;
 
     // 오늘 할 일 클로버
-    const dp = db[dk]?.dailyPlan;
+    const dp = mmGetPlan(dk) || db[dk]?.dailyPlan;
     const items = dp?.items || [];
     const tot = items.length;
     const done = items.filter(x=>x.done).length;
@@ -2380,7 +2384,7 @@ function closeCertModal(){document.getElementById('certBg').style.display='none'
 function shootCert(){openCertModal();}
 
 function renderPlanModal() {
-  const dp = dayData(sel).dailyPlan;
+  const dp = mmGetPlan(sel) || dayData(sel).dailyPlan;
   if(!dp.items) dp.items = []; // items가 없는 경우 방어
   const ps = calcPlanStatus(sel);
   const ru = calcRestUsage(sel);
@@ -3821,7 +3825,7 @@ function renderHealth() {
   const exClr = exMin>=60?'#4f8ef7':exMin>=30?'#27c96e':'var(--m)';
 
   // 오늘 할 일
-  const dp = d.dailyPlan;
+  const dp = mmGetPlan(sel) || d.dailyPlan;
   const ps = dp ? calcPlanStatus(sel) : null;
 
   let out = `
@@ -3858,12 +3862,11 @@ function renderHealth() {
     </div>
     <div style="font-family:var(--bebas);font-size:13px;color:#f5c81e;text-align:center;margin:3px 0 6px;cursor:pointer" onclick="openPlanModal()">${ps.achieved} / ${ps.total} 달성</div>
     <div style="display:flex;flex-direction:column;gap:3px">
-      ${(dp.items||[]).slice(0,5).map(it=>`
+      ${(dp.items||[]).map(it=>`
       <div style="display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:5px;border:1px solid ${it.done?'rgba(39,201,110,.2)':it.fail?'rgba(231,76,60,.2)':'var(--b)'};background:${it.done?'rgba(39,201,110,.06)':it.fail?'rgba(231,76,60,.06)':'var(--s2)'}">
         <div style="width:14px;height:14px;border-radius:50%;border:1.5px solid ${it.done?'#27c96e':it.fail?'#e74c3c':'var(--m2)'};background:${it.done?'#27c96e':it.fail?'#e74c3c':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#fff">${it.done?'✓':it.fail?'✗':''}</div>
         <span style="font-size:9px;color:${it.done?'#27c96e':it.fail?'#e74c3c77':'var(--t)'};text-decoration:${it.done||it.fail?'line-through':'none'};flex:1;line-height:1.3">${esc(it.name)}</span>
       </div>`).join('')}
-      ${ps.total>5?`<div style="font-size:8px;color:var(--m);text-align:center;cursor:pointer;padding:3px" onclick="openPlanModal()">+${ps.total-5}개 더보기</div>`:''}
     </div>`;
   } else {
     out+=`<div style="text-align:center;padding:20px 0;cursor:pointer" onclick="openPlanModal()">
