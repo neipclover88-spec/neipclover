@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
 :root{
@@ -64,22 +65,70 @@ input:focus,select:focus{outline:none}
 .cday.dsun .dname,.cday.dsun .dnum{color:var(--sun)}
 .cday.dsat .dname,.cday.dsat .dnum{color:var(--sat)}
 
-.dhdr{padding:3px 4px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:2px;min-height:22px}
+.dhdr{padding:2px 3px 2px;border-bottom:1px solid var(--b);display:flex;flex-direction:row;align-items:center;gap:2px;min-height:20px;overflow:hidden}
 .dname{font-size:8px;color:var(--m);line-height:1;flex-shrink:0}
 .dnum{font-family:var(--bebas);font-size:15px;line-height:1;letter-spacing:.3px}
 .dsleep-tag{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;color:#d4a0ff;white-space:nowrap;line-height:1;margin-left:auto}
 
-.dbody{padding:2px 2px 2px;display:flex;flex-direction:column;gap:2px;min-height:42px}
-.drow{display:flex;align-items:center;gap:0;min-height:12px;border-radius:3px;overflow:hidden}
+.dbody{padding:2px;display:flex;flex-direction:column;gap:1px;min-height:36px}
+.drow{display:flex;align-items:center;gap:0;min-height:10px;border-radius:2px;overflow:hidden}
 .dbar-fill{height:100%;min-height:12px;border-radius:3px;display:flex;align-items:center;padding:0 3px;position:relative;min-width:3px}
 .dval{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;line-height:1}
 .dval.nil{color:var(--m2);opacity:.3;font-weight:400;padding:0 3px;font-size:8px}
 
 /* ── PANELS ── */
-.panels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;flex:1;overflow:hidden;min-height:0}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1;overflow:hidden;min-height:0}
 .panel{background:var(--s1);border:1px solid var(--b);border-radius:var(--r);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column}
 .panel::-webkit-scrollbar{width:2px}
 .panel::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+/* 타임라인 */
+.tl-wrap{background:var(--s1);border:1px solid var(--b);border-radius:var(--r);padding:6px 8px;flex-shrink:0}
+.tl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.tl-labels{position:relative;height:14px;margin-bottom:1px}
+.tl-lbl-item{position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;white-space:nowrap;transform:translateX(-50%);line-height:1;top:1px;pointer-events:none}
+.tl-track{position:relative;height:16px;background:var(--s2);border-radius:4px;cursor:pointer;overflow:hidden;touch-action:none}
+.tl-blk{position:absolute;top:1px;bottom:1px;border-radius:3px;cursor:pointer;transition:filter .15s}
+.tl-blk:hover{filter:brightness(1.25)}
+.tl-add-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;color:var(--m2);pointer-events:none;white-space:nowrap}
+.tl-tooltip{position:fixed;transform:translateX(-50%);background:#1c2540;border:1px solid #4f8ef7;color:#4f8ef7;font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 10px;border-radius:7px;pointer-events:none;white-space:nowrap;z-index:999;display:none;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.tl-sel{position:absolute;top:0;bottom:0;background:rgba(79,142,247,.25);border:1px solid rgba(79,142,247,.6);border-radius:3px;pointer-events:none;display:none}
+.tl-axis{display:flex;justify-content:space-between;margin-top:2px}
+.tl-ax{font-family:var(--mono);font-size:6px;color:var(--m2)}
+/* 블록 입력 팝업 */
+.blk-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end;justify-content:center}
+.blk-pop.open{display:flex}
+.blk-card{background:#0e1320;border:1px solid var(--b2);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:16px}
+.blk-types{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:10px 0}
+.btype{padding:8px 0;border-radius:8px;border:1.5px solid var(--b);background:var(--s2);cursor:pointer;font-size:10px;text-align:center;color:var(--m);transition:all .15s;font-family:var(--sans)}
+.btype.sel{color:#fff}
+/* 수입 팝업 */
+.income-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end;justify-content:center}
+.income-pop.open{display:flex}
+.income-card{background:#0e1320;border:1px solid rgba(245,166,35,.3);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:16px}
+/* 왼쪽 패널 섹션 */
+.fin-sec{padding:7px 8px;border-bottom:1px solid var(--b)}
+.fin-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
+.fin-lbl{font-size:8px;color:var(--m)}
+.fin-val{font-family:var(--bebas);font-size:16px;letter-spacing:.3px}
+.fin-bwrap{height:5px;background:var(--b);border-radius:3px;overflow:hidden;margin:3px 0}
+.fin-bfill{height:100%;border-radius:3px}
+.exp-inp{display:flex;gap:3px;margin-top:5px}
+.exp-inp input{background:var(--s2);border:1px solid rgba(231,76,60,.25);border-radius:5px;color:var(--t);outline:none;padding:4px 6px}
+.panel-btns{display:flex;border-top:1px solid var(--b);flex-shrink:0}
+.pbtn{flex:1;padding:7px 0;background:none;border:none;border-right:1px solid var(--b);color:var(--m);cursor:pointer;font-family:var(--sans);font-size:9px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pbtn:last-child{border-right:none}
+.pbtn:hover{background:rgba(255,255,255,.03);color:var(--t)}
+/* 오른쪽 패널 */
+.vitals{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:7px 8px;border-bottom:1px solid var(--b)}
+.vcard{background:var(--s2);border-radius:8px;padding:7px 8px}
+.vcard-lbl{font-size:7px;color:var(--m);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px}
+.vcard-val{font-family:var(--bebas);font-size:19px;line-height:1;letter-spacing:.3px}
+.vcard-sub{font-size:7px;color:var(--m);margin-top:2px}
+.vcard-bar{height:4px;background:var(--b);border-radius:2px;overflow:hidden;margin-top:5px}
+.vcard-bar-f{height:100%;border-radius:2px}
+.plan-clovs{display:flex;align-items:center;padding:4px 0;justify-content:center}
+.plan-clovs .pcv{font-size:24px;line-height:1;margin-left:-7px;transition:transform .1s}
+.plan-clovs .pcv:first-child{margin-left:0}
 
 .phdr{padding:6px 8px 5px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--b);position:sticky;top:0;background:var(--s1);z-index:20;flex-shrink:0}
 .pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -255,11 +304,30 @@ select.hinp{cursor:pointer;-webkit-appearance:none;appearance:none;background-im
       <button class="today-btn" id="todayBtn">오늘</button>
       <span class="sync-indicator" id="syncDot" title="Firebase 동기화 상태"></span>
       <a href="study-timer.html" target="_blank" style="font-size:10px;color:var(--m);text-decoration:none;padding:3px 7px;border:1px solid var(--b);border-radius:5px;white-space:nowrap;transition:color .2s" onmouseover="this.style.color='#4f8ef7'" onmouseout="this.style.color='var(--m)'">⏱ 열공</a>
+      <button onclick="openCertModal()" style="font-size:10px;color:#27c96e;background:rgba(39,201,110,.1);border:1px solid rgba(39,201,110,.3);padding:3px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;font-family:'Noto Sans KR',sans-serif">📋 인증</button>
     </div>
   </div>
   <div class="cal" id="cal"></div>
+  <div class="tl-wrap" id="tlWrap">
+    <div class="tl-header">
+      <span style="font-size:9px;color:var(--m);letter-spacing:.5px">☀ 오늘 하루</span>
+      <div style="display:flex;gap:7px" id="tlLegend"></div>
+    </div>
+    <div class="tl-labels" id="tlLabels"></div>
+    <div class="tl-track" id="tlTrack">
+      <div class="tl-add-hint" id="tlHint">+ 탭해서 일정 추가</div>
+      <div class="tl-tooltip" id="tlTooltip"></div>
+      <div class="tl-sel" id="tlSel"></div>
+    </div>
+    <div class="tl-axis">
+      <span class="tl-ax">6</span><span class="tl-ax">8</span><span class="tl-ax">10</span>
+      <span class="tl-ax">12</span><span class="tl-ax">14</span><span class="tl-ax">16</span>
+      <span class="tl-ax">18</span><span class="tl-ax">20</span><span class="tl-ax">22</span>
+    </div>
+    <div id="tlSummary" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:12px"></div>
+  </div>
   <div class="panels">
-    <div class="panel" id="pStudy"></div>
+    <div class="panel" id="pStudy" style="display:none"></div>
     <div class="panel" id="pWork"></div>
     <div class="panel" id="pHealth"></div>
   </div>
@@ -282,6 +350,59 @@ const FIREBASE_CONFIG = {
 };
 const FB_PATH = "bdh3"; // Firebase Realtime DB 루트 경로
 const TIMER_FB_PATH = "bdh3_t"; // 열공타이머(열품타) 전용 경로 — 정복지도 읽기용
+
+// ── 목달인 스터디 (miraclemorning) Firestore 연동 ──
+const MM_FB_CONFIG = {
+  apiKey:"AIzaSyCz9dmLAFVdp_fe4bneN5wlW8bknyH3bgM",
+  authDomain:"yeonwoo-d3721.firebaseapp.com",
+  projectId:"yeonwoo-d3721",
+  storageBucket:"yeonwoo-d3721.firebasestorage.app",
+  messagingSenderId:"1021874423334",
+  appId:"1:1021874423334:web:35e70b78c8e0d6c18788e7"
+};
+const MM_MY_ID = 'yeonwoo'; // 연우 멤버 ID
+const MM_APP_URL = 'https://neipclover88-spec.github.io/yeonwoo/'; // 목표달성 인증 스터디 앱 주소
+let mmApp = null, mmDb = null;
+let mmPlanCache = {}; // 날짜별 캐시: mmPlanCache['2026-07-05'] = {items, isRest, ...}
+let mmUnsubscribe = null;
+let mmSubscribedDocId = null;
+
+// 목표달성 인증 스터디 문서 ID: plan_{멤버ID}_{연도}_{월(01~12)}
+function mmDocId(y, m1) { return `plan_${MM_MY_ID}_${y}_${String(m1).padStart(2,'0')}`; }
+
+function mmInit() {
+  try {
+    mmApp = firebase.initializeApp(MM_FB_CONFIG, 'mm');
+    mmDb  = mmApp.firestore();
+  } catch(e) { console.error('[mmInit]', e); }
+}
+
+// sel(현재 보고 있는 날짜)이 속한 월의 스터디 계획 문서를 구독 — 읽기 전용
+function mmEnsureSub() {
+  if(!mmDb) return;
+  const [y,m] = sel.split('-').map(Number);
+  const docId = mmDocId(y, m);
+  if(docId === mmSubscribedDocId) return;
+  if(mmUnsubscribe) { mmUnsubscribe(); mmUnsubscribe = null; }
+  mmSubscribedDocId = docId;
+  mmUnsubscribe = mmDb.collection('miraclemorning').doc(docId).onSnapshot(snap => {
+    const data = snap.exists ? snap.data() : {};
+    mmPlanCache[docId] = data;
+    Object.entries(data).forEach(([dateKey, planData]) => {
+      if(!planData) return;
+      const dd = dayData(dateKey);
+      dd.dailyPlan = {
+        items: Array.isArray(planData.items) ? planData.items : [],
+        isRest: !!planData.isRest,
+        isSpecialRest: !!planData.isSpecialRest
+      };
+    });
+    renderCal();
+    renderStudy();
+    renderHealth();
+    if(document.getElementById('planBg')?.style.display === 'flex') renderPlanModal();
+  }, err => console.error('[mmSub]', err));
+}
 // ════════════════════════════════════════════════
 
 // ─── CONSTANTS ───
@@ -936,77 +1057,67 @@ function renderCal() {
   const [,m1,d1] = dates[6].split('-');
   document.getElementById('weekLbl').textContent = `${m0}/${d0}–${m1}/${d1}`;
 
+  const MAX_WORK_MIN = 10*60; // 10시간 기준
+  const MAX_EXP = 100000;     // 10만원 기준
+
+  function makeClov(done, tot) {
+    if(tot<=0) return '';
+    const show = Math.min(3, tot);
+    const doneFull = Math.min(done, show);
+    const clvs = Array.from({length:show},(_,i)=>
+      `<span style="font-size:7px;line-height:1;${i>0?'margin-left:-1px':''}${i<doneFull?';filter:drop-shadow(0 0 2px #27c96e55)':';opacity:.2;filter:grayscale(1)'}">🍀</span>`
+    ).join('');
+    const countClr = done>=tot?'#27c96e':done>0?'#f5c81e':'var(--m2)';
+    return `<div style="display:flex;align-items:center;width:100%">
+      <div style="display:flex;align-items:center;flex:1">${clvs}</div>
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:7px;font-weight:700;color:${countClr};line-height:1;flex-shrink:0">${done}/${tot}</span>
+    </div>`;
+  }
+
   let h = '<div class="cal-grid">';
   dates.forEach((dk, i) => {
     const [,,dd] = dk.split('-');
     const isT=dk===t, isSel=dk===sel, isSun=i===0, isSat=i===6;
     const cls=['cday',isT?'today':'',isSel?'sel':'',isSun?'dsun':'',isSat?'dsat':''].filter(Boolean).join(' ');
 
-    // weather tag in header (수면점수 자리 대체)
+    // 근무시간
+    const wH=Number(db[dk]?.work?.workH)||0, wM=Number(db[dk]?.work?.workM)||0;
+    const workMin=wH*60+wM;
+    const workPct=workMin>0?Math.min(100,Math.round(workMin/MAX_WORK_MIN*100)):0;
+    const workLabel=wH>0?(wM>0?`${wH}h${wM}m`:`${wH}h`):'';
+
+    // 지출
+    const expTotal = dayTotalExp(dk);
+    const expPct = expTotal>0?Math.min(100,Math.round(expTotal/MAX_EXP*100)):0;
+
+    // 오늘 할 일 클로버
+    const dp = db[dk]?.dailyPlan;
+    const items = dp?.items || [];
+    const tot = items.length;
+    const done = items.filter(x=>x.done).length;
+
+    // 날씨 태그
     const wx = db[dk]?.weather || {};
-    const wxTempRaw = (wx.temp!==undefined && wx.temp!=='') ? Number(wx.temp) : null;
-    const wxCond = wx.condition || '';
-    const WX_ICON = {
-      '맑음':'☀️', '구름조금':'🌤️', '구름많음':'⛅', '흐림':'☁️',
-      '약한비':'🌦️', '비':'🌧️', '강한비':'⛈️',
-      '약한눈':'🌨️', '눈':'❄️', '강한눈':'☃️',
-      '강풍':'💨'
-    };
-    const wxIcon = WX_ICON[wxCond] || '';
-    const wxTag = (wxTempRaw!==null || wxCond) ? (wxIcon + (wxTempRaw!==null ? wxTempRaw+'°' : '')) : '';
-    const wxClr = wxTempRaw!==null && (wxTempRaw>=33||wxTempRaw<=0) ? '#e74c3c' : wxTempRaw!==null && (wxTempRaw>=30||wxTempRaw<=5) ? '#f5a623' : '#7fb3e0';
-
-    // study
-    const stMin = totalStudyMins(dk);
-    const {h:sh,m:sm} = minsToHM(stMin);
-    const stStr = stMin>0 ? (sm ? sh+'시간'+sm+'분' : sh+'시간') : null;
-
-    // work
-    const inc = Number(db[dk]?.work?.incomeAmount)||0;
-    const incStr = inc>0 ? '₩'+inc.toLocaleString('ko-KR') : null;
-
-    // health
-    const hd = db[dk]?.health||{};
-    const hp = [];
-    if(hd.swimming?.m>0)    hp.push('🏊'+hd.swimming.m+'m');
-    if(hd.running?.km>0)    hp.push('🏃'+hd.running.km+'k');
-    if(hd.cycling?.km>0)    hp.push('🚴'+hd.cycling.km+'k');
-    if(hd.pushup?.reps>0)    hp.push('💪'+hd.pushup.reps);
-    if(hd.pullup?.reps>0)    hp.push('🏋️'+hd.pullup.reps);
-    if(hd.legraise?.reps>0)  hp.push('🦵'+hd.legraise.reps);
-    const hlStr = hp.join(' ');
-
-    // study bar width (max 100%)
-    const stPct = stMin>0 ? Math.min(100, Math.round(stMin/360*100)) : 0; // 6h = 100%
-    // income bar width
-    const incPct = inc>0 ? Math.min(100, Math.round(inc/200000*100)) : 0; // 20만 = 100%
+    const wxTempRaw = (wx.temp!==undefined&&wx.temp!=='') ? Number(wx.temp) : null;
+    const WX_ICON = {'맑음':'☀️','구름조금':'🌤️','구름많음':'⛅','흐림':'☁️','약한비':'🌦️','비':'🌧️','강한비':'⛈️','약한눈':'🌨️','눈':'❄️','강한눈':'☃️','강풍':'💨'};
+    const wxTag = wx.condition ? (WX_ICON[wx.condition]||'')+(wxTempRaw!==null?wxTempRaw+'°':'') : (wxTempRaw!==null?wxTempRaw+'°':'');
 
     h+=`<div class="${cls}" onclick="clickDay('${dk}')">
       <div class="dhdr">
         <span class="dname">${DAYS_KR[i]}</span>
         <span class="dnum-wrap"><span class="dnum">${Number(dd)}</span></span>
-        ${wxTag?('<span class="dsleep-tag" style="color:'+wxClr+'">'+wxTag+'</span>'):''}
+        ${wxTag?`<span class="dsleep-tag" style="font-size:8px;color:#7fb3e0;line-height:1">${wxTag}</span>`:''}
       </div>
       <div class="dbody">
-        <div class="drow" style="background:rgba(79,142,247,.1);position:relative">
-          ${stStr
-            ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${stPct}%;background:rgba(79,142,247,.75);border-radius:3px"></div>
-               <span class="dval" style="position:relative;padding:1px 3px;z-index:1">${stStr}</span>`
-            : `<span class="dval nil">–</span>`
-          }
+        <div class="drow" style="background:rgba(245,166,35,.08);position:relative;min-height:11px">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:${workPct}%;background:rgba(245,166,35,.8);border-radius:3px"></div>
+          <span class="dval" style="position:relative;padding:1px 3px;z-index:1;font-family:'Barlow Condensed',sans-serif;font-weight:700">${workLabel}</span>
         </div>
-        <div class="drow" style="background:rgba(245,166,35,.1);position:relative">
-          ${incStr
-            ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${incPct}%;background:rgba(245,166,35,.8);border-radius:3px"></div>
-               <span class="dval" style="position:relative;padding:1px 3px;z-index:1">${incStr}</span>`
-            : `<span class="dval nil">–</span>`
-          }
+        <div class="drow" style="background:rgba(231,76,60,.07);position:relative;min-height:6px">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:${expPct}%;background:rgba(231,76,60,.7);border-radius:3px"></div>
         </div>
-        <div class="drow" style="background:rgba(39,201,110,.07);min-height:13px">
-          ${hlStr
-            ? `<span style="font-size:8px;padding:1px 3px;color:#7de8b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;font-family:'Barlow Condensed',sans-serif;font-weight:700">${hlStr}</span>`
-            : `<span class="dval nil">–</span>`
-          }
+        <div class="drow" style="background:transparent;min-height:13px;padding:1px 2px">
+          ${makeClov(done, tot)}
         </div>
       </div>
     </div>`;
@@ -1014,6 +1125,7 @@ function renderCal() {
   h += '</div>';
   document.getElementById('cal').innerHTML = h;
 }
+
 
 // ════════════════════════════════════════════════
 //  RENDER STUDY PANEL
@@ -2217,6 +2329,54 @@ function capturePlanModal() {
     alert('스크린샷 저장에 실패했어요. 다시 시도해주세요.');
   });
 }
+
+// ── 인증 캡처 ──
+// ── 인증 캡처: 현재 화면에서 수입 숫자만 *** 마스킹 후 스크린샷 ──
+function openCertModal() {
+  if(typeof html2canvas==='undefined'){alert('캡처 라이브러리 로딩 중...');return;}
+  const masked = [];
+
+  // data-income 속성 달린 요소 마스킹
+  document.querySelectorAll('[data-income]').forEach(el=>{
+    masked.push({el, orig:el.innerHTML});
+    el.innerHTML = el.innerHTML.replace(/[\d,]+/g,'***');
+  });
+
+  // 왼쪽 패널 수입 금액 (₩ 포함한 fin-val 중 수입/잔액)
+  document.querySelectorAll('#pWork .fin-val, #pWork .fin-row span:last-child').forEach(el=>{
+    const txt = el.textContent.trim();
+    if(txt.match(/₩[\d,]+/) && !masked.find(m=>m.el===el)) {
+      // 지출(빨간)은 제외
+      if(!el.style.color?.includes('231')) {
+        masked.push({el, orig:el.innerHTML});
+        el.innerHTML = el.innerHTML.replace(/[\d,]+/g,'***');
+      }
+    }
+  });
+
+  // 수입 섹션 헤더 금액
+  document.querySelectorAll('#pWork .fin-sec:first-child span').forEach(el=>{
+    const txt = el.textContent.trim();
+    if((txt.includes('₩') || txt.match(/\d+만/)) && !masked.find(m=>m.el===el)) {
+      masked.push({el, orig:el.innerHTML});
+      el.innerHTML = el.innerHTML.replace(/[\d,.]+만?/g,'***');
+    }
+  });
+
+  setTimeout(()=>{
+    const app = document.getElementById('app') || document.body;
+    html2canvas(app, {backgroundColor:'#05050e', scale:2, useCORS:true, logging:false}).then(canvas=>{
+      masked.forEach(({el,orig})=>el.innerHTML=orig);
+      const link=document.createElement('a');
+      link.download=`연우한의_인증_${sel}.png`;
+      link.href=canvas.toDataURL('image/png');
+      link.click();
+    }).catch(()=>{masked.forEach(({el,orig})=>el.innerHTML=orig);});
+  }, 80);
+}
+function closeCertModal(){document.getElementById('certBg').style.display='none';}
+function shootCert(){openCertModal();}
+
 function renderPlanModal() {
   const dp = dayData(sel).dailyPlan;
   if(!dp.items) dp.items = []; // items가 없는 경우 방어
@@ -2224,11 +2384,12 @@ function renderPlanModal() {
   const ru = calcRestUsage(sel);
 
   const fineClr = ps.fine>0 ? '#e74c3c' : '#27c96e';
+  const mmLinkBtn = `<a href="${MM_APP_URL}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:#4f8ef7;border-radius:7px;padding:7px 0;font-size:11px;font-weight:700;text-decoration:none;margin-top:6px">🔗 목표달성 인증 스터디에서 수정하기</a>`;
 
   let b = `<div style="background:linear-gradient(135deg,rgba(245,200,30,.1),rgba(245,200,30,.03));border:1px solid rgba(245,200,30,.25);border-radius:10px;padding:10px 12px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <button onclick="togglePlanRest('isRest')" style="flex:1;margin-right:5px;background:${dp.isRest?'rgba(127,179,224,.2)':'var(--s2)'};border:1px solid ${dp.isRest?'#7fb3e0':'var(--b)'};color:${dp.isRest?'#7fb3e0':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">😌 휴무 ${dp.isRest?'✓':''}</button>
-      <button onclick="togglePlanRest('isSpecialRest')" style="flex:1;background:${dp.isSpecialRest?'rgba(168,85,247,.2)':'var(--s2)'};border:1px solid ${dp.isSpecialRest?'#a855f7':'var(--b)'};color:${dp.isSpecialRest?'#a855f7':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">🎁 특휴 ${dp.isSpecialRest?'✓':''}</button>
+      <span style="flex:1;margin-right:5px;background:${dp.isRest?'rgba(127,179,224,.2)':'var(--s2)'};border:1px solid ${dp.isRest?'#7fb3e0':'var(--b)'};color:${dp.isRest?'#7fb3e0':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;text-align:center">😌 휴무 ${dp.isRest?'✓':''}</span>
+      <span style="flex:1;background:${dp.isSpecialRest?'rgba(168,85,247,.2)':'var(--s2)'};border:1px solid ${dp.isSpecialRest?'#a855f7':'var(--b)'};color:${dp.isSpecialRest?'#a855f7':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;text-align:center">🎁 특휴 ${dp.isSpecialRest?'✓':''}</span>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--m)">
       <span>이번주 휴무 <b style="color:${ru.weekUsed>=ru.weekLimit?'#e74c3c':'var(--t)'}">${ru.weekUsed}/${ru.weekLimit}</b></span>
@@ -2237,16 +2398,18 @@ function renderPlanModal() {
     ${ru.monthSpecialDates.length>0?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
       ${ru.monthSpecialDates.map(dk=>{
         const [,m,d]=dk.split('-');
-        return `<span onclick="clearSpecialRest('${dk}')" style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:9px">${Number(m)}/${Number(d)} ✕</span>`;
+        return `<span style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:4px;padding:2px 7px;font-size:9px">${Number(m)}/${Number(d)}</span>`;
       }).join('')}
     </div>`:''}
+    <div style="font-size:8px;color:var(--m2);text-align:center;margin-top:6px">🔗 목표달성 인증 스터디와 연동됨 (읽기 전용)</div>
+    ${mmLinkBtn}
   </div>`;
 
   if(!dp.isRest && !dp.isSpecialRest) {
     b += `<div style="display:flex;flex-direction:column;gap:4px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</span>
-        <span style="font-size:8px;color:var(--m2)">꾹 눌러 순서 변경 · ✕로 제거</span>
+        <span style="font-size:8px;color:var(--m2)">보기 전용</span>
       </div>
       <div id="planItemList" style="display:flex;flex-direction:column;gap:4px">
       ${dp.items.map((it)=>{
@@ -2257,19 +2420,11 @@ function renderPlanModal() {
         const textClr = isDone ? '#27c96e' : isFail ? '#e74c3c77' : 'var(--t)';
         const textDeco = isDone || isFail ? 'line-through' : 'none';
         return `
-        <div class="plan-item-row" data-id="${it.id}" style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px;touch-action:none;user-select:none;cursor:grab">
-          <div data-check="${it.id}" style="width:18px;height:18px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c33':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff">${isDone?'✓':''}</div>
+        <div class="plan-item-row" data-id="${it.id}" style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px">
+          <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c33':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff">${isDone?'✓':isFail?'✗':''}</div>
           <span style="flex:1;font-size:11px;color:${textClr};text-decoration:${textDeco};line-height:1.3">${esc(it.name)}</span>
-          <button data-fail="${it.id}" title="못했어요" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${isFail?'#e74c3c':'var(--m2)'};background:${isFail?'#e74c3c':'none'};color:${isFail?'#fff':'var(--m2)'};font-size:9px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✗</button>
-          <button data-del="${it.id}" style="background:none;border:none;color:var(--m2);cursor:pointer;font-size:9px;padding:0;opacity:.4;flex-shrink:0">✕</button>
         </div>`;
-      }).join('') || '<div style="font-size:10px;color:var(--m2);padding:4px 0">계획을 추가해보세요</div>'}
-      </div>
-      <div style="display:flex;gap:4px;margin-top:2px">
-        <input id="planItemInp" type="text" placeholder="할 일 추가..."
-          style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:7px;color:var(--t);font-size:11px;padding:6px 9px;outline:none"
-          onkeydown="if(event.key==='Enter')addPlanItem()">
-        <button onclick="addPlanItem()" style="background:rgba(245,200,30,.15);border:1px solid rgba(245,200,30,.4);color:#f5c81e;border-radius:7px;padding:0 12px;cursor:pointer;font-size:13px;font-weight:700">+</button>
+      }).join('') || '<div style="font-size:10px;color:var(--m2);padding:4px 0">목표달성 인증 스터디에 계획을 추가해보세요</div>'}
       </div>
     </div>
 
@@ -2291,7 +2446,8 @@ function renderPlanModal() {
         <span style="font-family:var(--bebas);font-size:18px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'없음 🎉'}</span>
       </div>
       ${ps.fine>0?`<div style="font-size:8px;color:#e74c3caa;margin-top:3px;text-align:right">미달성 ${3-ps.achieved}개 × 500원</div>`:''}
-    </div>`;
+    </div>
+    ${mmLinkBtn}`;
   } else {
     const isSpecial = dp.isSpecialRest;
     const restLabel = isSpecial ? '특별 휴가' : '오늘은 휴무!';
@@ -2363,7 +2519,6 @@ function renderPlanModal() {
   }
 
   document.getElementById('planBody').innerHTML = b;
-  initPlanDrag();
 }
 function togglePlanItem(id) {
   const dp = dayData(sel).dailyPlan;
@@ -3121,11 +3276,599 @@ function renderModalHealth() {
 
 // ────────────────────────────────────────────────
 
+// ════════════════════════════════════════════════
+//  RENDER TIMELINE
+// ════════════════════════════════════════════════
+const TL_START=6, TL_HOURS=17;
+const TL_TYPES=[
+  {key:'국어',  color:'#4f8ef7'},  // 파랑
+  {key:'수학',  color:'#27c96e'},  // 녹색
+  {key:'영어',  color:'#f5c200'},  // 노랑
+  {key:'사회',  color:'#f5a623'},  // 주황
+  {key:'과학',  color:'#e74c3c'},  // 빨강
+  {key:'수영',  color:'#f48fb1'},  // 핑크
+  {key:'러닝',  color:'#f48fb1'},  // 핑크
+  {key:'자전거',color:'#f48fb1'},  // 핑크
+  {key:'업무',  color:'#6b8cba'},  // 회색
+  {key:'기타',  color:'#a855f7'},  // 보라
+];
+let tlDragState=null;
+let selBlkType='업무';
+function tlPct(t){const[h,m]=t.split(':').map(Number);return Math.max(0,Math.min(100,((h+m/60-TL_START)/TL_HOURS)*100));}
+function tlSnapTime(pct){const tm=Math.round((TL_START+pct/100*TL_HOURS)*60/15)*15;const h=Math.floor(tm/60),m=tm%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+function tlGetPct(clientX){const r=document.getElementById('tlTrack').getBoundingClientRect();return Math.max(0,Math.min(100,(clientX-r.left)/r.width*100));}
+
+function renderTimeline() {
+  const dk = sel;
+  const d = db[dk] || {};
+  const h = d.health || {};
+  const w = d.work || {};
+  const track = document.getElementById('tlTrack');
+  const labelsEl = document.getElementById('tlLabels');
+  const hint = document.getElementById('tlHint');
+  const summary = document.getElementById('tlSummary');
+  if(!track) return;
+
+  // 기존 블록 제거
+  track.querySelectorAll('.tl-blk').forEach(e=>e.remove());
+  labelsEl.innerHTML = '';
+
+  // Firebase 데이터에서 블록 구성
+  const blocks = [];
+  // 수영
+  if(h.swimming?.swimM>0) {
+    const dur=Number(h.swimming.swimM)||0;
+    blocks.push({type:'수영', start:'07:00', end:tlSnapTime(tlPct('07:00')+(dur/TL_HOURS/60*100))});
+  }
+  // 러닝
+  if(h.running?.runM>0) {
+    const dur=Math.round(((Number(h.running.runM)||0)*60+(Number(h.running.runS)||0))/60);
+    blocks.push({type:'러닝', start:'07:00', end:tlSnapTime(tlPct('07:00')+(dur/TL_HOURS/60*100))});
+  }
+  // 근무
+  if((Number(w.workH)||0)+(Number(w.workM)||0)>0) {
+    const wMin=(Number(w.workH)||0)*60+(Number(w.workM)||0);
+    blocks.push({type:'업무', start:'11:00', end:tlSnapTime(tlPct('11:00')+(wMin/TL_HOURS/60*100))});
+  }
+  // 수동 추가 블록 (db에 저장된 것)
+  const manualBlocks = d.tlBlocks || [];
+  manualBlocks.forEach(b=>blocks.push(b));
+
+  hint.style.display = blocks.length>0 ? 'none' : 'block';
+
+  const rawLabels=[];
+  blocks.forEach((b,i)=>{
+    const t=TL_TYPES.find(t=>t.key===b.type)||TL_TYPES[5];
+    const l=tlPct(b.start), r=100-tlPct(b.end);
+    const mid=(l+(100-r))/2;
+    const el=document.createElement('div');
+    el.className='tl-blk';
+    el.style.cssText=`left:${l}%;right:${r}%;background:${t.color}`;
+    el.addEventListener('pointerdown',(e)=>{e.stopPropagation();openTlEditPop(i,b,blocks);});
+    track.appendChild(el);
+    rawLabels.push({pos:mid,color:t.color,text:b.type,charW:b.type.length});
+  });
+
+  // 라벨 겹침 해소
+  const TW=track.offsetWidth||300, PPC=7;
+  rawLabels.sort((a,b2)=>a.pos-b2.pos);
+  for(let p=0;p<3;p++){for(let i=1;i<rawLabels.length;i++){
+    const a=rawLabels[i-1],b2=rawLabels[i];
+    const gap=b2.pos/100*TW-b2.charW*PPC/2-(a.pos/100*TW+a.charW*PPC/2);
+    if(gap<2){const push=(2-gap)/2/TW*100;a.pos-=push;b2.pos+=push;}
+  }}
+  rawLabels.forEach(lb=>{
+    const lbl=document.createElement('div');
+    lbl.className='tl-lbl-item';
+    lbl.style.cssText=`left:${Math.max(0,Math.min(100,lb.pos))}%;color:${lb.color}`;
+    lbl.textContent=lb.text;
+    labelsEl.appendChild(lbl);
+  });
+
+  // 범례 + 공부시간 요약
+  const seen=[...new Set(blocks.map(b=>b.type))];
+  document.getElementById('tlLegend').innerHTML=seen.map(k=>{
+    const t=TL_TYPES.find(t=>t.key===k)||TL_TYPES[5];
+    return `<div style="display:flex;align-items:center;gap:2px;font-size:8px;color:var(--m)"><div style="width:6px;height:6px;border-radius:1px;background:${t.color}"></div>${k}</div>`;
+  }).join('');
+
+  // 운동/공부 합산 요약
+  const sumTypes=['수영','러닝','자전거','공부'];
+  const totals={};
+  blocks.forEach(b=>{
+    if(!sumTypes.includes(b.type))return;
+    const[sh,sm]=b.start.split(':').map(Number),[eh,em]=b.end.split(':').map(Number);
+    const mins=(eh*60+em)-(sh*60+sm);
+    if(mins>0) totals[b.type]=(totals[b.type]||0)+mins;
+  });
+  summary.innerHTML=Object.entries(totals).map(([k,mins])=>{
+    const t=TL_TYPES.find(t=>t.key===k)||TL_TYPES[5];
+    const h2=Math.floor(mins/60),m2=mins%60;
+    return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;color:${t.color};display:flex;align-items:center;gap:2px"><span style="width:5px;height:5px;border-radius:1px;background:${t.color};display:inline-block"></span>${k} ${h2>0?(m2>0?h2+'h '+m2+'m':h2+'h'):m2+'분'}</span>`;
+  }).join('<span style="font-size:8px;color:var(--m2)">·</span>');
+}
+
+function openTlEditPop(idx, blk, blocks) {
+  // 수동 블록만 삭제 가능
+  const d = dayData(sel);
+  const manual = d.tlBlocks || [];
+  // auto 블록은 건너뜀 (Firebase health/work 데이터에서 오는 것)
+  document.getElementById('blkEditPop')?.remove();
+  const pop = document.createElement('div');
+  pop.id='blkEditPop';
+  pop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  pop.innerHTML=`<div style="background:#0e1320;border:1px solid var(--b2);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--t);margin-bottom:10px">${blk.type} ${blk.start}~${blk.end}</div>
+    <div style="font-size:10px;color:var(--m);margin-bottom:12px">자동 생성된 블록은 건강/일 패널에서 수정하세요</div>
+    <button onclick="document.getElementById('blkEditPop').remove()" style="width:100%;background:var(--s2);border:1px solid var(--b);color:var(--m);border-radius:8px;padding:10px;font-size:13px;cursor:pointer;font-family:var(--sans)">닫기</button>
+  </div>`;
+  pop.onclick=e=>{if(e.target===pop)pop.remove();};
+  document.body.appendChild(pop);
+}
+
+function initTlDrag() {
+  const track = document.getElementById('tlTrack');
+  const tooltip = document.getElementById('tlTooltip');
+  const sel2 = document.getElementById('tlSel');
+  if(!track||!tooltip||!sel2) return;
+
+  function showTip(cx, cy){
+    const pct=tlGetPct(cx);
+    const screenX=Math.max(40,Math.min(window.innerWidth-40,cx));
+    const screenY=(cy||track.getBoundingClientRect().top)-60; // 손가락 위 60px
+    tooltip.style.left=screenX+'px';
+    tooltip.style.top=Math.max(20,screenY)+'px';
+    tooltip.style.display='block';
+    tooltip.textContent=tlSnapTime(pct);
+  }
+  function hideTip(){tooltip.style.display='none';}
+  function showSel(p1,p2){const l=Math.min(p1,p2),r=Math.max(p1,p2);sel2.style.left=l+'%';sel2.style.width=(r-l)+'%';sel2.style.display='block';}
+  function hideSel(){sel2.style.display='none';}
+
+  track.onpointerdown=e=>{
+    if(e.target.classList.contains('tl-blk'))return;
+    e.preventDefault();
+    track.setPointerCapture(e.pointerId);
+    tlDragState={sp:tlGetPct(e.clientX),ep:tlGetPct(e.clientX),sx:e.clientX,moved:false};
+    showTip(e.clientX,e.clientY);
+  };
+  track.onpointermove=e=>{
+    if(!tlDragState)return;
+    e.preventDefault();
+    tlDragState.ep=tlGetPct(e.clientX);
+    showTip(e.clientX,e.clientY);
+    if(Math.abs(e.clientX-tlDragState.sx)>8){tlDragState.moved=true;showSel(tlDragState.sp,tlDragState.ep);}
+  };
+  track.onpointerup=e=>{
+    if(!tlDragState){return;}
+    hideTip();hideSel();
+    if(tlDragState.moved){openTlAddPop(tlSnapTime(Math.min(tlDragState.sp,tlDragState.ep)),tlSnapTime(Math.max(tlDragState.sp,tlDragState.ep)));}
+    else {openTlAddPop(tlSnapTime(tlDragState.ep),'');}
+    tlDragState=null;
+  };
+  track.onpointercancel=()=>{hideTip();hideSel();tlDragState=null;};
+}
+
+function openTlAddPop(start,end){
+  document.getElementById('blkAddPop')?.remove();
+  const EXERCISE=['수영','러닝','자전거'];
+  const pop=document.createElement('div');
+  pop.id='blkAddPop';
+  pop.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  const typeHtml=TL_TYPES.map(t=>`<button class="btype${selBlkType===t.key?' sel':''}"
+    style="${selBlkType===t.key?'background:'+t.color+'22;border-color:'+t.color+';color:'+t.color:''}"
+    data-type="${t.key}">${t.key}</button>`).join('');
+  pop.innerHTML=`<div class="blk-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:14px;font-weight:700;color:var(--t)">일정 추가</span>
+      <button onclick="document.getElementById('blkAddPop').remove()" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div class="blk-types" id="blkTypeGrid">${typeHtml}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <span style="font-size:9px;color:var(--m);width:30px">시작</span>
+      <input id="tlAddStart" type="time" value="${start||'07:00'}" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:18px;padding:6px 8px;outline:none;text-align:center">
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <span style="font-size:9px;color:var(--m);width:30px">종료</span>
+      <input id="tlAddEnd" type="time" value="${end||''}" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:18px;padding:6px 8px;outline:none;text-align:center">
+    </div>
+    <button onclick="saveTlBlock()" style="width:100%;background:rgba(79,142,247,.2);border:1px solid rgba(79,142,247,.5);color:#4f8ef7;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)">추가</button>
+  </div>`;
+  pop.onclick=e=>{if(e.target===pop)pop.remove();};
+  document.body.appendChild(pop);
+  // 타입 버튼 이벤트
+  pop.querySelectorAll('[data-type]').forEach(btn=>{
+    btn.onclick=()=>{
+      selBlkType=btn.dataset.type;
+      if(['수영','러닝','자전거'].includes(selBlkType)) document.getElementById('tlAddStart').value='07:00';
+      pop.querySelectorAll('[data-type]').forEach(b=>{
+        const t=TL_TYPES.find(t=>t.key===b.dataset.type)||TL_TYPES[5];
+        b.className='btype'+(selBlkType===b.dataset.type?' sel':'');
+        b.style.cssText=selBlkType===b.dataset.type?'background:'+t.color+'22;border-color:'+t.color+';color:'+t.color:'';
+      });
+    };
+  });
+}
+function saveTlBlock(){
+  const s=document.getElementById('tlAddStart')?.value;
+  const e=document.getElementById('tlAddEnd')?.value;
+  if(!s||!e){alert('시작/종료 시간을 입력해주세요.');return;}
+  const d=dayData(sel);
+  if(!d.tlBlocks) d.tlBlocks=[];
+  d.tlBlocks.push({type:selBlkType,start:s,end:e});
+  save();
+  document.getElementById('blkAddPop')?.remove();
+  renderTimeline();
+}
+
+// ════════════════════════════════════════════════
+//  RENDER WORK PANEL (왼쪽: 수입/지출/재정)
+// ════════════════════════════════════════════════
+function renderWork() {
+  const dd = dayData(sel);
+  const w = dd.work;
+  const todayGross = Number(w.incomeAmount)||0;
+  const todayNet = netIncome(todayGross);
+  const expList = (w.expenses||[]).slice().reverse().slice(0,5);
+  const expTotal = dayTotalExp(sel);
+  const ym = sel.slice(0,7);
+  const mInc = monthTotalIncome(ym);
+  const mExp = monthTotalExp(ym);
+  const mNet = Math.round(mInc*(1-deductRate/100));
+
+  let h = `
+  <!-- 수입 섹션 (탭하면 팝업) -->
+  <div class="fin-sec" style="cursor:pointer" onclick="document.getElementById('incomePop').classList.add('open')">
+    <div class="fin-row">
+      <div style="display:flex;align-items:center;gap:5px">
+        <div style="width:6px;height:6px;border-radius:50%;background:#f5a623"></div>
+        <span style="font-size:11px;font-weight:700">수입</span>
+      </div>
+      <span class="fin-val" style="color:#ffd060" data-income>${todayGross>0?'₩'+todayNet.toLocaleString():'–'}</span>
+    </div>
+    ${todayGross>0?`<div style="font-size:8px;color:var(--m)">공제전 ₩${todayGross.toLocaleString()} · 건수 ${w.deliveries||0}건 · ${w.workH||0}h${w.workM||0>0?w.workM+'m':''}</div>`:'<div style="font-size:8px;color:var(--m2)">탭해서 입력</div>'}
+  </div>
+
+  <!-- 지출 섹션 -->
+  <div class="fin-sec">
+    <div class="fin-row">
+      <span class="fin-lbl">지출</span>
+      <span class="fin-val" style="color:#e74c3c">${expTotal>0?'₩'+expTotal.toLocaleString():'–'}</span>
+    </div>
+    <div class="exp-inp">
+      <select id="expCat_${sel}" style="flex:1;background:var(--s2);border:1px solid rgba(231,76,60,.25);border-radius:5px;color:var(--t);font-size:9px;padding:4px 5px;outline:none;-webkit-appearance:none">
+        ${EXP_CATS.filter(c=>c!=='수입').map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="메모" id="expMemo_${sel}" style="flex:1.2;font-size:9px">
+      <input type="number" placeholder="금액" id="expAmt_${sel}" style="flex:1;font-family:var(--bebas);font-size:13px">
+      <button onclick="addExpQuick()" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.35);color:#e74c3c;border-radius:5px;padding:0 8px;cursor:pointer;font-size:13px;font-weight:700">+</button>
+    </div>
+    ${expList.length>0?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">
+      ${expList.map(ex=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+        <span style="font-size:8px;color:var(--m)">${esc(ex.cat||'')} ${ex.memo?'·'+esc(ex.memo.slice(0,8)):''}</span>
+        <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c">₩${Number(ex.amount||0).toLocaleString()}</span>
+      </div>`).join('')}
+    </div>`:''}
+  </div>
+
+  <!-- 이번달 재정 -->
+  <div class="fin-sec" style="border-bottom:none;flex:1">
+    <div style="font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px">${ym.slice(0,4)}년 ${Number(ym.slice(5))}월</div>
+    <div style="display:flex;gap:6px;margin-bottom:7px">
+      <div style="flex:1">
+        <div style="font-size:7px;color:var(--m);margin-bottom:2px">수입</div>
+        <div style="font-family:var(--bebas);font-size:14px;color:#ffd060" data-income>${mInc>0?(mInc/10000).toFixed(0)+'만':'–'}</div>
+        <div class="fin-bwrap"><div class="fin-bfill" style="width:${Math.min(100,Math.round(mInc/2000000*100))}%;background:#f5a623"></div></div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:7px;color:var(--m);margin-bottom:2px">지출</div>
+        <div style="font-family:var(--bebas);font-size:14px;color:#e74c3c">${mExp>0?(mExp/10000).toFixed(1)+'만':'–'}</div>
+        <div class="fin-bwrap"><div class="fin-bfill" style="width:${Math.min(100,Math.round(mExp/2000000*100))}%;background:${mExp/2000000>0.7?'#e74c3c':'#27c96e'}"></div></div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--b);margin-bottom:6px"></div>
+    ${renderDebtMini()}
+  </div>`;
+
+  document.getElementById('pWork').innerHTML = `${h}
+  <div class="panel-btns">
+    <button class="pbtn" onclick="openModal('work')"><span style="font-size:12px">📊</span>월간리포트</button>
+    <button class="pbtn" onclick="openModal('debt')"><span style="font-size:12px">💳</span>채무상세</button>
+  </div>`;
+
+  // 수입 팝업 HTML (없으면 생성)
+  if(!document.getElementById('incomePop')) {
+    const pop = document.createElement('div');
+    pop.id='incomePop';
+    pop.className='income-pop';
+    pop.onclick=e=>{if(e.target===pop)pop.classList.remove('open');};
+    pop.innerHTML=`<div class="income-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:700;color:#f5a623">💰 오늘 수입 입력</span>
+        <button onclick="document.getElementById('incomePop').classList.remove('open')" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:9px;color:#5ac8fa;width:32px">배민</span>
+        <input id="iPop_baemin" type="number" placeholder="0" style="flex:1;background:var(--s2);border:1px solid rgba(90,200,250,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:6px 8px;outline:none">
+        <span style="font-size:9px;color:var(--m)">원</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:9px;color:#ff6b6b;width:32px">쿠팡</span>
+        <input id="iPop_coupang" type="number" placeholder="0" style="flex:1;background:var(--s2);border:1px solid rgba(255,107,107,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:6px 8px;outline:none">
+        <span style="font-size:9px;color:var(--m)">원</span>
+      </div>
+      <div style="height:1px;background:var(--b);margin:4px 0 8px"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:9px;color:var(--m);width:32px">건수</span>
+        <input id="iPop_del" type="number" placeholder="0" style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:6px 8px;outline:none">
+        <span style="font-size:9px;color:var(--m)">건</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:9px;color:var(--m);width:32px">근무</span>
+        <input id="iPop_wH" type="number" placeholder="0" style="width:56px;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:6px 8px;outline:none">
+        <span style="font-size:9px;color:var(--m)">시간</span>
+        <input id="iPop_wM" type="number" placeholder="0" style="width:56px;background:var(--s2);border:1px solid var(--b);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:6px 8px;outline:none">
+        <span style="font-size:9px;color:var(--m)">분</span>
+      </div>
+      <button onclick="saveIncomePopup()" style="width:100%;background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.5);color:#f5a623;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)">저장</button>
+    </div>`;
+    document.body.appendChild(pop);
+    // 기존 값 채우기
+    const bm = Number(w.incomeBaemin)||0, cp = Number(w.incomeCoupang)||0;
+    if(bm) document.getElementById('iPop_baemin').value=bm;
+    if(cp) document.getElementById('iPop_coupang').value=cp;
+    if(w.deliveries) document.getElementById('iPop_del').value=w.deliveries;
+    if(w.workH) document.getElementById('iPop_wH').value=w.workH;
+    if(w.workM) document.getElementById('iPop_wM').value=w.workM;
+  } else {
+    // 기존 팝업 값 업데이트
+    const bm=document.getElementById('iPop_baemin'),cp=document.getElementById('iPop_coupang');
+    if(bm) bm.value=Number(w.incomeBaemin)||'';
+    if(cp) cp.value=Number(w.incomeCoupang)||'';
+  }
+}
+
+// ── 수면 입력 팝업 ──
+function openSleepPop() {
+  document.getElementById('sleepPop')?.remove();
+  const h = dayData(sel).health;
+  const sl = h.sleep || {};
+  const pop = document.createElement('div');
+  pop.id = 'sleepPop';
+  pop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  pop.onclick = e => { if(e.target===pop) closeSleepPop(); };
+  pop.innerHTML = `<div style="background:#0e1320;border:1px solid rgba(168,85,247,.3);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:14px;font-weight:700;color:#a855f7">😴 수면 입력</span>
+      <button onclick="closeSleepPop()" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="flex:1">
+        <div style="font-size:9px;color:var(--m);margin-bottom:4px">수면 시간</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input id="slH" type="number" placeholder="0" min="0" max="12" value="${sl.sleepH||''}" style="flex:1;background:var(--s2);border:1px solid rgba(168,85,247,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:18px;padding:6px 8px;outline:none;text-align:center">
+          <span style="font-size:10px;color:var(--m)">시간</span>
+          <input id="slM" type="number" placeholder="0" min="0" max="59" value="${sl.sleepM||''}" style="flex:1;background:var(--s2);border:1px solid rgba(168,85,247,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:18px;padding:6px 8px;outline:none;text-align:center">
+          <span style="font-size:10px;color:var(--m)">분</span>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:9px;color:var(--m);margin-bottom:4px">삼성헬스 점수</div>
+        <input id="slScore" type="number" placeholder="0~100" min="0" max="100" value="${sl.score||''}" style="width:100%;background:var(--s2);border:1px solid rgba(168,85,247,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:18px;padding:6px 8px;outline:none;text-align:center">
+      </div>
+    </div>
+    <button onclick="saveSleepPop()" style="width:100%;background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.5);color:#a855f7;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)">저장</button>
+  </div>`;
+  document.body.appendChild(pop);
+}
+function closeSleepPop(){ document.getElementById('sleepPop')?.remove(); }
+function saveSleepPop(){
+  const h = dayData(sel).health;
+  if(!h.sleep) h.sleep = {};
+  h.sleep.sleepH = Number(document.getElementById('slH')?.value)||0;
+  h.sleep.sleepM = Number(document.getElementById('slM')?.value)||0;
+  h.sleep.score  = Number(document.getElementById('slScore')?.value)||0;
+  save(); closeSleepPop(); renderHealth();
+}
+
+// ── 운동 입력 팝업 ──
+function openExPop() {
+  document.getElementById('exPop')?.remove();
+  const h = dayData(sel).health;
+  const sw = h.swimming || {}, rn = h.running || {}, cy = h.cycling || {};
+  const pop = document.createElement('div');
+  pop.id = 'exPop';
+  pop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:flex-end;justify-content:center';
+  pop.onclick = e => { if(e.target===pop) closeExPop(); };
+  pop.innerHTML = `<div style="background:#0e1320;border:1px solid rgba(244,143,177,.3);border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-size:14px;font-weight:700;color:#f48fb1">🏃 운동 입력</span>
+      <button onclick="closeExPop()" style="background:none;border:none;color:var(--m);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <!-- 수영 -->
+    <div style="font-size:9px;color:#f48fb1;letter-spacing:.5px;margin-bottom:5px">🏊 수영</div>
+    <div style="display:flex;gap:5px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:4px;flex:1">
+        <input id="exSwM" type="number" placeholder="0" value="${sw.m||''}" style="flex:1;background:var(--s2);border:1px solid rgba(244,143,177,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:5px 6px;outline:none;text-align:center">
+        <span style="font-size:9px;color:var(--m)">m</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex:1">
+        <input id="exSwMin" type="number" placeholder="0" value="${sw.swimM||''}" style="flex:1;background:var(--s2);border:1px solid rgba(244,143,177,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:5px 6px;outline:none;text-align:center">
+        <span style="font-size:9px;color:var(--m)">분</span>
+      </div>
+    </div>
+    <!-- 러닝 -->
+    <div style="font-size:9px;color:#f48fb1;letter-spacing:.5px;margin-bottom:5px">🏃 러닝</div>
+    <div style="display:flex;gap:5px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:4px;flex:1">
+        <input id="exRnKm" type="number" placeholder="0" step="0.1" value="${rn.km||''}" style="flex:1;background:var(--s2);border:1px solid rgba(244,143,177,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:5px 6px;outline:none;text-align:center">
+        <span style="font-size:9px;color:var(--m)">km</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex:1">
+        <input id="exRnMin" type="number" placeholder="0" value="${rn.runM||''}" style="flex:1;background:var(--s2);border:1px solid rgba(244,143,177,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:5px 6px;outline:none;text-align:center">
+        <span style="font-size:9px;color:var(--m)">분</span>
+      </div>
+    </div>
+    <!-- 자전거 -->
+    <div style="font-size:9px;color:#f48fb1;letter-spacing:.5px;margin-bottom:5px">🚴 자전거</div>
+    <div style="display:flex;gap:5px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:4px;flex:1">
+        <input id="exCyKm" type="number" placeholder="0" step="0.1" value="${cy.km||''}" style="flex:1;background:var(--s2);border:1px solid rgba(244,143,177,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:5px 6px;outline:none;text-align:center">
+        <span style="font-size:9px;color:var(--m)">km</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex:1">
+        <input id="exCyMin" type="number" placeholder="0" value="${hmToMins(cy.cycH,cy.cycM)||''}" style="flex:1;background:var(--s2);border:1px solid rgba(244,143,177,.3);border-radius:6px;color:var(--t);font-family:var(--bebas);font-size:16px;padding:5px 6px;outline:none;text-align:center">
+        <span style="font-size:9px;color:var(--m)">분</span>
+      </div>
+    </div>
+    <button onclick="saveExPop()" style="width:100%;background:rgba(244,143,177,.2);border:1px solid rgba(244,143,177,.5);color:#f48fb1;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans)">저장</button>
+  </div>`;
+  document.body.appendChild(pop);
+}
+function closeExPop(){ document.getElementById('exPop')?.remove(); }
+function saveExPop(){
+  const h = dayData(sel).health;
+  if(!h.swimming) h.swimming={m:0,swimM:0,swimS:0};
+  if(!h.running)  h.running={km:0,runM:0,runS:0};
+  if(!h.cycling)  h.cycling={km:0,cycH:0,cycM:0};
+  h.swimming.m    = Number(document.getElementById('exSwM')?.value)||0;
+  h.swimming.swimM= Number(document.getElementById('exSwMin')?.value)||0;
+  h.running.km    = Number(document.getElementById('exRnKm')?.value)||0;
+  h.running.runM  = Number(document.getElementById('exRnMin')?.value)||0;
+  h.cycling.km    = Number(document.getElementById('exCyKm')?.value)||0;
+  const cyMin=Number(document.getElementById('exCyMin')?.value)||0;
+  h.cycling.cycH=Math.floor(cyMin/60); h.cycling.cycM=cyMin%60;
+  save(); closeExPop(); renderHealth(); renderTimeline();
+}
+
+function renderDebtMini() {
+  if(!LOANS||!LOANS.length) return '';
+  const totalRemain = LOANS.reduce((s,_,i)=>s+loanRemaining(i),0);
+  const repaidPct = Math.round((TOTAL_PRINCIPAL-totalRemain)/TOTAL_PRINCIPAL*100);
+  const monthlyInt = LOANS.reduce((s,_,i)=>s+loanMonthlyInterest(i),0);
+  return `<div style="font-size:7px;color:var(--work);letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px">잔여채무</div>
+  <div style="font-family:var(--bebas);font-size:18px;color:#ffd060;line-height:1">${(totalRemain/10000).toFixed(0)}<span style="font-size:11px;color:var(--m)">만원</span></div>
+  <div style="font-size:7px;color:var(--m);margin-top:2px">${repaidPct}% 상환 · 이자 ₩${monthlyInt.toLocaleString()}/월</div>
+  <div class="fin-bwrap" style="margin-top:5px"><div class="fin-bfill" style="width:${repaidPct}%;background:linear-gradient(90deg,#f5a623,#ffd060)"></div></div>`;
+}
+
+function addExpQuick(){
+  const cat=document.getElementById('expCat_'+sel)?.value||'생활';
+  const memo=document.getElementById('expMemo_'+sel)?.value.trim()||'';
+  const amt=Number(document.getElementById('expAmt_'+sel)?.value)||0;
+  if(!amt){return;}
+  const w=dayData(sel).work;
+  if(!w.expenses)w.expenses=[];
+  w.expenses.push({cat,memo,amount:amt,date:sel});
+  save();renderWork();
+}
+
+function saveIncomePopup(){
+  const bm=Number(document.getElementById('iPop_baemin')?.value)||0;
+  const cp=Number(document.getElementById('iPop_coupang')?.value)||0;
+  const del=Number(document.getElementById('iPop_del')?.value)||0;
+  const wH=Number(document.getElementById('iPop_wH')?.value)||0;
+  const wM=Number(document.getElementById('iPop_wM')?.value)||0;
+  const w=dayData(sel).work;
+  w.incomeBaemin=bm; w.incomeCoupang=cp; w.incomeAmount=bm+cp;
+  w.deliveries=del; w.workH=wH; w.workM=wM;
+  save();
+  document.getElementById('incomePop').classList.remove('open');
+  renderWork(); renderCal(); renderTimeline();
+}
+
+// ════════════════════════════════════════════════
+//  RENDER HEALTH PANEL (오른쪽: 수면/운동 + 오늘 할 일)
+// ════════════════════════════════════════════════
+function renderHealth() {
+  const d = dayData(sel);
+  const h = d.health || {};
+  const sl = h.sleep || {};
+  const slScore = Number(sl.score)||0;
+  const slMin = hmToMins(sl.sleepH,sl.sleepM);
+  const slH = Math.floor(slMin/60), slM = slMin%60;
+  const slClr = slScore>=85?'#4f8ef7':slScore>=75?'#27c96e':slScore>=60?'#f5c200':'#e74c3c';
+
+  const swimDist = Number(h.swimming?.m)||0;
+  const swimMin = Number(h.swimming?.swimM)||0;
+  const runKm = Number(h.running?.km)||0;
+  const runMin = Math.round(((Number(h.running?.runM)||0)*60+(Number(h.running?.runS)||0))/60);
+  const cycKm = Number(h.cycling?.km)||0;
+  const exParts = [];
+  if(swimDist>0) exParts.push(`🏊 ${swimDist}m`);
+  if(runKm>0) exParts.push(`🏃 ${runKm}km`);
+  if(cycKm>0) exParts.push(`🚴 ${cycKm}km`);
+  const exStr = exParts.join(' · ');
+  const exMin = swimMin + runMin + hmToMins(h.cycling?.cycH,h.cycling?.cycM);
+  const exClr = exMin>=60?'#4f8ef7':exMin>=30?'#27c96e':'var(--m)';
+
+  // 오늘 할 일
+  const dp = d.dailyPlan;
+  const ps = dp ? calcPlanStatus(sel) : null;
+
+  let out = `
+  <!-- 수면 + 운동 블록 -->
+  <div class="vitals">
+    <div class="vcard" onclick="openSleepPop()" style="cursor:pointer">
+      <div class="vcard-lbl">😴 수면</div>
+      <div class="vcard-val" style="color:${slClr}">${slMin>0?(slH+'h'+(slM?slM+'m':'')):'–'}</div>
+      <div class="vcard-sub">${slScore>0?'점수 '+slScore:slMin>0?(slMin<420?'부족':'충분'):'탭해서 입력'}</div>
+      <div class="vcard-bar"><div class="vcard-bar-f" style="width:${slScore>0?slScore:Math.min(100,Math.round(slMin/540*100))}%;background:${slClr}"></div></div>
+    </div>
+    <div class="vcard" onclick="openExPop()" style="cursor:pointer">
+      <div class="vcard-lbl">🏃 운동</div>
+      <div class="vcard-val" style="color:${exClr}">${exMin>0?exMin+'분':'–'}</div>
+      <div class="vcard-sub" style="line-height:1.3">${exStr||'탭해서 입력'}</div>
+      <div class="vcard-bar"><div class="vcard-bar-f" style="width:${Math.min(100,Math.round(exMin/60*100))}%;background:${exClr}"></div></div>
+    </div>
+  </div>
+
+  <!-- 오늘 할 일 -->
+  <div style="padding:7px 8px;flex:1">`;
+
+  if(ps && ps.total>0) {
+    const fineClr = ps.fine>0?'#e74c3c':'#27c96e';
+    out+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+      <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">✅ 오늘 할 일</span>
+      <span style="font-size:9px;font-weight:700;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'벌금없음'}</span>
+    </div>
+    <div class="plan-clovs" style="padding:4px 0" onclick="openPlanModal()">
+      ${Array.from({length:Math.min(ps.total,8)},(_,i)=>{
+        const done=i<ps.achieved, fail=!done&&i<ps.achieved+ps.failed;
+        return `<span class="pcv" style="${done?'filter:drop-shadow(0 0 5px #27c96e88)':fail?'filter:grayscale(1) sepia(1) saturate(3) hue-rotate(300deg);opacity:.7':'opacity:.18;filter:grayscale(1)'}">🍀</span>`;
+      }).join('')}
+    </div>
+    <div style="font-family:var(--bebas);font-size:13px;color:#f5c81e;text-align:center;margin:3px 0 6px;cursor:pointer" onclick="openPlanModal()">${ps.achieved} / ${ps.total} 달성</div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      ${(dp.items||[]).slice(0,5).map(it=>`
+      <div style="display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:5px;border:1px solid ${it.done?'rgba(39,201,110,.2)':it.fail?'rgba(231,76,60,.2)':'var(--b)'};background:${it.done?'rgba(39,201,110,.06)':it.fail?'rgba(231,76,60,.06)':'var(--s2)'}">
+        <div style="width:14px;height:14px;border-radius:50%;border:1.5px solid ${it.done?'#27c96e':it.fail?'#e74c3c':'var(--m2)'};background:${it.done?'#27c96e':it.fail?'#e74c3c':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:8px;color:#fff">${it.done?'✓':it.fail?'✗':''}</div>
+        <span style="font-size:9px;color:${it.done?'#27c96e':it.fail?'#e74c3c77':'var(--t)'};text-decoration:${it.done||it.fail?'line-through':'none'};flex:1;line-height:1.3">${esc(it.name)}</span>
+      </div>`).join('')}
+      ${ps.total>5?`<div style="font-size:8px;color:var(--m);text-align:center;cursor:pointer;padding:3px" onclick="openPlanModal()">+${ps.total-5}개 더보기</div>`:''}
+    </div>`;
+  } else {
+    out+=`<div style="text-align:center;padding:20px 0;cursor:pointer" onclick="openPlanModal()">
+      <div style="font-size:32px;opacity:.3">🍀</div>
+      <div style="font-size:9px;color:var(--m2);margin-top:6px">오늘 할 일 없음 · 탭해서 확인</div>
+    </div>`;
+  }
+
+  out+=`</div>`;
+
+  document.getElementById('pHealth').innerHTML = `${out}
+  <div class="panel-btns">
+    <button class="pbtn" onclick="openShoeModal ? openShoeModal() : null"><span style="font-size:12px">👟</span>러닝화</button>
+    <button class="pbtn" onclick="openMotoModal ? openMotoModal() : null"><span style="font-size:12px">🏍️</span>정비기록</button>
+  </div>`;
+}
+
 function renderAll() {
   try { renderCal(); } catch(e) { console.error('[renderCal]', e); }
-  try { renderStudy(); } catch(e) { console.error('[renderStudy]', e); document.getElementById('pStudy').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ 공부 패널 오류: '+e.message+'</div>'; }
-  try { renderWork(); } catch(e) { console.error('[renderWork]', e); document.getElementById('pWork').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ 일 패널 오류: '+e.message+'</div>'; }
-  try { renderHealth(); } catch(e) { console.error('[renderHealth]', e); document.getElementById('pHealth').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ 건강 패널 오류: '+e.message+'</div>'; }
+  try { renderTimeline(); } catch(e) { console.error('[renderTimeline]', e); }
+  try { renderWork(); } catch(e) { console.error('[renderWork]', e); document.getElementById('pWork').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ '+e.message+'</div>'; }
+  try { renderHealth(); } catch(e) { console.error('[renderHealth]', e); document.getElementById('pHealth').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ '+e.message+'</div>'; }
+  try { mmEnsureSub(); } catch(e) { console.error('[mmEnsureSub]', e); }
 }
 
 // ─── WEEK NAV ───
@@ -3150,7 +3893,9 @@ if(db._goals?.국어?.length || db._goals?.수학?.length) {
   save();
 }
 autoDeductCardLoans();
+mmInit();
 renderAll();
+initTlDrag();
 initFirebase();
 </script>
 <!-- MODALS -->
@@ -3250,6 +3995,53 @@ initFirebase();
       </div>
     </div>
     <div id="planBody" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+</div>
+<!-- 인증 캡처 카드 -->
+<div id="certBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:400;align-items:center;justify-content:center" onclick="if(event.target===this)closeCertModal()">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:300px">
+    <!-- 캡처 대상 카드 -->
+    <div id="certCard" style="background:#0e1320;border:1px solid rgba(245,200,30,.35);border-radius:16px;width:100%;padding:18px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;color:#f5c81e;font-weight:700;letter-spacing:.5px">연우한의 · 오늘 인증</div>
+          <div id="certDate" style="font-size:18px;font-weight:700;margin-top:2px"></div>
+        </div>
+        <span style="font-size:28px">🍀</span>
+      </div>
+      <!-- 근무 -->
+      <div id="certWork" style="background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:9px;color:#f5a623aa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px">근무</div>
+          <div id="certWorkVal" style="font-family:'Bebas Neue',display;font-size:22px;color:#ffd060;letter-spacing:.5px"></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:9px;color:var(--m)">수입</div>
+          <div style="font-family:'Bebas Neue',display;font-size:18px;color:#ffd060;letter-spacing:.5px">₩ ***</div>
+        </div>
+      </div>
+      <!-- 운동 -->
+      <div id="certExercise" style="display:none;background:rgba(39,201,110,.08);border:1px solid rgba(39,201,110,.2);border-radius:10px;padding:10px 12px">
+        <div style="font-size:9px;color:#27c96eaa;letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px">운동</div>
+        <div id="certExerciseVal" style="font-size:12px;color:#27c96e;font-weight:700"></div>
+      </div>
+      <!-- 오늘 할 일 -->
+      <div id="certPlan" style="display:none;background:rgba(245,200,30,.05);border:1px solid rgba(245,200,30,.2);border-radius:10px;padding:10px 12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:9px;color:#f5c81eaa;letter-spacing:.8px;text-transform:uppercase">오늘 할 일</div>
+          <div id="certFine" style="font-size:9px;font-weight:700"></div>
+        </div>
+        <div id="certClovers" style="display:flex;gap:3px;margin-bottom:4px"></div>
+        <div id="certPlanVal" style="font-size:10px;color:#f5c81e;font-family:'Bebas Neue',display;letter-spacing:.5px"></div>
+      </div>
+      <!-- 워터마크 -->
+      <div style="font-size:8px;color:var(--m2);text-align:right">연우한의 대시보드</div>
+    </div>
+    <!-- 캡처 버튼 (카드 밖에 있어서 캡처에 안 찍힘) -->
+    <div style="display:flex;gap:8px">
+      <button onclick="shootCert()" style="background:rgba(245,200,30,.2);border:1px solid rgba(245,200,30,.4);color:#f5c81e;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif">📷 저장</button>
+      <button onclick="closeCertModal()" style="background:var(--s2);border:1px solid var(--b);color:var(--m);border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif">닫기</button>
+    </div>
   </div>
 </div>
 </body>
