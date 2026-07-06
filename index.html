@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
 :root{
@@ -21,7 +22,9 @@
   --r:8px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+html{background:var(--bg)}
+body{overflow-x:hidden;overscroll-behavior-y:contain}
+body::after{content:'';display:block;height:1px;opacity:0;pointer-events:none}
 body{background:var(--bg);color:var(--t);font-family:var(--sans);font-size:12px}
 input::-webkit-inner-spin-button,input::-webkit-outer-spin-button{-webkit-appearance:none}
 input[type=number]{-moz-appearance:textfield}
@@ -349,6 +352,59 @@ const FIREBASE_CONFIG = {
 };
 const FB_PATH = "bdh3"; // Firebase Realtime DB 루트 경로
 const TIMER_FB_PATH = "bdh3_t"; // 열공타이머(열품타) 전용 경로 — 정복지도 읽기용
+
+// ── 목달인 스터디 (miraclemorning) Firestore 연동 ──
+const MM_FB_CONFIG = {
+  apiKey:"AIzaSyCz9dmLAFVdp_fe4bneN5wlW8bknyH3bgM",
+  authDomain:"yeonwoo-d3721.firebaseapp.com",
+  projectId:"yeonwoo-d3721",
+  storageBucket:"yeonwoo-d3721.firebasestorage.app",
+  messagingSenderId:"1021874423334",
+  appId:"1:1021874423334:web:35e70b78c8e0d6c18788e7"
+};
+const MM_MY_ID = 'yeonwoo'; // 연우 멤버 ID
+const MM_APP_URL = 'https://neipclover88-spec.github.io/yeonwoo/'; // 목표달성 인증 스터디 앱 주소
+let mmApp = null, mmDb = null;
+let mmPlanCache = {}; // 날짜별 캐시: mmPlanCache['2026-07-05'] = {items, isRest, ...}
+let mmUnsubscribe = null;
+let mmSubscribedDocId = null;
+
+// 목표달성 인증 스터디 문서 ID: plan_{멤버ID}_{연도}_{월(01~12)}
+function mmDocId(y, m1) { return `plan_${MM_MY_ID}_${y}_${String(m1).padStart(2,'0')}`; }
+
+function mmInit() {
+  try {
+    mmApp = firebase.initializeApp(MM_FB_CONFIG, 'mm');
+    mmDb  = mmApp.firestore();
+  } catch(e) { console.error('[mmInit]', e); }
+}
+
+// sel(현재 보고 있는 날짜)이 속한 월의 스터디 계획 문서를 구독 — 읽기 전용
+function mmEnsureSub() {
+  if(!mmDb) return;
+  const [y,m] = sel.split('-').map(Number);
+  const docId = mmDocId(y, m);
+  if(docId === mmSubscribedDocId) return;
+  if(mmUnsubscribe) { mmUnsubscribe(); mmUnsubscribe = null; }
+  mmSubscribedDocId = docId;
+  mmUnsubscribe = mmDb.collection('miraclemorning').doc(docId).onSnapshot(snap => {
+    const data = snap.exists ? snap.data() : {};
+    mmPlanCache[docId] = data;
+    Object.entries(data).forEach(([dateKey, planData]) => {
+      if(!planData) return;
+      const dd = dayData(dateKey);
+      dd.dailyPlan = {
+        items: Array.isArray(planData.items) ? planData.items : [],
+        isRest: !!planData.isRest,
+        isSpecialRest: !!planData.isSpecialRest
+      };
+    });
+    renderCal();
+    renderStudy();
+    renderHealth();
+    if(document.getElementById('planBg')?.style.display === 'flex') renderPlanModal();
+  }, err => console.error('[mmSub]', err));
+}
 // ════════════════════════════════════════════════
 
 // ─── CONSTANTS ───
@@ -1463,7 +1519,7 @@ function renderWork() {
   const curKm = Number(moto.curKm)||0;
   const parts = moto.parts || [];
   h += `<div style="background:linear-gradient(135deg,rgba(100,100,255,.08),rgba(100,100,255,.02));border-top:1px solid var(--b);padding:8px 9px">
-    <button onclick="toggleMoto()" style="background:none;border:none;color:#8888ffaa;font-size:9px;cursor:pointer;padding:0;letter-spacing:.5px;text-transform:uppercase;width:100%;text-align:left">🏍️ 오토바이 정비 기록</button>
+    <button onclick="toggleMoto()" style="background:none;border:none;color:#8888ffaa;font-size:9px;cursor:pointer;padding:0;letter-spacing:.5px;text-transform:uppercase;width:100%;text-align:left">🚗 차량 정비 기록</button>
     <div id="motoBox" style="display:none;margin-top:8px;display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:9px;color:var(--m);flex-shrink:0">현재 주행거리</span>
@@ -2330,11 +2386,12 @@ function renderPlanModal() {
   const ru = calcRestUsage(sel);
 
   const fineClr = ps.fine>0 ? '#e74c3c' : '#27c96e';
+  const mmLinkBtn = `<a href="${MM_APP_URL}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.3);color:#4f8ef7;border-radius:7px;padding:7px 0;font-size:11px;font-weight:700;text-decoration:none;margin-top:6px">🔗 목표달성 인증 스터디에서 수정하기</a>`;
 
   let b = `<div style="background:linear-gradient(135deg,rgba(245,200,30,.1),rgba(245,200,30,.03));border:1px solid rgba(245,200,30,.25);border-radius:10px;padding:10px 12px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <button onclick="togglePlanRest('isRest')" style="flex:1;margin-right:5px;background:${dp.isRest?'rgba(127,179,224,.2)':'var(--s2)'};border:1px solid ${dp.isRest?'#7fb3e0':'var(--b)'};color:${dp.isRest?'#7fb3e0':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">😌 휴무 ${dp.isRest?'✓':''}</button>
-      <button onclick="togglePlanRest('isSpecialRest')" style="flex:1;background:${dp.isSpecialRest?'rgba(168,85,247,.2)':'var(--s2)'};border:1px solid ${dp.isSpecialRest?'#a855f7':'var(--b)'};color:${dp.isSpecialRest?'#a855f7':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;cursor:pointer">🎁 특휴 ${dp.isSpecialRest?'✓':''}</button>
+      <span style="flex:1;margin-right:5px;background:${dp.isRest?'rgba(127,179,224,.2)':'var(--s2)'};border:1px solid ${dp.isRest?'#7fb3e0':'var(--b)'};color:${dp.isRest?'#7fb3e0':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;text-align:center">😌 휴무 ${dp.isRest?'✓':''}</span>
+      <span style="flex:1;background:${dp.isSpecialRest?'rgba(168,85,247,.2)':'var(--s2)'};border:1px solid ${dp.isSpecialRest?'#a855f7':'var(--b)'};color:${dp.isSpecialRest?'#a855f7':'var(--m)'};border-radius:7px;padding:6px 0;font-size:11px;font-weight:700;text-align:center">🎁 특휴 ${dp.isSpecialRest?'✓':''}</span>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--m)">
       <span>이번주 휴무 <b style="color:${ru.weekUsed>=ru.weekLimit?'#e74c3c':'var(--t)'}">${ru.weekUsed}/${ru.weekLimit}</b></span>
@@ -2343,16 +2400,18 @@ function renderPlanModal() {
     ${ru.monthSpecialDates.length>0?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
       ${ru.monthSpecialDates.map(dk=>{
         const [,m,d]=dk.split('-');
-        return `<span onclick="clearSpecialRest('${dk}')" style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:9px">${Number(m)}/${Number(d)} ✕</span>`;
+        return `<span style="background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:#a855f7;border-radius:4px;padding:2px 7px;font-size:9px">${Number(m)}/${Number(d)}</span>`;
       }).join('')}
     </div>`:''}
+    <div style="font-size:8px;color:var(--m2);text-align:center;margin-top:6px">🔗 목표달성 인증 스터디와 연동됨 (읽기 전용)</div>
+    ${mmLinkBtn}
   </div>`;
 
   if(!dp.isRest && !dp.isSpecialRest) {
     b += `<div style="display:flex;flex-direction:column;gap:4px">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:9px;color:var(--m);letter-spacing:.5px;text-transform:uppercase">오늘 계획 (${dp.items.length}개)</span>
-        <span style="font-size:8px;color:var(--m2)">꾹 눌러 순서 변경 · ✕로 제거</span>
+        <span style="font-size:8px;color:var(--m2)">보기 전용</span>
       </div>
       <div id="planItemList" style="display:flex;flex-direction:column;gap:4px">
       ${dp.items.map((it)=>{
@@ -2363,19 +2422,11 @@ function renderPlanModal() {
         const textClr = isDone ? '#27c96e' : isFail ? '#e74c3c77' : 'var(--t)';
         const textDeco = isDone || isFail ? 'line-through' : 'none';
         return `
-        <div class="plan-item-row" data-id="${it.id}" style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px;touch-action:none;user-select:none;cursor:grab">
-          <div data-check="${it.id}" style="width:18px;height:18px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c33':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff">${isDone?'✓':''}</div>
+        <div class="plan-item-row" data-id="${it.id}" style="display:flex;align-items:center;gap:6px;background:${bg};border:1px solid ${border};border-radius:7px;padding:5px 8px">
+          <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${isDone?'#27c96e':isFail?'#e74c3c33':'var(--m2)'};background:${isDone?'#27c96e':'none'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:#fff">${isDone?'✓':isFail?'✗':''}</div>
           <span style="flex:1;font-size:11px;color:${textClr};text-decoration:${textDeco};line-height:1.3">${esc(it.name)}</span>
-          <button data-fail="${it.id}" title="못했어요" style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${isFail?'#e74c3c':'var(--m2)'};background:${isFail?'#e74c3c':'none'};color:${isFail?'#fff':'var(--m2)'};font-size:9px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✗</button>
-          <button data-del="${it.id}" style="background:none;border:none;color:var(--m2);cursor:pointer;font-size:9px;padding:0;opacity:.4;flex-shrink:0">✕</button>
         </div>`;
-      }).join('') || '<div style="font-size:10px;color:var(--m2);padding:4px 0">계획을 추가해보세요</div>'}
-      </div>
-      <div style="display:flex;gap:4px;margin-top:2px">
-        <input id="planItemInp" type="text" placeholder="할 일 추가..."
-          style="flex:1;background:var(--s2);border:1px solid var(--b);border-radius:7px;color:var(--t);font-size:11px;padding:6px 9px;outline:none"
-          onkeydown="if(event.key==='Enter')addPlanItem()">
-        <button onclick="addPlanItem()" style="background:rgba(245,200,30,.15);border:1px solid rgba(245,200,30,.4);color:#f5c81e;border-radius:7px;padding:0 12px;cursor:pointer;font-size:13px;font-weight:700">+</button>
+      }).join('') || '<div style="font-size:10px;color:var(--m2);padding:4px 0">목표달성 인증 스터디에 계획을 추가해보세요</div>'}
       </div>
     </div>
 
@@ -2397,7 +2448,8 @@ function renderPlanModal() {
         <span style="font-family:var(--bebas);font-size:18px;color:${fineClr}">${ps.fine>0?'₩'+ps.fine.toLocaleString():'없음 🎉'}</span>
       </div>
       ${ps.fine>0?`<div style="font-size:8px;color:#e74c3caa;margin-top:3px;text-align:right">미달성 ${3-ps.achieved}개 × 500원</div>`:''}
-    </div>`;
+    </div>
+    ${mmLinkBtn}`;
   } else {
     const isSpecial = dp.isSpecialRest;
     const restLabel = isSpecial ? '특별 휴가' : '오늘은 휴무!';
@@ -2469,7 +2521,6 @@ function renderPlanModal() {
   }
 
   document.getElementById('planBody').innerHTML = b;
-  initPlanDrag();
 }
 function togglePlanItem(id) {
   const dp = dayData(sel).dailyPlan;
@@ -3466,6 +3517,9 @@ function renderWork() {
   const mInc = monthTotalIncome(ym);
   const mExp = monthTotalExp(ym);
   const mNet = Math.round(mInc*(1-deductRate/100));
+  const wDates = weekDates(sel);
+  const ws = weekStats(wDates);
+  const {h:wsH, m:wsM} = minsToHM(ws.workMins);
 
   let h = `
   <!-- 수입 섹션 (탭하면 팝업) -->
@@ -3486,13 +3540,17 @@ function renderWork() {
       <span class="fin-lbl">지출</span>
       <span class="fin-val" style="color:#e74c3c">${expTotal>0?'₩'+expTotal.toLocaleString():'–'}</span>
     </div>
-    <div class="exp-inp">
-      <select id="expCat_${sel}" style="flex:1;background:var(--s2);border:1px solid rgba(231,76,60,.25);border-radius:5px;color:var(--t);font-size:9px;padding:4px 5px;outline:none;-webkit-appearance:none">
-        ${EXP_CATS.filter(c=>c!=='수입').map(c=>`<option value="${c}">${c}</option>`).join('')}
-      </select>
-      <input type="text" placeholder="메모" id="expMemo_${sel}" style="flex:1.2;font-size:9px">
-      <input type="number" placeholder="금액" id="expAmt_${sel}" style="flex:1;font-family:var(--bebas);font-size:13px">
-      <button onclick="addExpQuick()" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.35);color:#e74c3c;border-radius:5px;padding:0 8px;cursor:pointer;font-size:13px;font-weight:700">+</button>
+    <div class="exp-inp" style="flex-direction:column;gap:4px">
+      <div style="display:flex;gap:4px">
+        <select id="expCat_${sel}" style="flex:1;min-width:0;background:var(--s2);border:1px solid rgba(231,76,60,.25);border-radius:5px;color:var(--t);font-size:9px;padding:4px 5px;outline:none;-webkit-appearance:none">
+          ${EXP_CATS.filter(c=>c!=='수입').map(c=>`<option value="${c}">${c}</option>`).join('')}
+        </select>
+        <input type="number" placeholder="금액" id="expAmt_${sel}" style="flex:1;min-width:0;font-family:var(--bebas);font-size:13px">
+      </div>
+      <div style="display:flex;gap:4px">
+        <input type="text" placeholder="메모" id="expMemo_${sel}" style="flex:1;min-width:0;font-size:9px">
+        <button onclick="addExpQuick()" style="flex-shrink:0;background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.35);color:#e74c3c;border-radius:5px;padding:0 14px;cursor:pointer;font-size:13px;font-weight:700">+</button>
+      </div>
     </div>
     ${expList.length>0?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">
       ${expList.map(ex=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)">
@@ -3500,6 +3558,17 @@ function renderWork() {
         <span style="font-family:var(--bebas);font-size:11px;color:#e74c3c">₩${Number(ex.amount||0).toLocaleString()}</span>
       </div>`).join('')}
     </div>`:''}
+  </div>
+
+  <!-- 주간 합산 -->
+  <div class="wstats fin-sec">
+    <div style="font-size:7px;color:var(--m);letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px">주간 합산</div>
+    <div class="wstat-row"><span class="wslbl">총 수입 (공제 전)</span><span class="wsval">${ws.income>0?'₩'+ws.income.toLocaleString():'–'}</span></div>
+    <div class="wstat-row"><span class="wslbl">실수령 합계</span><span class="wsval" style="color:#ffd060">${ws.net>0?'₩'+ws.net.toLocaleString():'–'}</span></div>
+    <div class="wstat-row"><span class="wslbl">배달 건수</span><span class="wsval">${ws.deliveries||0}건</span></div>
+    <div class="wstat-row"><span class="wslbl">근무 시간</span><span class="wsval">${fmtHM(wsH,wsM)||'–'}</span></div>
+    ${ws.deliveries>0?`<div class="wstat-row"><span class="wslbl">건당 단가</span><span class="wsval">₩${Math.round(ws.income/ws.deliveries).toLocaleString()}</span></div>`:''}
+    ${ws.workMins>0?`<div class="wstat-row"><span class="wslbl">시급 (실수령)</span><span class="wsval" style="color:#ffd060">₩${Math.round(ws.net/(ws.workMins/60)).toLocaleString()}</span></div>`:''}
   </div>
 
   <!-- 이번달 재정 -->
@@ -3518,13 +3587,11 @@ function renderWork() {
       </div>
     </div>
     <div style="height:1px;background:var(--b);margin-bottom:6px"></div>
-    ${renderDebtMini()}
   </div>`;
 
   document.getElementById('pWork').innerHTML = `${h}
   <div class="panel-btns">
-    <button class="pbtn" onclick="openModal('work')"><span style="font-size:12px">📊</span>월간리포트</button>
-    <button class="pbtn" onclick="openModal('debt')"><span style="font-size:12px">💳</span>채무상세</button>
+    <button class="pbtn" onclick="openModal('work')"><span style="font-size:12px">📊</span>재무 상황</button>
   </div>`;
 
   // 수입 팝업 HTML (없으면 생성)
@@ -3801,7 +3868,7 @@ function renderHealth() {
   } else {
     out+=`<div style="text-align:center;padding:20px 0;cursor:pointer" onclick="openPlanModal()">
       <div style="font-size:32px;opacity:.3">🍀</div>
-      <div style="font-size:9px;color:var(--m2);margin-top:6px">오늘 할 일 설정하기</div>
+      <div style="font-size:9px;color:var(--m2);margin-top:6px">오늘 할 일 없음 · 탭해서 확인</div>
     </div>`;
   }
 
@@ -3810,7 +3877,7 @@ function renderHealth() {
   document.getElementById('pHealth').innerHTML = `${out}
   <div class="panel-btns">
     <button class="pbtn" onclick="openShoeModal ? openShoeModal() : null"><span style="font-size:12px">👟</span>러닝화</button>
-    <button class="pbtn" onclick="openMotoModal ? openMotoModal() : null"><span style="font-size:12px">🏍️</span>정비기록</button>
+    <button class="pbtn" onclick="openMotoModal ? openMotoModal() : null"><span style="font-size:12px">🚗</span>정비기록</button>
   </div>`;
 }
 
@@ -3819,6 +3886,7 @@ function renderAll() {
   try { renderTimeline(); } catch(e) { console.error('[renderTimeline]', e); }
   try { renderWork(); } catch(e) { console.error('[renderWork]', e); document.getElementById('pWork').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ '+e.message+'</div>'; }
   try { renderHealth(); } catch(e) { console.error('[renderHealth]', e); document.getElementById('pHealth').innerHTML='<div style="padding:16px;color:#e74c3c;font-size:10px">⚠ '+e.message+'</div>'; }
+  try { mmEnsureSub(); } catch(e) { console.error('[mmEnsureSub]', e); }
 }
 
 // ─── WEEK NAV ───
@@ -3843,6 +3911,7 @@ if(db._goals?.국어?.length || db._goals?.수학?.length) {
   save();
 }
 autoDeductCardLoans();
+mmInit();
 renderAll();
 initTlDrag();
 initFirebase();
