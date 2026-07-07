@@ -3374,6 +3374,61 @@ function tlPct(t){const[h,m]=t.split(':').map(Number);return Math.max(0,Math.min
 function tlSnapTime(pct){const tm=Math.round((TL_START+pct/100*TL_HOURS)*60/5)*5;const h=Math.floor(tm/60),m=tm%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
 function tlGetPct(clientX){const r=document.getElementById('tlTrack').getBoundingClientRect();return Math.max(0,Math.min(100,(clientX-r.left)/r.width*100));}
 function tlLabelOf(b){ return (b.type==='기타' && b.label) ? b.label : b.type; }
+function tToMin(t){const [h,m]=t.split(':').map(Number);return h*60+m;}
+function minToT(min){min=Math.max(0,Math.min(23*60+59,Math.round(min)));const h=Math.floor(min/60),m=min%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+
+// 기존 블록을 누른 채로 끌면 통째로 이동, 그냥 짧게 탭하면 수정 팝업
+function startBlockDrag(e, blkEl, blk, manualIdx) {
+  e.preventDefault();
+  const track = document.getElementById('tlTrack');
+  const tooltip = document.getElementById('tlTooltip');
+  const rect = track.getBoundingClientRect();
+  const startClientX = e.clientX;
+  const origStartMin = tToMin(blk.start);
+  const origEndMin = tToMin(blk.end);
+  const durMin = origEndMin - origStartMin;
+  const minBound = TL_START*60, maxBound=(TL_START+TL_HOURS)*60;
+  let moved = false;
+  let pendingStart = origStartMin, pendingEnd = origEndMin;
+  try { blkEl.setPointerCapture(e.pointerId); } catch(err){}
+
+  function onMove(ev) {
+    if(Math.abs(ev.clientX-startClientX) > 6) moved = true;
+    const dMin = Math.round((ev.clientX-startClientX)/rect.width*TL_HOURS*60);
+    let newStart = origStartMin + dMin, newEnd = newStart + durMin;
+    if(newStart < minBound) { newStart = minBound; newEnd = newStart + durMin; }
+    if(newEnd > maxBound) { newEnd = maxBound; newStart = newEnd - durMin; }
+    pendingStart = newStart; pendingEnd = newEnd;
+    const l = tlPct(minToT(newStart)), r = 100 - tlPct(minToT(newEnd));
+    blkEl.style.left = l+'%';
+    blkEl.style.right = r+'%';
+    if(tooltip) {
+      tooltip.style.display='block';
+      tooltip.textContent = minToT(newStart)+'~'+minToT(newEnd);
+      const screenX = Math.max(40, Math.min(window.innerWidth-40, ev.clientX));
+      tooltip.style.left = screenX+'px';
+      tooltip.style.top = Math.max(20, rect.top-60)+'px';
+    }
+  }
+  function onUp() {
+    blkEl.removeEventListener('pointermove', onMove);
+    blkEl.removeEventListener('pointerup', onUp);
+    blkEl.removeEventListener('pointercancel', onUp);
+    if(tooltip) tooltip.style.display='none';
+    if(!moved) { openTlEditPop(manualIdx, blk, null); return; }
+    const snapped = Math.round(pendingStart/5)*5;
+    const newStart = snapped, newEnd = snapped + durMin;
+    const d = dayData(sel);
+    if(d.tlBlocks && d.tlBlocks[manualIdx]) {
+      d.tlBlocks[manualIdx] = {...blk, start:minToT(newStart), end:minToT(newEnd)};
+      save();
+    }
+    renderTimeline();
+  }
+  blkEl.addEventListener('pointermove', onMove);
+  blkEl.addEventListener('pointerup', onUp);
+  blkEl.addEventListener('pointercancel', onUp);
+}
 
 function renderTimeline() {
   const dk = sel;
@@ -3421,7 +3476,12 @@ function renderTimeline() {
     const el=document.createElement('div');
     el.className='tl-blk';
     el.style.cssText=`left:${l}%;right:${r}%;background:${t.color}`;
-    el.addEventListener('pointerdown',(e)=>{e.stopPropagation();openTlEditPop(i,b,blocks);});
+    el.addEventListener('pointerdown',(e)=>{
+      e.stopPropagation();
+      const manualIdx = (d.tlBlocks||[]).indexOf(b);
+      if(manualIdx === -1) { openTlEditPop(i,b,blocks); return; }
+      startBlockDrag(e, el, b, manualIdx);
+    });
     track.appendChild(el);
     rawLabels.push({pos:mid,color:t.color,text:tlLabelOf(b),charW:tlLabelOf(b).length});
   });
