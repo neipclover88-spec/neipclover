@@ -32,7 +32,7 @@ input::placeholder{color:var(--m)}
 input:focus,select:focus{outline:none}
 
 /* ── APP LAYOUT ── */
-#app{max-width:980px;margin:0 auto;padding:5px;height:100vh;display:flex;flex-direction:column;gap:5px}
+#app{max-width:980px;margin:0 auto;padding:5px;height:100vh;height:100dvh;display:flex;flex-direction:column;gap:5px}
 
 /* ── HEADER ── */
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:1px 3px;flex-shrink:0}
@@ -84,11 +84,11 @@ input:focus,select:focus{outline:none}
 .panel::-webkit-scrollbar{width:2px}
 .panel::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 /* 타임라인 */
-.tl-wrap{background:var(--s1);border:1px solid var(--b);border-radius:var(--r);padding:6px 8px;flex-shrink:0}
+.tl-wrap{background:var(--s1);border:1px solid var(--b);border-radius:var(--r);padding:6px 8px;flex-shrink:0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .tl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .tl-labels{position:relative;height:14px;margin-bottom:1px}
 .tl-lbl-item{position:absolute;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;white-space:nowrap;transform:translateX(-50%);line-height:1;top:1px;pointer-events:none}
-.tl-track{position:relative;height:40px;background:var(--s2);border-radius:6px;cursor:pointer;overflow:hidden;touch-action:none;background-image:repeating-linear-gradient(to right,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 1px,transparent 1px,transparent calc(100%/17))}
+.tl-track{position:relative;height:40px;background:var(--s2);border-radius:6px;cursor:pointer;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background-image:repeating-linear-gradient(to right,rgba(255,255,255,.14) 0,rgba(255,255,255,.14) 1px,transparent 1px,transparent calc(100%/17))}
 .tl-blk{position:absolute;top:1px;bottom:1px;border-radius:4px;cursor:pointer;transition:filter .15s}
 .tl-blk:hover{filter:brightness(1.25)}
 .tl-add-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;color:var(--m2);pointer-events:none;white-space:nowrap}
@@ -3493,6 +3493,8 @@ function initTlDrag() {
   const tooltip = document.getElementById('tlTooltip');
   const sel2 = document.getElementById('tlSel');
   if(!track||!tooltip||!sel2) return;
+
+  track.addEventListener('contextmenu', e=>e.preventDefault());
 
   function showTip(cx, cy){
     const pct=tlGetPct(cx);
