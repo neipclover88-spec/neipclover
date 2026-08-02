@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>운동 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -21,6 +22,7 @@
     --gym:#e74c3c; --gym-bg:rgba(231,76,60,.14); --gym-tx:#e74c3c;
     --danger:#e74c3c; --danger-bg:rgba(231,76,60,.14);
     --shadow:0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.35);
+    --bebas:'Bebas Neue',sans-serif;
   }
   *{box-sizing:border-box;}
   html{ -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
@@ -30,21 +32,27 @@
     letter-spacing:-0.01em;
   }
   #et-root{ max-width:720px; margin:0 auto; padding:1.25rem 1rem 3rem; }
-  .et-btn{ cursor:pointer; transition:background .12s ease, border-color .12s ease, opacity .12s ease; }
+  .et-btn{ cursor:pointer; transition:background .15s ease, border-color .15s ease, opacity .12s ease, box-shadow .15s ease; }
   .et-btn:active{ opacity:.75; }
-  .et-card{ background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
-  .et-day{ transition:background .12s ease, border-color .12s ease, transform .08s ease; }
+  .et-card{ background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)), var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
+  .et-day{ transition:background .12s ease, border-color .12s ease, transform .08s ease, box-shadow .15s ease; }
   .et-day:active{ transform:scale(0.96); }
   input, select{ font-family:inherit; }
   #et-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
   #et-filters{ display:flex; gap:6px; flex-wrap:wrap; }
   .et-pill{ font-size:12px; padding:6px 13px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font-weight:500; }
-  .et-pill.active{ font-weight:600; }
+  .et-pill.active{ font-weight:700; }
   #et-calendar-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-  .et-weekday{ font-size:11px; color:var(--text-3); text-align:center; font-weight:600; }
+  .et-weekday{ font-size:11px; color:var(--text-3); text-align:center; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
   .et-daycell{ height:56px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:1px solid transparent; padding:0; background:var(--surface-alt); }
   .et-bottom-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
-  .et-card-title{ font-size:13px; color:var(--text-2); margin-bottom:12px; font-weight:700; letter-spacing:-0.01em; }
+  .et-card-title{ font-size:11px; color:var(--text-3); margin-bottom:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+  .et-num{ font-family:var(--bebas); letter-spacing:.02em; }
+  .et-glow-run{ text-shadow:0 0 14px rgba(39,201,110,.55); }
+  .et-glow-swim{ text-shadow:0 0 14px rgba(79,142,247,.55); }
+  .et-glow-cycle{ text-shadow:0 0 14px rgba(245,166,35,.55); }
+  .et-glow-gym{ text-shadow:0 0 14px rgba(231,76,60,.55); }
+  .et-bar-fill{ transition:width .3s ease; }
   #et-modal-overlay{ position:fixed; inset:0; background:rgba(20,18,12,0.5); display:none; align-items:flex-end; justify-content:center; z-index:50; }
   #et-modal-overlay.open{ display:flex; }
   #et-modal-box{ width:100%; max-width:480px; max-height:85vh; overflow-y:auto; background:var(--surface); border-radius:22px 22px 0 0; padding:20px 20px 28px; box-shadow:0 -8px 30px rgba(0,0,0,0.18); }
@@ -307,8 +315,9 @@ function renderHeader() {
     const active = filter === t;
     const label = t === "all" ? "전체" : TYPES[t].label;
     const v = t === "all" ? null : TYPES[t].v;
+    const glowColor = v==="run"?"39,201,110":v==="swim"?"79,142,247":v==="cycle"?"245,166,35":v==="gym"?"231,76,60":"39,201,110";
     const style = active
-      ? `border-color:var(--${v||"run"});background:var(--${v?v+"-bg":"surface-alt"});color:var(--${v?v+"-tx":"text"});`
+      ? `border-color:var(--${v||"run"});background:var(--${v?v+"-bg":"surface-alt"});color:var(--${v?v+"-tx":"text"});box-shadow:0 0 10px rgba(${glowColor},.35);`
       : "";
     return `<button class="et-pill et-btn ${active?"active":""}" style="${style}" data-filter="${t}">${label}</button>`;
   }).join("");
@@ -316,8 +325,8 @@ function renderHeader() {
   return `
   <div id="et-header">
     <div style="display:flex;align-items:baseline;gap:10px;">
-      <span style="display:inline-block;width:6px;height:20px;border-radius:3px;background:var(--run);transform:translateY(3px);"></span>
-      <span style="font-size:21px;font-weight:800;letter-spacing:-0.02em;">운동 관리</span>
+      <span style="display:inline-block;width:6px;height:20px;border-radius:3px;background:var(--run);transform:translateY(3px);box-shadow:0 0 10px rgba(39,201,110,.7);"></span>
+      <span style="font-size:22px;font-weight:800;letter-spacing:-0.02em;">운동 관리</span>
       ${dc > 0 ? `<span style="font-size:11px;padding:3px 9px;border-radius:999px;background:var(--cycle-bg);color:var(--cycle-tx);font-weight:600;">미확인 ${dc}</span>` : ""}
     </div>
     <div id="et-filters">
@@ -360,7 +369,7 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
   const hasDraft = entries.some((e) => e.status === "draft");
   const isSelected = dateStr === selectedDate;
   let bg = "var(--surface-alt)";
-  let border = isToday ? "1.5px solid var(--run)" : hasDraft ? "1.5px dashed var(--border-strong)" : "1px solid transparent";
+  let border = isToday ? "1px solid transparent" : hasDraft ? "1.5px dashed var(--border-strong)" : "1px solid transparent";
   let inner = "";
 
   if (entries.length === 1) {
@@ -368,9 +377,10 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
     const meta = TYPES[e.type];
     bg = `var(--${meta.v}-bg)`;
     const stat = e.type === "gym" ? ((e.bodyParts && e.bodyParts.length) ? e.bodyParts.join("·") : "") : (e.distance ? `${round1(e.distance)}km` : (e.durationSec ? formatDurationShort(e.durationSec) : ""));
+    const isNumericStat = e.type !== "gym";
     inner = `<div style="display:flex;align-items:center;gap:4px;line-height:1;">
       <span style="font-size:15px;">${meta.icon}</span>
-      ${stat ? `<span style="font-size:11px;font-weight:700;color:var(--${meta.v}-tx);">${escapeHtml(stat)}</span>` : ""}
+      ${stat ? `<span class="${isNumericStat?`et-num et-glow-${meta.v}`:""}" style="font-size:${isNumericStat?13:10.5}px;font-weight:${isNumericStat?400:600};color:var(--${meta.v}-tx);">${escapeHtml(stat)}</span>` : ""}
     </div>`;
   } else if (entries.length > 1) {
     const dots = entries.slice(0,4).map((e) => `<span style="width:6px;height:6px;border-radius:50%;background:var(--${TYPES[e.type].v});display:inline-block;"></span>`).join("");
@@ -378,10 +388,11 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
   }
 
   const opacity = (isFuture && entries.length === 0) ? "opacity:0.45;" : "";
-  const shadow = isSelected ? "box-shadow:0 0 0 2px var(--text);" : "";
+  const todayGlow = isToday ? "box-shadow:0 0 0 1.5px var(--run), 0 0 12px rgba(39,201,110,.45);" : "";
+  const shadow = isSelected ? "box-shadow:0 0 0 2px var(--text);" : todayGlow;
   return `
   <button class="et-daycell et-day et-btn" data-date="${dateStr}" style="background:${entries.length>0?bg:"var(--surface-alt)"};border:${border};${opacity}${shadow}">
-    <span style="font-size:12px;font-weight:${isToday?700:500};color:${isToday?"var(--run)":"var(--text-2)"};line-height:1;">${date.getDate()}</span>
+    <span class="et-num" style="font-size:14px;font-weight:400;color:${isToday?"var(--run)":"var(--text-2)"};line-height:1;${isToday?"text-shadow:0 0 10px rgba(39,201,110,.6);":""}">${date.getDate()}</span>
     ${inner}
   </button>`;
 }
@@ -392,7 +403,7 @@ function renderWeekSummaryCard() {
   const items = TYPE_ORDER.map((t) => `
     <div style="display:flex;align-items:center;gap:7px;">
       <span style="width:24px;height:24px;border-radius:8px;background:var(--${TYPES[t].v}-bg);display:flex;align-items:center;justify-content:center;font-size:13px;">${TYPES[t].icon}</span>
-      <span style="font-size:13px;font-weight:600;">${s.counts[t]||0}회</span>
+      <span class="et-num" style="font-size:16px;color:var(--text);">${s.counts[t]||0}<span style="font-family:'Pretendard',sans-serif;font-size:10px;color:var(--text-3);margin-left:1px;">회</span></span>
     </div>`).join("");
   const monthLine = TYPE_ORDER.map((t) => `${TYPES[t].icon} ${ms.counts[t]||0}`).join("  ");
   return `
@@ -400,14 +411,14 @@ function renderWeekSummaryCard() {
     <div class="et-card-title">이번주 요약</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">${items}</div>
     <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">총 운동시간</span><span style="font-size:12px;font-weight:700;">${Math.floor(s.totalMin/60)}시간 ${s.totalMin%60}분</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">누적 거리</span><span style="font-size:12px;font-weight:700;">${round1(s.totalKm)}km</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">총 운동시간</span><span style="font-size:13px;font-weight:700;color:var(--text);">${Math.floor(s.totalMin/60)}시간 ${s.totalMin%60}분</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">누적 거리</span><span class="et-num et-glow-run" style="font-size:14px;color:var(--run-tx);">${round1(s.totalKm)}km</span></div>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:12px;">
-      <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:7px;">이번 달</div>
+      <div class="et-card-title" style="margin-bottom:7px;">이번 달</div>
       <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${monthLine}</div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">총 시간</span><span style="font-size:11px;font-weight:600;">${Math.floor(ms.totalMin/60)}시간 ${ms.totalMin%60}분</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span style="font-size:11px;font-weight:600;">${round1(ms.totalKm)}km</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">총 시간</span><span style="font-size:12px;font-weight:700;color:var(--text-2);">${Math.floor(ms.totalMin/60)}시간 ${ms.totalMin%60}분</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span class="et-num" style="font-size:13px;color:var(--text-2);">${round1(ms.totalKm)}km</span></div>
     </div>
   </div>`;
 }
@@ -431,7 +442,7 @@ function renderRunningPaceCard() {
     : `<div style="display:flex;flex-direction:column;gap:9px;">${runs.map((r) => `
         <div style="display:flex;justify-content:space-between;font-size:12px;">
           <span style="color:var(--text-2);">${r.date.slice(5)}</span>
-          <span style="font-weight:600;">${r.distance ? round1(r.distance)+"km" : "-"}</span>
+          <span class="et-num" style="font-size:14px;color:var(--text);">${r.distance ? round1(r.distance)+"km" : "-"}</span>
           <span style="color:var(--text-2);">${escapeHtml(r.pace||"-")}</span>
         </div>`).join("")}</div>`;
   return `
@@ -439,9 +450,9 @@ function renderRunningPaceCard() {
     <div class="et-card-title">최근 러닝</div>
     ${body}
     <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
-      <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:6px;">이번 달 러닝</div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">횟수</span><span style="font-size:11px;font-weight:600;">${monthRunCount}회</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span style="font-size:11px;font-weight:600;">${round1(monthRunKm)}km</span></div>
+      <div class="et-card-title" style="margin-bottom:6px;">이번 달 러닝</div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">횟수</span><span class="et-num" style="font-size:13px;color:var(--text-2);">${monthRunCount}<span style="font-family:'Pretendard',sans-serif;font-size:10px;">회</span></span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span class="et-num" style="font-size:13px;color:var(--text-2);">${round1(monthRunKm)}km</span></div>
     </div>
   </div>`;
 }
@@ -459,10 +470,10 @@ function renderShoeMileageCard() {
         <div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
             <span style="font-size:12px;font-weight:500;">${escapeHtml(s.name)}</span>
-            <span style="font-size:11px;font-weight:600;color:${danger?"var(--danger)":"var(--text-2)"};">${round1(km)}/${s.targetKm}</span>
+            <span class="et-num" style="font-size:13px;font-weight:400;color:${danger?"var(--danger)":"var(--text-2)"};">${round1(km)}/${s.targetKm}</span>
           </div>
-          <div style="height:5px;background:var(--surface-alt);border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+          <div style="height:6px;background:var(--surface-alt);border-radius:3px;overflow:hidden;">
+            <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${danger?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
           </div>
         </div>`;
       }).join("")}</div>`;
@@ -508,6 +519,9 @@ function entryDetailView(e) {
   } else if (e.type === "swimming") {
     primary.push(["총거리", e.distance != null ? `${Math.round(e.distance * 1000)}` : "-", "m"]);
     primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
+    const distM = e.distance != null ? Math.round(e.distance * 1000) : 0;
+    const swimPace = (distM > 0 && e.durationSec > 0) ? formatPace(e.durationSec / (distM / 100)) : null;
+    primary.push(["평균 페이스", swimPace || "-", "/100m"]);
     if (e.avgHeartRate != null) chips.push(["ti-heart", `${e.avgHeartRate}`, "bpm", "gym"]); else missing.push("평균심박수");
     if (e.avgSwolf != null) chips.push(["ti-wave-sine", `${e.avgSwolf}`, "SWOLF", null]); else missing.push("SWOLF");
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
@@ -545,8 +559,8 @@ function renderSelectedDayCard() {
       <div style="display:grid;grid-template-columns:repeat(${primary.length},1fr);gap:6px;margin-bottom:${chips.length||shoeInfo||extraLines.length?9:0}px;">
         ${primary.map(([l, v, u]) => `
           <div style="background:var(--surface);border-radius:9px;padding:7px 8px;">
-            <div style="font-size:9px;color:var(--text-3);margin-bottom:2px;">${l}</div>
-            <div style="font-size:13px;font-weight:700;color:${v==="-"?"var(--text-3)":"var(--text)"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(v)}${u && v!=="-" ? `<span style="font-size:9px;font-weight:500;color:var(--text-3);margin-left:2px;">${u}</span>` : ""}</div>
+            <div style="font-size:9px;color:var(--text-3);margin-bottom:2px;letter-spacing:.04em;text-transform:uppercase;">${l}</div>
+            <div class="${(v!=="-"&&e.type!=="gym")?`et-num et-glow-${meta.v}`:""}" style="font-size:${e.type==="gym"?13:19}px;font-weight:${e.type==="gym"?700:400};color:${v==="-"?"var(--text-3)":`var(--${meta.v}-tx)`};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">${escapeHtml(v)}${u && v!=="-" ? `<span style="font-family:'Pretendard',sans-serif;font-size:9px;font-weight:600;color:var(--text-3);margin-left:2px;">${u}</span>` : ""}</div>
           </div>`).join("")}
       </div>` : "";
 
@@ -556,8 +570,8 @@ function renderSelectedDayCard() {
     const chipsHtml = coloredChips.length ? `
       <div style="display:flex;flex-wrap:wrap;gap:6px;${shoeInfo||neutralChips.length||extraLines.length?"margin-bottom:6px;":""}">
         ${coloredChips.map(([icon, v, u, role]) => `
-          <span style="display:inline-flex;align-items:center;gap:4px;background:var(--${role}-bg);border-radius:999px;padding:4px 9px;font-size:10.5px;font-weight:700;color:var(--${role}-tx);">
-            <i class="ti ${icon}" style="font-size:12px;color:var(--${role});" aria-hidden="true"></i>${escapeHtml(v)}<span style="color:var(--${role}-tx);font-size:9.5px;font-weight:500;opacity:0.85;">${u}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;background:var(--${role}-bg);border-radius:999px;padding:4px 9px 4px 10px;">
+            <i class="ti ${icon}" style="font-size:12px;color:var(--${role});" aria-hidden="true"></i><span class="et-num et-glow-${role}" style="font-size:13px;color:var(--${role}-tx);">${escapeHtml(v)}</span><span style="color:var(--${role}-tx);font-size:9px;font-weight:600;opacity:0.8;">${u}</span>
           </span>`).join("")}
       </div>` : "";
 
@@ -573,10 +587,10 @@ function renderSelectedDayCard() {
           <span style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;">${escapeHtml(shoeInfo.name)}</span>
         </span>
         <div style="flex:1;display:flex;align-items:center;gap:6px;min-width:0;">
-          <div style="flex:1;height:5px;background:var(--surface);border-radius:3px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+          <div style="flex:1;height:6px;background:var(--surface);border-radius:3px;overflow:hidden;">
+            <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${danger?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
           </div>
-          <span style="font-size:9.5px;color:var(--text-3);white-space:nowrap;">${round1(km)}/${shoeInfo.targetKm}km</span>
+          <span class="et-num" style="font-size:11px;color:var(--text-3);white-space:nowrap;">${round1(km)}/${shoeInfo.targetKm}km</span>
         </div>
       </div>`;
     }
@@ -1122,8 +1136,8 @@ function shoeManagerHtml() {
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
         <span>${round1(km)} / ${s.targetKm}km${s.initialKm ? ` (기존 ${s.initialKm}km 포함)` : ""}</span><span>${pct}%</span>
       </div>
-      <div style="height:5px;background:var(--surface);border-radius:3px;overflow:hidden;">
-        <div style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+      <div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden;">
+        <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${pct>=90?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
       </div>
       <div style="display:flex;gap:12px;margin-top:8px;">
         <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">이름 수정</button>
