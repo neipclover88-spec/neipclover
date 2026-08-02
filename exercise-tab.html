@@ -11,28 +11,16 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <style>
   :root{
-    --bg:#F6F4EE; --surface:#FFFFFF; --surface-alt:#EFEBE1;
-    --border:#E4E0D3; --border-strong:#D2CCB9;
-    --text:#211F1A; --text-2:#6E6A5C; --text-3:#A8A290;
-    --run:#2F6FED; --run-bg:#E9EFFD; --run-tx:#1E4FB0;
-    --swim:#0E9F7E; --swim-bg:#E4F6F0; --swim-tx:#0B7A61;
-    --cycle:#D98C1B; --cycle-bg:#FBF0DD; --cycle-tx:#9C6712;
-    --gym:#E2503F; --gym-bg:#FCEAE7; --gym-tx:#AF3A2C;
-    --danger:#E2503F; --danger-bg:#FCEAE7;
-    --shadow:0 1px 2px rgba(30,28,20,0.04), 0 4px 14px rgba(30,28,20,0.05);
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#17160F; --surface:#211F17; --surface-alt:#2A281F;
-      --border:#38352A; --border-strong:#4A4636;
-      --text:#F0EDE2; --text-2:#B0AA95; --text-3:#726C58;
-      --run:#5B8FF9; --run-bg:#1D2A47; --run-tx:#9BB9FA;
-      --swim:#2FC79B; --swim-bg:#123128; --swim-tx:#7EE0BE;
-      --cycle:#F0A83B; --cycle-bg:#3A2A0F; --cycle-tx:#F5C171;
-      --gym:#F0695A; --gym-bg:#3A1D18; --gym-tx:#F5988C;
-      --danger:#F0695A; --danger-bg:#3A1D18;
-      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.35);
-    }
+    /* 연우한의 대시보드와 동일한 다크 팔레트로 고정 (시스템 설정과 무관) */
+    --bg:#05050e; --surface:#0b0b1c; --surface-alt:#111122;
+    --border:#1c1c35; --border-strong:#222240;
+    --text:#ddddf8; --text-2:#9c9cc4; --text-3:#55558a;
+    --run:#27c96e; --run-bg:rgba(39,201,110,.14); --run-tx:#27c96e;
+    --swim:#4f8ef7; --swim-bg:rgba(79,142,247,.14); --swim-tx:#4f8ef7;
+    --cycle:#f5a623; --cycle-bg:rgba(245,166,35,.14); --cycle-tx:#f5a623;
+    --gym:#e74c3c; --gym-bg:rgba(231,76,60,.14); --gym-tx:#e74c3c;
+    --danger:#e74c3c; --danger-bg:rgba(231,76,60,.14);
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.35);
   }
   *{box-sizing:border-box;}
   html{ -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
@@ -54,7 +42,7 @@
   .et-pill.active{ font-weight:600; }
   #et-calendar-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
   .et-weekday{ font-size:11px; color:var(--text-3); text-align:center; font-weight:600; }
-  .et-daycell{ height:50px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:1px solid transparent; padding:0; background:var(--surface-alt); }
+  .et-daycell{ height:56px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:1px solid transparent; padding:0; background:var(--surface-alt); }
   .et-bottom-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
   .et-card-title{ font-size:13px; color:var(--text-2); margin-bottom:12px; font-weight:700; letter-spacing:-0.01em; }
   #et-modal-overlay{ position:fixed; inset:0; background:rgba(20,18,12,0.5); display:none; align-items:flex-end; justify-content:center; z-index:50; }
@@ -380,17 +368,20 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
     const meta = TYPES[e.type];
     bg = `var(--${meta.v}-bg)`;
     const stat = e.type === "gym" ? ((e.bodyParts && e.bodyParts.length) ? e.bodyParts.join("·") : "") : (e.distance ? `${round1(e.distance)}km` : (e.durationSec ? formatDurationShort(e.durationSec) : ""));
-    inner = `<span style="font-size:13px;line-height:1;">${meta.icon}</span>${stat ? `<span style="font-size:8.5px;font-weight:600;color:var(--${meta.v}-tx);line-height:1;">${escapeHtml(stat)}</span>` : ""}`;
+    inner = `<div style="display:flex;align-items:center;gap:4px;line-height:1;">
+      <span style="font-size:15px;">${meta.icon}</span>
+      ${stat ? `<span style="font-size:11px;font-weight:700;color:var(--${meta.v}-tx);">${escapeHtml(stat)}</span>` : ""}
+    </div>`;
   } else if (entries.length > 1) {
-    const dots = entries.slice(0,4).map((e) => `<span style="width:5px;height:5px;border-radius:50%;background:var(--${TYPES[e.type].v});display:inline-block;"></span>`).join("");
-    inner = `<div style="display:flex;gap:3px;">${dots}</div>`;
+    const dots = entries.slice(0,4).map((e) => `<span style="width:6px;height:6px;border-radius:50%;background:var(--${TYPES[e.type].v});display:inline-block;"></span>`).join("");
+    inner = `<div style="display:flex;gap:4px;">${dots}</div>`;
   }
 
   const opacity = (isFuture && entries.length === 0) ? "opacity:0.45;" : "";
   const shadow = isSelected ? "box-shadow:0 0 0 2px var(--text);" : "";
   return `
   <button class="et-daycell et-day et-btn" data-date="${dateStr}" style="background:${entries.length>0?bg:"var(--surface-alt)"};border:${border};${opacity}${shadow}">
-    <span style="font-size:10.5px;font-weight:${isToday?700:500};color:${isToday?"var(--run)":"var(--text-2)"};">${date.getDate()}</span>
+    <span style="font-size:12px;font-weight:${isToday?700:500};color:${isToday?"var(--run)":"var(--text-2)"};line-height:1;">${date.getDate()}</span>
     ${inner}
   </button>`;
 }
@@ -460,7 +451,7 @@ function renderShoeMileageCard() {
   const mileage = shoeMileage();
   const body = active.length === 0
     ? `<div style="font-size:12px;color:var(--text-3);">등록된 신발이 없어요.</div>`
-    : `<div style="display:flex;flex-direction:column;gap:10px;">${active.slice(0,3).map((s) => {
+    : `<div style="display:flex;flex-direction:column;gap:10px;">${active.map((s) => {
         const km = mileage[s.id] || 0;
         const pct = Math.min(100, Math.round(km / s.targetKm * 100));
         const danger = pct >= 90;
@@ -1127,6 +1118,7 @@ function shoeManagerHtml() {
       <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
         <span style="font-size:13px;font-weight:600;">${escapeHtml(s.name)}</span>
         <div style="display:flex;gap:10px;">
+          <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:11px;color:var(--text-2);background:none;border:none;">이름 수정</button>
           <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:11px;color:var(--run);background:none;border:none;">기존거리 수정</button>
           <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:11px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
         </div>
@@ -1159,6 +1151,20 @@ function bindShoeManagerEvents() {
       shoe.retired = !shoe.retired;
       persist();
       renderModal();
+    });
+  });
+  document.querySelectorAll(".et-edit-name").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const shoe = state.shoes.find((s) => s.id === btn.dataset.id);
+      const val = window.prompt("신발 이름을 입력하세요", shoe.name);
+      if (val === null) return;
+      const trimmed = val.trim();
+      if (trimmed) {
+        shoe.name = trimmed;
+        persist();
+        renderModal();
+        render();
+      }
     });
   });
   document.querySelectorAll(".et-edit-initial").forEach((btn) => {
