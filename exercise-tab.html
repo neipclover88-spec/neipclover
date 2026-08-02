@@ -468,10 +468,11 @@ function renderShoeMileageCard() {
         const danger = pct >= 90;
         return `
         <div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:${s.role?1:4}px;">
             <span style="font-size:12px;font-weight:500;">${escapeHtml(s.name)}</span>
             <span class="et-num" style="font-size:13px;font-weight:400;color:${danger?"var(--danger)":"var(--text-2)"};">${round1(km)}/${s.targetKm}</span>
           </div>
+          ${s.role ? `<div style="font-size:10px;color:var(--text-3);margin-bottom:3px;">${escapeHtml(s.role)}</div>` : ""}
           <div style="height:6px;background:var(--surface-alt);border-radius:3px;overflow:hidden;">
             <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${danger?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
           </div>
@@ -1129,18 +1130,20 @@ function shoeManagerHtml() {
     const pct = Math.min(100, Math.round(km / s.targetKm * 100));
     return `
     <div style="padding:12px 14px;border-radius:14px;background:var(--surface-alt);opacity:${s.retired?0.5:1};margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${s.role?2:7}px;">
         <span style="font-size:13px;font-weight:600;">${escapeHtml(s.name)}</span>
         <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:11px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
       </div>
+      ${s.role ? `<div style="font-size:11px;color:var(--run-tx);margin-bottom:6px;">${escapeHtml(s.role)}</div>` : ""}
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
         <span>${round1(km)} / ${s.targetKm}km${s.initialKm ? ` (기존 ${s.initialKm}km 포함)` : ""}</span><span>${pct}%</span>
       </div>
       <div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden;">
         <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${pct>=90?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
       </div>
-      <div style="display:flex;gap:12px;margin-top:8px;">
+      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
         <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">이름 수정</button>
+        <button class="et-btn et-edit-role" data-id="${s.id}" style="font-size:10px;color:var(--swim-tx);background:none;border:none;">역할 수정</button>
         <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">기존거리 수정</button>
         <button class="et-btn et-edit-target" data-id="${s.id}" style="font-size:10px;color:var(--run);background:none;border:none;">최대치 수정</button>
       </div>
@@ -1153,6 +1156,7 @@ function shoeManagerHtml() {
   <div style="border-top:1px solid var(--border);padding-top:16px;">
     <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;font-weight:600;">새 신발 추가</div>
     <div style="margin-bottom:11px;"><label class="et-field-label">이름</label><input class="et-input" type="text" id="s-name" placeholder="Endorphin Speed 5"></div>
+    <div style="margin-bottom:11px;"><label class="et-field-label">역할 (선택)</label><input class="et-input" type="text" id="s-role" placeholder="인터벌, 템포런, 레이스"></div>
     <div style="margin-bottom:11px;"><label class="et-field-label">지금까지 신은 거리 (km)</label><input class="et-input" type="number" id="s-initial" placeholder="0" value="0"></div>
     <div style="margin-bottom:11px;"><label class="et-field-label">교체 권장 거리 (km)</label><input class="et-input" type="number" id="s-target" value="600"></div>
     <button id="s-add-btn" class="et-primary-btn">추가</button>
@@ -1210,12 +1214,24 @@ function bindShoeManagerEvents() {
       }
     });
   });
+  document.querySelectorAll(".et-edit-role").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const shoe = state.shoes.find((s) => s.id === btn.dataset.id);
+      const val = window.prompt(`${shoe.name} — 이 신발의 역할을 입력하세요 (예: 인터벌, 템포런, 레이스)`, shoe.role || "");
+      if (val === null) return;
+      shoe.role = val.trim();
+      persist();
+      renderModal();
+      render();
+    });
+  });
   document.getElementById("s-add-btn").addEventListener("click", () => {
     const name = document.getElementById("s-name").value.trim();
+    const role = document.getElementById("s-role").value.trim();
     const target = Number(document.getElementById("s-target").value) || 600;
     const initial = Number(document.getElementById("s-initial").value) || 0;
     if (!name) return;
-    state.shoes.push({ id: uid(), name, targetKm: target, initialKm: initial, retired: false });
+    state.shoes.push({ id: uid(), name, role, targetKm: target, initialKm: initial, retired: false });
     persist();
     renderModal();
     render();
