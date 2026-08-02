@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>운동 관리</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.44.0/iconfont/tabler-icons.min.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<style>
+  :root{
+    --bg:#F6F4EE; --surface:#FFFFFF; --surface-alt:#EFEBE1;
+    --border:#E4E0D3; --border-strong:#D2CCB9;
+    --text:#211F1A; --text-2:#6E6A5C; --text-3:#A8A290;
+    --run:#2F6FED; --run-bg:#E9EFFD; --run-tx:#1E4FB0;
+    --swim:#0E9F7E; --swim-bg:#E4F6F0; --swim-tx:#0B7A61;
+    --cycle:#D98C1B; --cycle-bg:#FBF0DD; --cycle-tx:#9C6712;
+    --gym:#E2503F; --gym-bg:#FCEAE7; --gym-tx:#AF3A2C;
+    --danger:#E2503F; --danger-bg:#FCEAE7;
+    --shadow:0 1px 2px rgba(30,28,20,0.04), 0 4px 14px rgba(30,28,20,0.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#17160F; --surface:#211F17; --surface-alt:#2A281F;
+      --border:#38352A; --border-strong:#4A4636;
+      --text:#F0EDE2; --text-2:#B0AA95; --text-3:#726C58;
+      --run:#5B8FF9; --run-bg:#1D2A47; --run-tx:#9BB9FA;
+      --swim:#2FC79B; --swim-bg:#123128; --swim-tx:#7EE0BE;
+      --cycle:#F0A83B; --cycle-bg:#3A2A0F; --cycle-tx:#F5C171;
+      --gym:#F0695A; --gym-bg:#3A1D18; --gym-tx:#F5988C;
+      --danger:#F0695A; --danger-bg:#3A1D18;
+      --shadow:0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  html{ -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Pretendard","Apple SD Gothic Neo",-apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif;
+    letter-spacing:-0.01em;
+  }
+  #et-root{ max-width:720px; margin:0 auto; padding:1.25rem 1rem 3rem; }
+  .et-btn{ cursor:pointer; transition:background .12s ease, border-color .12s ease, opacity .12s ease; }
+  .et-btn:active{ opacity:.75; }
+  .et-card{ background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
+  .et-day{ transition:background .12s ease, border-color .12s ease, transform .08s ease; }
+  .et-day:active{ transform:scale(0.96); }
+  input, select{ font-family:inherit; }
+  #et-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+  #et-filters{ display:flex; gap:6px; flex-wrap:wrap; }
+  .et-pill{ font-size:12px; padding:6px 13px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font-weight:500; }
+  .et-pill.active{ font-weight:600; }
+  #et-calendar-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .et-weekday{ font-size:11px; color:var(--text-3); text-align:center; font-weight:600; }
+  .et-daycell{ height:50px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:1px solid transparent; padding:0; background:var(--surface-alt); }
+  .et-bottom-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .et-card-title{ font-size:13px; color:var(--text-2); margin-bottom:12px; font-weight:700; letter-spacing:-0.01em; }
+  #et-modal-overlay{ position:fixed; inset:0; background:rgba(20,18,12,0.5); display:none; align-items:flex-end; justify-content:center; z-index:50; }
+  #et-modal-overlay.open{ display:flex; }
+  #et-modal-box{ width:100%; max-width:480px; max-height:85vh; overflow-y:auto; background:var(--surface); border-radius:22px 22px 0 0; padding:20px 20px 28px; box-shadow:0 -8px 30px rgba(0,0,0,0.18); }
+  .et-field-label{ display:block; font-size:11px; color:var(--text-2); margin-bottom:5px; font-weight:600; }
+  .et-input{ width:100%; height:40px; border-radius:10px; border:1px solid var(--border); background:var(--surface-alt); padding:0 12px; font-size:13px; color:var(--text); }
+  .et-primary-btn{ width:100%; height:44px; border-radius:12px; border:none; background:var(--run); color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
+  .et-secondary-btn{ height:44px; padding:0 18px; border-radius:12px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text); font-size:13px; font-weight:600; cursor:pointer; }
+  .et-text-btn{ display:block; width:100%; text-align:center; margin-top:12px; background:none; border:none; color:var(--run); font-size:12px; font-weight:600; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="et-root"></div>
+
+<script>
+/* ===========================================================
+   Firebase 연동 — 연우한의 대시보드(neipclover88-3db3f)와 같은 프로젝트,
+   단 별도 경로(bdh3_exercise)를 써서 기존 대시보드 데이터와 안 섞이게 함.
+   ⚠ 메인 대시보드의 db[date].health.running 등과는 별개의 독립 데이터임 —
+      두 페이지를 완전히 하나로 합치려면 나중에 스키마 통합 작업이 별도로 필요함.
+=========================================================== */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyC9QBrj_8YSvT1Nk7CsTPu_vKk-zetdmnU",
+  authDomain:        "neipclover88-3db3f.firebaseapp.com",
+  databaseURL:       "https://neipclover88-3db3f-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "neipclover88-3db3f",
+  storageBucket:     "neipclover88-3db3f.firebasestorage.app",
+  messagingSenderId: "419747329488",
+  appId:             "1:419747329488:web:a506aad1485222c548f5d5",
+  measurementId:     "G-CGM0M6HLHS",
+};
+const FB_PATH = "bdh3_exercise"; // 운동관리탭 전용 경로 (메인 대시보드는 "bdh3")
+const STORAGE_PATH_PREFIX = "exercise-screenshots";
+
+let fbApp = null;
+try {
+  fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+} catch (e) {
+  console.error("Firebase 초기화 실패", e);
+}
+
+/* ===========================================================
+   데이터 계층 — Firebase Realtime Database
+=========================================================== */
+function loadData() {
+  return new Promise((resolve) => {
+    if (!fbApp) { resolve(exDefaultData()); return; }
+    firebase.database().ref(FB_PATH).once("value")
+      .then((snap) => {
+        const val = snap.val();
+        resolve(val || exDefaultData());
+      })
+      .catch((e) => {
+        console.error("Firebase 불러오기 실패", e);
+        resolve(exDefaultData());
+      });
+  });
+}
+function saveData(data) {
+  if (!fbApp) return Promise.resolve();
+  return firebase.database().ref(FB_PATH).set(data).catch((e) => {
+    console.error("Firebase 저장 실패", e);
+  });
+}
+function exDefaultData() {
+  return {
+    entries: [],
+    shoes: [
+      { id: uid(), name: "Nova Blast 5", targetKm: 600, retired: false },
+      { id: uid(), name: "Gel Kayano 32", targetKm: 700, retired: false },
+    ],
+  };
+}
+
+// 리사이즈된 스크린샷(dataURL)을 Storage에 올리고 다운로드 URL을 반환
+function uploadScreenshot(dataUrl) {
+  if (!fbApp) return Promise.reject(new Error("firebase not initialized"));
+  const path = `${STORAGE_PATH_PREFIX}/${Date.now()}_${uid()}.jpg`;
+  return firebase.storage().ref(path).putString(dataUrl, "data_url")
+    .then((snap) => snap.ref.getDownloadURL());
+}
+
+/* ===========================================================
+   상수 / 유틸
+=========================================================== */
+const TYPES = {
+  running:  { label: "러닝",  icon: "🏃", v: "run" },
+  swimming: { label: "수영",  icon: "🏊", v: "swim" },
+  cycling:  { label: "자전거", icon: "🚴", v: "cycle" },
+  gym:      { label: "헬스",  icon: "🏋", v: "gym" },
+};
+const TYPE_ORDER = ["running", "swimming", "cycling", "gym"];
+
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function round1(n) { return Math.round(n * 10) / 10; }
+// 총 초 -> "1시간 20분 34초" 형태로 정규화해서 표시
+function formatDurationLong(totalSec) {
+  if (totalSec == null || isNaN(totalSec)) return "";
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return h > 0 ? `${h}시간 ${m}분 ${s}초` : `${m}분 ${s}초`;
+}
+// 캘린더 셀 등 짧은 표시용 ("1시간 20분" / "34분")
+function formatDurationShort(totalSec) {
+  if (totalSec == null || isNaN(totalSec)) return "";
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
+}
+// km당 초 -> "5'30""
+function formatPace(secPerKm) {
+  if (secPerKm == null || !isFinite(secPerKm) || secPerKm <= 0) return null;
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60);
+  return `${m}'${String(s).padStart(2, "0")}"`;
+}
+function fmtDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,"0"), day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function todayStr() { return fmtDate(new Date()); }
+function addDays(d, n) { const nd = new Date(d); nd.setDate(nd.getDate()+n); return nd; }
+function startOfWeek(d) {
+  const nd = new Date(d);
+  const offset = (nd.getDay() + 6) % 7; // 월요일=0 이 되도록 보정
+  nd.setDate(nd.getDate() - offset);
+  return nd;
+}
+function buildThreeWeekGrid() {
+  const gridStart = addDays(startOfWeek(new Date()), -14);
+  const days = [];
+  for (let i = 0; i < 21; i++) days.push(addDays(gridStart, i));
+  return days;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+function resizeImageToDataUrl(file, maxSide, quality) {
+  maxSide = maxSide || 900; quality = quality || 0.8;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > h && w > maxSide) { h = Math.round(h * maxSide / w); w = maxSide; }
+        else if (h > maxSide) { w = Math.round(w * maxSide / h); h = maxSide; }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ===========================================================
+   전역 상태
+=========================================================== */
+let state = { entries: [], shoes: [] }; // Firestore 로드 완료 전 임시값
+let loaded = false;
+let filter = "all";
+let selectedDate = null;   // 캘린더에서 선택된 날짜 - 우측 카드가 이 날짜 상세로 전환됨
+let editingEntry = null;   // 수정 중인 기록 (null이면 신규 추가 모드)
+let modalDate = null;
+let modalMode = null; // 'typeSelect' | 'form' | 'shoeManager'
+let modalSelectedType = null;
+let pendingScreenshot = null;
+
+function persist() { saveData(state); }
+
+/* ===========================================================
+   파생 데이터
+=========================================================== */
+function entriesByDate() {
+  const map = {};
+  for (const e of state.entries) {
+    (map[e.date] = map[e.date] || []).push(e);
+  }
+  return map;
+}
+function shoeMileage() {
+  const map = {};
+  for (const s of state.shoes) map[s.id] = s.initialKm || 0;
+  for (const e of state.entries) {
+    if (e.type === "running" && e.status === "confirmed" && e.shoeId && e.distance) {
+      map[e.shoeId] = (map[e.shoeId] || 0) + Number(e.distance);
+    }
+  }
+  return map;
+}
+function weekSummary() {
+  const weekStart = startOfWeek(new Date());
+  const weekDates = new Set();
+  for (let i = 0; i < 7; i++) weekDates.add(fmtDate(addDays(weekStart, i)));
+  const counts = { running:0, swimming:0, cycling:0, gym:0 };
+  let totalMin = 0, totalKm = 0;
+  for (const e of state.entries) {
+    if (weekDates.has(e.date) && e.status === "confirmed") {
+      counts[e.type] = (counts[e.type] || 0) + 1;
+      if (e.durationSec) totalMin += Math.round(Number(e.durationSec) / 60);
+      if (e.distance && e.type !== "gym") totalKm += Number(e.distance);
+    }
+  }
+  return { counts, totalMin, totalKm };
+}
+function monthSummary() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const counts = { running: 0, swimming: 0, cycling: 0, gym: 0 };
+  let totalMin = 0, totalKm = 0;
+  for (const e of state.entries) {
+    const ed = new Date(e.date + "T00:00:00");
+    if (ed.getFullYear() === y && ed.getMonth() === m && e.status === "confirmed") {
+      counts[e.type] = (counts[e.type] || 0) + 1;
+      if (e.durationSec) totalMin += Math.round(Number(e.durationSec) / 60);
+      if (e.distance && e.type !== "gym") totalKm += Number(e.distance);
+    }
+  }
+  return { counts, totalMin, totalKm };
+}
+function recentRuns() {
+  return state.entries
+    .filter((e) => e.type === "running" && e.status === "confirmed")
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 5);
+}
+function draftCount() {
+  return state.entries.filter((e) => e.status === "draft").length;
+}
+
+/* ===========================================================
+   렌더 — 최상위
+=========================================================== */
+function render() {
+  const root = document.getElementById("et-root");
+  if (!loaded) {
+    root.innerHTML = `<div style="padding:3rem;text-align:center;color:var(--text-3);font-size:14px;">불러오는 중…</div>`;
+    return;
+  }
+  root.innerHTML = `
+    ${renderHeader()}
+    ${renderCalendar()}
+    <div class="et-bottom-grid">
+      ${filter === "running" ? renderRunningPaceCard() : renderWeekSummaryCard()}
+      ${selectedDate ? renderSelectedDayCard() : renderShoeMileageCard()}
+    </div>
+  `;
+  bindTopLevelEvents();
+  renderModal();
+}
+
+function renderHeader() {
+  const dc = draftCount();
+  const pills = ["all", ...TYPE_ORDER].map((t) => {
+    const active = filter === t;
+    const label = t === "all" ? "전체" : TYPES[t].label;
+    const v = t === "all" ? null : TYPES[t].v;
+    const style = active
+      ? `border-color:var(--${v||"run"});background:var(--${v?v+"-bg":"surface-alt"});color:var(--${v?v+"-tx":"text"});`
+      : "";
+    return `<button class="et-pill et-btn ${active?"active":""}" style="${style}" data-filter="${t}">${label}</button>`;
+  }).join("");
+
+  return `
+  <div id="et-header">
+    <div style="display:flex;align-items:baseline;gap:10px;">
+      <span style="display:inline-block;width:6px;height:20px;border-radius:3px;background:var(--run);transform:translateY(3px);"></span>
+      <span style="font-size:21px;font-weight:800;letter-spacing:-0.02em;">운동 관리</span>
+      ${dc > 0 ? `<span style="font-size:11px;padding:3px 9px;border-radius:999px;background:var(--cycle-bg);color:var(--cycle-tx);font-weight:600;">미확인 ${dc}</span>` : ""}
+    </div>
+    <div id="et-filters">
+      ${pills}
+      <button id="et-manage-shoes-btn" class="et-btn" style="font-size:12px;padding:6px 13px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);">신발관리</button>
+    </div>
+  </div>`;
+}
+
+function renderCalendar() {
+  const days = buildThreeWeekGrid();
+  const today = todayStr();
+  const byDate = entriesByDate();
+  const weekday = ["월","화","수","목","금","토","일"];
+
+  const first = days[0], last = days[days.length - 1];
+  const monthLabel = first.getMonth() === last.getMonth()
+    ? `${first.getFullYear()}년 ${first.getMonth() + 1}월`
+    : `${first.getMonth() + 1}월 ${first.getDate()}일 – ${last.getMonth() + 1}월 ${last.getDate()}일`;
+
+  const weekdayRow = weekday.map((w) => `<span class="et-weekday">${w}</span>`).join("");
+  const cells = days.map((d) => {
+    const dateStr = fmtDate(d);
+    const dayEntries = (byDate[dateStr] || []).filter((e) => filter === "all" || e.type === filter);
+    return renderDayCell(d, dateStr, dayEntries, dateStr === today, dateStr > today);
+  }).join("");
+
+  return `
+  <div class="et-card" style="padding:16px 16px 14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:15px;font-weight:700;letter-spacing:-0.01em;">${monthLabel}</span>
+      <span style="font-size:11px;color:var(--text-3);font-weight:500;">최근 3주</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px;">${weekdayRow}</div>
+    <div id="et-calendar-grid">${cells}</div>
+  </div>`;
+}
+
+function renderDayCell(date, dateStr, entries, isToday, isFuture) {
+  const hasDraft = entries.some((e) => e.status === "draft");
+  const isSelected = dateStr === selectedDate;
+  let bg = "var(--surface-alt)";
+  let border = isToday ? "1.5px solid var(--run)" : hasDraft ? "1.5px dashed var(--border-strong)" : "1px solid transparent";
+  let inner = "";
+
+  if (entries.length === 1) {
+    const e = entries[0];
+    const meta = TYPES[e.type];
+    bg = `var(--${meta.v}-bg)`;
+    const stat = e.type === "gym" ? ((e.bodyParts && e.bodyParts.length) ? e.bodyParts.join("·") : "") : (e.distance ? `${round1(e.distance)}km` : (e.durationSec ? formatDurationShort(e.durationSec) : ""));
+    inner = `<span style="font-size:13px;line-height:1;">${meta.icon}</span>${stat ? `<span style="font-size:8.5px;font-weight:600;color:var(--${meta.v}-tx);line-height:1;">${escapeHtml(stat)}</span>` : ""}`;
+  } else if (entries.length > 1) {
+    const dots = entries.slice(0,4).map((e) => `<span style="width:5px;height:5px;border-radius:50%;background:var(--${TYPES[e.type].v});display:inline-block;"></span>`).join("");
+    inner = `<div style="display:flex;gap:3px;">${dots}</div>`;
+  }
+
+  const opacity = (isFuture && entries.length === 0) ? "opacity:0.45;" : "";
+  const shadow = isSelected ? "box-shadow:0 0 0 2px var(--text);" : "";
+  return `
+  <button class="et-daycell et-day et-btn" data-date="${dateStr}" style="background:${entries.length>0?bg:"var(--surface-alt)"};border:${border};${opacity}${shadow}">
+    <span style="font-size:10.5px;font-weight:${isToday?700:500};color:${isToday?"var(--run)":"var(--text-2)"};">${date.getDate()}</span>
+    ${inner}
+  </button>`;
+}
+
+function renderWeekSummaryCard() {
+  const s = weekSummary();
+  const ms = monthSummary();
+  const items = TYPE_ORDER.map((t) => `
+    <div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:24px;height:24px;border-radius:8px;background:var(--${TYPES[t].v}-bg);display:flex;align-items:center;justify-content:center;font-size:13px;">${TYPES[t].icon}</span>
+      <span style="font-size:13px;font-weight:600;">${s.counts[t]||0}회</span>
+    </div>`).join("");
+  const monthLine = TYPE_ORDER.map((t) => `${TYPES[t].icon} ${ms.counts[t]||0}`).join("  ");
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div class="et-card-title">이번주 요약</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">${items}</div>
+    <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">총 운동시간</span><span style="font-size:12px;font-weight:700;">${Math.floor(s.totalMin/60)}시간 ${s.totalMin%60}분</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">누적 거리</span><span style="font-size:12px;font-weight:700;">${round1(s.totalKm)}km</span></div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:7px;">이번 달</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${monthLine}</div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">총 시간</span><span style="font-size:11px;font-weight:600;">${Math.floor(ms.totalMin/60)}시간 ${ms.totalMin%60}분</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span style="font-size:11px;font-weight:600;">${round1(ms.totalKm)}km</span></div>
+    </div>
+  </div>`;
+}
+
+function renderRunningPaceCard() {
+  const runs = recentRuns();
+  const now = new Date();
+  let monthRunKm = 0;
+  for (const e of state.entries) {
+    if (e.type !== "running" || e.status !== "confirmed" || !e.distance) continue;
+    const ed = new Date(e.date + "T00:00:00");
+    if (ed.getFullYear() === now.getFullYear() && ed.getMonth() === now.getMonth()) monthRunKm += Number(e.distance);
+  }
+  const monthRunCount = state.entries.filter((e) => {
+    if (e.type !== "running" || e.status !== "confirmed") return false;
+    const ed = new Date(e.date + "T00:00:00");
+    return ed.getFullYear() === now.getFullYear() && ed.getMonth() === now.getMonth();
+  }).length;
+  const body = runs.length === 0
+    ? `<div style="font-size:12px;color:var(--text-3);">아직 기록이 없어요.</div>`
+    : `<div style="display:flex;flex-direction:column;gap:9px;">${runs.map((r) => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;">
+          <span style="color:var(--text-2);">${r.date.slice(5)}</span>
+          <span style="font-weight:600;">${r.distance ? round1(r.distance)+"km" : "-"}</span>
+          <span style="color:var(--text-2);">${escapeHtml(r.pace||"-")}</span>
+        </div>`).join("")}</div>`;
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div class="et-card-title">최근 러닝</div>
+    ${body}
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
+      <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:6px;">이번 달 러닝</div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">횟수</span><span style="font-size:11px;font-weight:600;">${monthRunCount}회</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span style="font-size:11px;font-weight:600;">${round1(monthRunKm)}km</span></div>
+    </div>
+  </div>`;
+}
+
+function renderShoeMileageCard() {
+  const active = state.shoes.filter((s) => !s.retired);
+  const mileage = shoeMileage();
+  const body = active.length === 0
+    ? `<div style="font-size:12px;color:var(--text-3);">등록된 신발이 없어요.</div>`
+    : `<div style="display:flex;flex-direction:column;gap:10px;">${active.slice(0,3).map((s) => {
+        const km = mileage[s.id] || 0;
+        const pct = Math.min(100, Math.round(km / s.targetKm * 100));
+        const danger = pct >= 90;
+        return `
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:12px;font-weight:500;">${escapeHtml(s.name)}</span>
+            <span style="font-size:11px;font-weight:600;color:${danger?"var(--danger)":"var(--text-2)"};">${round1(km)}/${s.targetKm}</span>
+          </div>
+          <div style="height:5px;background:var(--surface-alt);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+          </div>
+        </div>`;
+      }).join("")}</div>`;
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span class="et-card-title" style="margin-bottom:0;">러닝화 마일리지</span>
+      <button id="et-manage-shoes-btn2" class="et-btn" style="font-size:11px;color:var(--run);background:none;border:none;font-weight:600;">관리</button>
+    </div>
+    ${body}
+  </div>`;
+}
+
+function entryDetailView(e) {
+  const shoe = e.shoeId ? state.shoes.find((s) => s.id === e.shoeId) : null;
+  const primary = [];
+  const chips = [];
+  const extraLines = [];
+  const missing = [];
+  let shoeInfo = null;
+
+  if (e.type === "running") {
+    primary.push(["거리", e.distance != null ? `${round1(e.distance)}` : "-", "km"]);
+    primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
+    primary.push(["페이스", e.pace ? e.pace : "-", "/km"]);
+    if (e.avgHeartRate != null) chips.push(["ti-heart", `${e.avgHeartRate}`, "bpm", "gym"]); else missing.push("평균심박수");
+    if (e.avgCadence != null) chips.push(["ti-activity", `${e.avgCadence}`, "spm", "run"]); else missing.push("케이던스");
+    if (e.vo2max != null) chips.push(["ti-lungs", `${e.vo2max}`, "VO2max", "swim"]); else missing.push("VO2max");
+    if (e.elevationGain != null) chips.push(["ti-mountain", `${e.elevationGain}`, "m", null]); else missing.push("상승고도");
+    if (e.climbDistance != null) chips.push(["ti-trending-up", `${e.climbDistance}`, "km", null]); else missing.push("총 오르막");
+    if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
+    if (shoe) shoeInfo = shoe; else missing.push("러닝화");
+  } else if (e.type === "cycling") {
+    primary.push(["거리", e.distance != null ? `${round1(e.distance)}` : "-", "km"]);
+    primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
+    primary.push(["평균속도", e.avgSpeed != null ? `${e.avgSpeed}` : "-", "km/h"]);
+    if (e.avgHeartRate != null) chips.push(["ti-heart", `${e.avgHeartRate}`, "bpm", "gym"]); else missing.push("평균심박수");
+    if (e.avgCadence != null) chips.push(["ti-activity", `${e.avgCadence}`, "rpm", "run"]); else missing.push("케이던스");
+    if (e.vo2max != null) chips.push(["ti-lungs", `${e.vo2max}`, "VO2max", "swim"]); else missing.push("VO2max");
+    if (e.elevationGain != null) chips.push(["ti-mountain", `${e.elevationGain}`, "m", null]); else missing.push("상승고도");
+    if (e.climbDistance != null) chips.push(["ti-trending-up", `${e.climbDistance}`, "km", null]); else missing.push("총 오르막");
+    if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
+  } else if (e.type === "swimming") {
+    primary.push(["총거리", e.distance != null ? `${Math.round(e.distance * 1000)}` : "-", "m"]);
+    primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
+    if (e.avgHeartRate != null) chips.push(["ti-heart", `${e.avgHeartRate}`, "bpm", "gym"]); else missing.push("평균심박수");
+    if (e.avgSwolf != null) chips.push(["ti-wave-sine", `${e.avgSwolf}`, "SWOLF", null]); else missing.push("SWOLF");
+    if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
+    if (e.strokeDistances && Object.keys(e.strokeDistances).length) {
+      extraLines.push(Object.entries(e.strokeDistances).map(([k, v]) => `${SWIM_STROKES.find(x => x.key === k)?.label || k} ${v}m`).join(" · "));
+    } else {
+      missing.push("영법별 거리");
+    }
+  } else {
+    // gym
+    if (e.bodyParts && e.bodyParts.length) primary.push(["부위", e.bodyParts.join(", "), ""]); else missing.push("부위");
+    if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
+    if (e.exercises && e.exercises.length) {
+      e.exercises.forEach((x) => extraLines.push(`${x.name} · ${x.reps}회 × ${x.sets}세트`));
+    } else {
+      missing.push("세부 종목");
+    }
+  }
+
+  return { primary, chips, extraLines, missing, shoeInfo };
+}
+
+function renderSelectedDayCard() {
+  const dateEntries = (entriesByDate()[selectedDate] || []);
+  const d = new Date(selectedDate + "T00:00:00");
+  const label = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const mileageMap = shoeMileage();
+
+  const rows = dateEntries.map((e) => {
+    const meta = TYPES[e.type];
+    const isDraft = e.status === "draft";
+    const { primary, chips, extraLines, missing, shoeInfo } = entryDetailView(e);
+
+    const primaryHtml = primary.length ? `
+      <div style="display:grid;grid-template-columns:repeat(${primary.length},1fr);gap:6px;margin-bottom:${chips.length||shoeInfo||extraLines.length?9:0}px;">
+        ${primary.map(([l, v, u]) => `
+          <div style="background:var(--surface);border-radius:9px;padding:7px 8px;">
+            <div style="font-size:9px;color:var(--text-3);margin-bottom:2px;">${l}</div>
+            <div style="font-size:13px;font-weight:700;color:${v==="-"?"var(--text-3)":"var(--text)"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(v)}${u && v!=="-" ? `<span style="font-size:9px;font-weight:500;color:var(--text-3);margin-left:2px;">${u}</span>` : ""}</div>
+          </div>`).join("")}
+      </div>` : "";
+
+    const coloredChips = chips.filter(([,,,role]) => role);
+    const neutralChips = chips.filter(([,,,role]) => !role);
+
+    const chipsHtml = coloredChips.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;${shoeInfo||neutralChips.length||extraLines.length?"margin-bottom:6px;":""}">
+        ${coloredChips.map(([icon, v, u, role]) => `
+          <span style="display:inline-flex;align-items:center;gap:4px;background:var(--${role}-bg);border-radius:999px;padding:4px 9px;font-size:10.5px;font-weight:700;color:var(--${role}-tx);">
+            <i class="ti ${icon}" style="font-size:12px;color:var(--${role});" aria-hidden="true"></i>${escapeHtml(v)}<span style="color:var(--${role}-tx);font-size:9.5px;font-weight:500;opacity:0.85;">${u}</span>
+          </span>`).join("")}
+      </div>` : "";
+
+    let shoeRowHtml = "";
+    if (shoeInfo) {
+      const km = mileageMap[shoeInfo.id] || 0;
+      const pct = Math.min(100, Math.round((km / shoeInfo.targetKm) * 100));
+      const danger = pct >= 90;
+      shoeRowHtml = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${neutralChips.length||extraLines.length?8:0}px;">
+        <span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;">
+          <i class="ti ti-shoe" style="font-size:14px;color:var(--${meta.v}-tx);" aria-hidden="true"></i>
+          <span style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;">${escapeHtml(shoeInfo.name)}</span>
+        </span>
+        <div style="flex:1;display:flex;align-items:center;gap:6px;min-width:0;">
+          <div style="flex:1;height:5px;background:var(--surface);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+          </div>
+          <span style="font-size:9.5px;color:var(--text-3);white-space:nowrap;">${round1(km)}/${shoeInfo.targetKm}km</span>
+        </div>
+      </div>`;
+    }
+
+    const neutralChipsHtml = neutralChips.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;${extraLines.length?"margin-bottom:8px;":""}">
+        ${neutralChips.map(([icon, v, u]) => `
+          <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface);border-radius:999px;padding:4px 9px;font-size:10.5px;color:var(--text-2);">
+            <i class="ti ${icon}" style="font-size:12px;color:var(--${meta.v}-tx);" aria-hidden="true"></i>${escapeHtml(v)}<span style="color:var(--text-3);font-size:9.5px;">${u}</span>
+          </span>`).join("")}
+      </div>` : "";
+
+    const extraHtml = extraLines.length ? `
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        ${extraLines.map((l) => `<span style="font-size:10.5px;color:var(--text-2);">${escapeHtml(l)}</span>`).join("")}
+      </div>` : "";
+
+    const missingHtml = missing.length ? `
+      <div class="et-btn et-day-edit" data-id="${e.id}" style="font-size:9.5px;color:var(--text-3);margin-top:8px;cursor:pointer;">
+        미입력: ${missing.join(", ")}
+      </div>` : "";
+
+    return `
+    <div style="padding:11px 12px;border-radius:12px;background:var(--${meta.v}-bg);border:${isDraft?"1.5px dashed var(--border-strong)":"1px solid transparent"};">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+        <span style="font-size:15px;">${meta.icon}</span>
+        <span style="font-size:12px;font-weight:700;flex:1;">${meta.label}${isDraft?" · 확인 필요":""}</span>
+        <button class="et-btn et-day-edit" data-id="${e.id}" style="background:none;border:none;color:var(--run);font-size:11px;font-weight:600;white-space:nowrap;">수정</button>
+        <button class="et-btn et-day-delete" data-id="${e.id}" style="background:none;border:none;color:var(--text-3);font-size:16px;">×</button>
+      </div>
+      ${primaryHtml}
+      ${chipsHtml}
+      ${shoeRowHtml}
+      ${neutralChipsHtml}
+      ${extraHtml}
+      ${missingHtml}
+      ${e.screenshot ? `<img class="et-day-screenshot" data-id="${e.id}" src="${e.screenshot}" style="width:100%;max-height:150px;object-fit:cover;border-radius:9px;margin-top:9px;cursor:pointer;display:block;">` : ""}
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span class="et-card-title" style="margin-bottom:0;">${label} 상세</span>
+      <button id="et-deselect-day" class="et-btn" style="background:var(--surface-alt);border:none;width:22px;height:22px;border-radius:50%;font-size:14px;color:var(--text-2);">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+      ${dateEntries.length ? rows : `<div style="font-size:12px;color:var(--text-3);">기록이 없어요.</div>`}
+    </div>
+    <button id="et-day-add" class="et-btn" style="font-size:12px;padding:8px;border-radius:10px;border:1px dashed var(--border-strong);background:none;color:var(--text-2);width:100%;">+ 기록 추가</button>
+  </div>`;
+}
+
+/* ===========================================================
+   이벤트 바인딩 (최상위)
+=========================================================== */
+function bindTopLevelEvents() {
+  document.querySelectorAll(".et-pill").forEach((btn) => {
+    btn.addEventListener("click", () => { filter = btn.dataset.filter; render(); });
+  });
+
+  document.querySelectorAll(".et-daycell").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = btn.dataset.date;
+      selectedDate = (selectedDate === d) ? null : d; // 같은 날짜 다시 누르면 해제
+      render();
+    });
+  });
+
+  const shoeBtn1 = document.getElementById("et-manage-shoes-btn");
+  const shoeBtn2 = document.getElementById("et-manage-shoes-btn2");
+  [shoeBtn1, shoeBtn2].forEach((b) => b && b.addEventListener("click", () => { modalMode = "shoeManager"; render(); }));
+
+  const deselectBtn = document.getElementById("et-deselect-day");
+  if (deselectBtn) deselectBtn.addEventListener("click", () => { selectedDate = null; render(); });
+
+  const addBtn = document.getElementById("et-day-add");
+  if (addBtn) addBtn.addEventListener("click", () => {
+    editingEntry = null;
+    modalDate = selectedDate;
+    modalMode = "typeSelect";
+    modalSelectedType = null;
+    pendingScreenshot = null;
+    render();
+  });
+
+  document.querySelectorAll(".et-day-edit").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const entry = state.entries.find((e) => e.id === btn.dataset.id);
+      if (!entry) return;
+      editingEntry = entry;
+      modalDate = entry.date;
+      modalSelectedType = entry.type;
+      pendingScreenshot = entry.screenshot || null;
+      modalMode = "form";
+      render();
+    });
+  });
+
+  document.querySelectorAll(".et-day-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.entries = state.entries.filter((e) => e.id !== btn.dataset.id);
+      persist();
+      render();
+    });
+  });
+
+  document.querySelectorAll(".et-day-screenshot").forEach((img) => {
+    img.addEventListener("click", () => {
+      const entry = state.entries.find((e) => e.id === img.dataset.id);
+      if (!entry || !entry.screenshot) return;
+      const w = window.open("", "_blank");
+      if (w) w.document.write(`<title>스크린샷</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${entry.screenshot}" style="max-width:100%;max-height:100vh;"></body>`);
+    });
+  });
+}
+
+/* ===========================================================
+   모달
+=========================================================== */
+function renderModal() {
+  let overlay = document.getElementById("et-modal-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "et-modal-overlay";
+    overlay.innerHTML = `<div id="et-modal-box"></div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
+  }
+
+  if (!modalMode) { overlay.classList.remove("open"); return; }
+  overlay.classList.add("open");
+  const box = document.getElementById("et-modal-box");
+
+  if (modalMode === "shoeManager") { box.innerHTML = shoeManagerHtml(); bindShoeManagerEvents(); return; }
+  if (modalMode === "typeSelect") { box.innerHTML = typeSelectHtml(); bindTypeSelectEvents(); return; }
+  if (modalMode === "form") { box.innerHTML = typeFormHtml(); bindTypeFormEvents(); return; }
+}
+
+function closeModal() {
+  modalDate = null; modalMode = null; modalSelectedType = null; pendingScreenshot = null; editingEntry = null;
+  render();
+}
+
+function modalHeaderHtml(title) {
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <span style="font-size:16px;font-weight:700;">${escapeHtml(title)}</span>
+    <button id="et-modal-close" class="et-btn" style="background:var(--surface-alt);border:none;width:28px;height:28px;border-radius:50%;font-size:16px;color:var(--text-2);">×</button>
+  </div>`;
+}
+function bindModalClose() {
+  document.getElementById("et-modal-close").addEventListener("click", closeModal);
+}
+
+function typeSelectHtml() {
+  const cards = TYPE_ORDER.map((t) => `
+    <button class="et-btn et-type-card" data-type="${t}" style="padding:18px 10px;border-radius:14px;border:1px solid var(--border);background:var(--${TYPES[t].v}-bg);display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--${TYPES[t].v}-tx);">
+      <span style="font-size:22px;">${TYPES[t].icon}</span>${TYPES[t].label}
+    </button>`).join("");
+
+  return `
+  ${modalHeaderHtml(modalDate)}
+  <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;font-weight:600;">종목 선택</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${cards}</div>`;
+}
+function bindTypeSelectEvents() {
+  bindModalClose();
+  document.querySelectorAll(".et-type-card").forEach((btn) => {
+    btn.addEventListener("click", () => { modalSelectedType = btn.dataset.type; modalMode = "form"; renderModal(); });
+  });
+}
+
+const GYM_BODY_PARTS = ["어깨", "가슴", "등", "팔", "하체"];
+
+const SWIM_STROKES = [
+  { key: "freestyle", label: "자유형" },
+  { key: "breast", label: "평영" },
+  { key: "back", label: "배영" },
+  { key: "fly", label: "접영" },
+];
+
+function typeFormHtml() {
+  const t = modalSelectedType;
+  const meta = TYPES[t];
+  const activeShoes = state.shoes.filter((s) => !s.retired);
+  const isGpsSport = t === "running" || t === "cycling"; // 수영은 영법별 입력으로 별도 처리
+  const hasExtraStats = t === "running" || t === "cycling"; // 심박/케이던스/고도/VO2max
+  const E = editingEntry; // 수정 모드면 기존 값, 아니면 null
+
+  const durH = (E && E.durationSec) ? Math.floor(E.durationSec / 3600) : "";
+  const durM = (E && E.durationSec) ? Math.floor((E.durationSec % 3600) / 60) : "";
+  const durS = (E && E.durationSec) ? (E.durationSec % 60) : "";
+
+  const distanceField = isGpsSport ? `
+    <div style="margin-bottom:11px;"><label class="et-field-label">거리 (km)</label><input class="et-input" type="number" inputmode="decimal" id="f-distance" placeholder="5.2" value="${E && E.distance != null ? E.distance : ""}"></div>` : "";
+
+  const swimStrokeField = t === "swimming" ? `
+    <div style="margin-bottom:4px;">
+      <label class="et-field-label">영법별 거리 (m)</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        ${SWIM_STROKES.map((s) => `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:12px;color:var(--text-2);width:38px;flex-shrink:0;">${s.label}</span>
+            <input class="et-input f-swim-stroke" data-stroke="${s.key}" type="number" inputmode="numeric" placeholder="0" value="${E && E.strokeDistances && E.strokeDistances[s.key] ? E.strokeDistances[s.key] : ""}">
+          </div>`).join("")}
+      </div>
+    </div>
+    <div id="f-swim-total-preview" style="font-size:11px;color:var(--text-3);margin-bottom:11px;min-height:14px;"></div>` : "";
+
+  const gymBodyPartField = t === "gym" ? `
+    <div style="margin-bottom:14px;">
+      <label class="et-field-label">부위 (복수 선택 가능)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${GYM_BODY_PARTS.map((p) => {
+          const sel = !!(E && E.bodyParts && E.bodyParts.includes(p));
+          return `<button type="button" class="et-btn et-bodypart-chip" data-part="${p}" data-selected="${sel ? 1 : 0}" style="font-size:12px;padding:7px 14px;border-radius:999px;border:1px solid ${sel ? "var(--gym)" : "var(--border)"};background:${sel ? "var(--gym-bg)" : "var(--surface-alt)"};color:${sel ? "var(--gym-tx)" : "var(--text-2)"};font-weight:${sel ? 600 : 500};">${p}</button>`;
+        }).join("")}
+      </div>
+    </div>
+    <div style="margin-bottom:11px;">
+      <label class="et-field-label">세부 종목</label>
+      <div id="f-gym-exercises" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+      <button type="button" id="f-gym-add-exercise" class="et-btn" style="font-size:12px;padding:8px 14px;border-radius:10px;border:1px dashed var(--border-strong);background:none;color:var(--text-2);width:100%;">+ 종목 추가</button>
+    </div>` : "";
+
+  const shoeField = (t === "running" && activeShoes.length > 0) ? `
+    <div style="margin-bottom:11px;"><label class="et-field-label">러닝화</label>
+      <select class="et-input" id="f-shoe">${activeShoes.map((s) => `<option value="${s.id}" ${E && E.shoeId === s.id ? "selected" : ""}>${escapeHtml(s.name)}</option>`).join("")}</select>
+    </div>` : "";
+
+  const extraStatsFields = hasExtraStats ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px;">
+      <div><label class="et-field-label">평균심박수 (bpm)</label><input class="et-input" type="number" inputmode="numeric" id="f-hr" placeholder="152" value="${E && E.avgHeartRate != null ? E.avgHeartRate : ""}"></div>
+      <div><label class="et-field-label">평균케이던스 (${t === "cycling" ? "rpm" : "spm"})</label><input class="et-input" type="number" inputmode="numeric" id="f-cadence" placeholder="${t === "cycling" ? "85" : "172"}" value="${E && E.avgCadence != null ? E.avgCadence : ""}"></div>
+      <div><label class="et-field-label">상승고도 (m)</label><input class="et-input" type="number" inputmode="numeric" id="f-elevation" placeholder="156" value="${E && E.elevationGain != null ? E.elevationGain : ""}"></div>
+      <div><label class="et-field-label">총 오르막 (km)</label><input class="et-input" type="number" inputmode="decimal" id="f-climb-distance" placeholder="0.60" value="${E && E.climbDistance != null ? E.climbDistance : ""}"></div>
+      <div><label class="et-field-label">VO2max</label><input class="et-input" type="number" inputmode="decimal" id="f-vo2max" placeholder="48.5" value="${E && E.vo2max != null ? E.vo2max : ""}"></div>
+    </div>` : "";
+
+  const swimStatsFields = t === "swimming" ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px;">
+      <div><label class="et-field-label">평균심박수 (bpm)</label><input class="et-input" type="number" inputmode="numeric" id="f-hr" placeholder="128" value="${E && E.avgHeartRate != null ? E.avgHeartRate : ""}"></div>
+      <div><label class="et-field-label">평균 SWOLF</label><input class="et-input" type="number" inputmode="numeric" id="f-swolf" placeholder="38" value="${E && E.avgSwolf != null ? E.avgSwolf : ""}"></div>
+    </div>` : "";
+
+  const photoPreviewHtml = (E && E.screenshot) ? `<img src="${E.screenshot}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;">` : "";
+
+  return `
+  ${modalHeaderHtml(`${modalDate}${E ? " · 수정" : ""}`)}
+  <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px;">
+    <span style="width:32px;height:32px;border-radius:10px;background:var(--${meta.v}-bg);display:flex;align-items:center;justify-content:center;font-size:17px;">${meta.icon}</span>
+    <span style="font-size:15px;font-weight:700;">${meta.label} 기록</span>
+  </div>
+
+  ${distanceField}
+  ${swimStrokeField}
+
+  <div style="margin-bottom:4px;">
+    <label class="et-field-label">시간</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      ${t === "cycling" ? `
+      <input class="et-input" type="number" inputmode="numeric" id="f-duration-hour" placeholder="1" style="width:70px;" value="${durH}">
+      <span style="font-size:12px;color:var(--text-2);">시간</span>` : ""}
+      <input class="et-input" type="number" inputmode="numeric" id="f-duration-min" placeholder="80" style="width:80px;" value="${durM}">
+      <span style="font-size:12px;color:var(--text-2);">분</span>
+      <input class="et-input" type="number" inputmode="numeric" id="f-duration-sec" placeholder="34" style="width:80px;" value="${durS}">
+      <span style="font-size:12px;color:var(--text-2);">초</span>
+    </div>
+  </div>
+  <div id="f-duration-preview" style="font-size:11px;color:var(--text-3);margin-bottom:11px;min-height:14px;"></div>
+
+  ${t === "running" ? `<div id="f-pace-preview" style="font-size:11px;color:var(--run-tx);margin-bottom:11px;min-height:14px;"></div>` : ""}
+  ${t === "cycling" ? `<div id="f-speed-preview" style="font-size:11px;color:var(--cycle-tx);margin-bottom:11px;min-height:14px;"></div>` : ""}
+
+  ${gymBodyPartField}
+  <div style="margin-bottom:11px;"><label class="et-field-label">칼로리</label><input class="et-input" type="number" inputmode="numeric" id="f-calories" placeholder="300" value="${E && E.calories != null ? E.calories : ""}"></div>
+  ${extraStatsFields}
+  ${swimStatsFields}
+  ${shoeField}
+  <div style="margin-bottom:11px;">
+    <label class="et-field-label">스크린샷</label>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="f-photo-btn" class="et-secondary-btn">${E && E.screenshot ? "다시 선택" : "사진 추가"}</button>
+      <input id="f-photo-input" type="file" accept="image/*" style="display:none;">
+      <span id="f-photo-preview">${photoPreviewHtml}</span>
+      <span id="f-ocr-status" style="font-size:11px;color:var(--text-3);"></span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:18px;">
+    <button id="f-cancel" class="et-secondary-btn">${E ? "취소" : "뒤로"}</button>
+    <button id="f-save" class="et-primary-btn" style="flex:1;">저장</button>
+  </div>
+  <button id="f-save-draft" class="et-text-btn" style="display:${E && E.screenshot ? "block" : "none"};">수치는 나중에 확인 (임시저장)</button>`;
+}
+
+// OCR 백엔드 엔드포인트 (아직 없음) — Firebase Cloud Function 등으로 만든 뒤 이 경로만 바꿔주면 됨.
+// 프론트에서 Anthropic API를 직접 호출하면 API 키가 노출되므로, 반드시 서버를 거쳐야 함.
+const OCR_ENDPOINT = "/api/ocr-running";
+
+function bindTypeFormEvents() {
+  bindModalClose();
+  const t = modalSelectedType;
+
+  document.getElementById("f-cancel").addEventListener("click", () => {
+    if (editingEntry) { closeModal(); }
+    else { modalMode = "typeSelect"; renderModal(); }
+  });
+
+  if (t === "gym") {
+    document.querySelectorAll(".et-bodypart-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const active = chip.dataset.selected === "1";
+        chip.dataset.selected = active ? "0" : "1";
+        chip.style.background = active ? "var(--surface-alt)" : "var(--gym-bg)";
+        chip.style.color = active ? "var(--text-2)" : "var(--gym-tx)";
+        chip.style.borderColor = active ? "var(--border)" : "var(--gym)";
+        chip.style.fontWeight = active ? "500" : "600";
+      });
+    });
+
+    const exList = document.getElementById("f-gym-exercises");
+    function addExerciseRow(prefill) {
+      const row = document.createElement("div");
+      row.className = "gym-ex-row";
+      row.style.cssText = "display:flex;gap:6px;align-items:center;";
+      row.innerHTML = `
+        <input class="et-input gym-ex-name" type="text" placeholder="벤치프레스" style="flex:1.4;" value="${prefill && prefill.name ? escapeHtml(prefill.name) : ""}">
+        <input class="et-input gym-ex-reps" type="number" inputmode="numeric" placeholder="10" style="width:56px;" value="${prefill && prefill.reps != null ? prefill.reps : ""}">
+        <span style="font-size:11px;color:var(--text-2);">회</span>
+        <input class="et-input gym-ex-sets" type="number" inputmode="numeric" placeholder="3" style="width:52px;" value="${prefill && prefill.sets != null ? prefill.sets : ""}">
+        <span style="font-size:11px;color:var(--text-2);">세트</span>
+        <button type="button" class="et-btn gym-ex-remove" style="background:none;border:none;color:var(--text-3);font-size:16px;padding:0 2px;">×</button>
+      `;
+      row.querySelector(".gym-ex-remove").addEventListener("click", () => row.remove());
+      exList.appendChild(row);
+    }
+    document.getElementById("f-gym-add-exercise").addEventListener("click", () => addExerciseRow());
+    if (editingEntry && editingEntry.exercises && editingEntry.exercises.length) {
+      editingEntry.exercises.forEach((ex) => addExerciseRow(ex));
+    } else {
+      addExerciseRow(); // 최소 1줄은 기본으로 보여줌
+    }
+  }
+
+  const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+
+  function currentDurationSec() {
+    const hour = Number(val("f-duration-hour")) || 0;
+    const min = Number(val("f-duration-min")) || 0;
+    const sec = Number(val("f-duration-sec")) || 0;
+    return hour * 3600 + min * 60 + sec;
+  }
+  function updatePreviews() {
+    const totalSec = currentDurationSec();
+    const durPreview = document.getElementById("f-duration-preview");
+    if (durPreview) durPreview.textContent = totalSec > 0 ? `= ${formatDurationLong(totalSec)}` : "";
+
+    const dist = Number(val("f-distance"));
+
+    const pacePreview = document.getElementById("f-pace-preview");
+    if (pacePreview) {
+      if (dist > 0 && totalSec > 0) {
+        const pace = formatPace(totalSec / dist);
+        pacePreview.textContent = pace ? `평균 페이스: ${pace} /km` : "";
+      } else {
+        pacePreview.textContent = "";
+      }
+    }
+
+    const speedPreview = document.getElementById("f-speed-preview");
+    if (speedPreview) {
+      if (dist > 0 && totalSec > 0) {
+        const speed = dist / (totalSec / 3600);
+        speedPreview.textContent = `평균속도: ${round1(speed)}km/h`;
+      } else {
+        speedPreview.textContent = "";
+      }
+    }
+  }
+  ["f-duration-hour", "f-duration-min", "f-duration-sec", "f-distance"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updatePreviews);
+  });
+  updatePreviews();
+
+  function currentSwimTotalM() {
+    let sum = 0;
+    document.querySelectorAll(".f-swim-stroke").forEach((el) => { sum += Number(el.value) || 0; });
+    return sum;
+  }
+  function updateSwimTotal() {
+    const totalPreview = document.getElementById("f-swim-total-preview");
+    if (!totalPreview) return;
+    const totalM = currentSwimTotalM();
+    totalPreview.textContent = totalM > 0 ? `= 총 ${totalM}m (${round1(totalM / 1000)}km)` : "";
+  }
+  document.querySelectorAll(".f-swim-stroke").forEach((el) => el.addEventListener("input", updateSwimTotal));
+  updateSwimTotal();
+
+  const photoBtn = document.getElementById("f-photo-btn");
+  const photoInput = document.getElementById("f-photo-input");
+  const ocrStatus = document.getElementById("f-ocr-status");
+  photoBtn.addEventListener("click", () => photoInput.click());
+  photoInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const dataUrl = await resizeImageToDataUrl(file);
+
+    // 미리보기는 즉시 로컬 dataUrl로 보여주고, 실제 저장은 업로드 완료된 URL로 교체
+    document.getElementById("f-photo-preview").innerHTML = `<img src="${dataUrl}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;opacity:0.6;">`;
+    document.getElementById("f-save-draft").style.display = "block";
+    if (ocrStatus) ocrStatus.textContent = "스크린샷 업로드 중…";
+
+    try {
+      const downloadUrl = await uploadScreenshot(dataUrl);
+      pendingScreenshot = downloadUrl;
+      document.getElementById("f-photo-preview").innerHTML = `<img src="${downloadUrl}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;">`;
+      if (ocrStatus) ocrStatus.textContent = "";
+    } catch (err) {
+      console.error("스크린샷 업로드 실패", err);
+      // 업로드 실패시에도 임시로 dataUrl을 써서 최소한 로컬에서는 보이게 유지
+      pendingScreenshot = dataUrl;
+      if (ocrStatus) ocrStatus.textContent = "업로드 실패 - 나중에 다시 첨부해줘";
+    }
+
+    if (t === "running") {
+      if (ocrStatus) ocrStatus.textContent = "자동 인식 중…";
+      try {
+        const res = await fetch(OCR_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: dataUrl }),
+        });
+        if (!res.ok) throw new Error("ocr endpoint not available");
+        const stats = await res.json();
+        if (stats.distance_km != null) setVal("f-distance", stats.distance_km);
+        if (stats.duration_sec != null) {
+          setVal("f-duration-min", Math.floor(stats.duration_sec / 60));
+          setVal("f-duration-sec", stats.duration_sec % 60);
+        }
+        if (stats.calories != null) setVal("f-calories", stats.calories);
+        if (stats.avg_heart_rate != null) setVal("f-hr", stats.avg_heart_rate);
+        if (stats.avg_cadence != null) setVal("f-cadence", stats.avg_cadence);
+        if (stats.elevation_gain != null) setVal("f-elevation", stats.elevation_gain);
+        if (stats.climb_distance_km != null) setVal("f-climb-distance", stats.climb_distance_km);
+        if (stats.vo2max != null) setVal("f-vo2max", stats.vo2max);
+        updatePreviews();
+        if (ocrStatus) ocrStatus.textContent = "자동 입력됨";
+      } catch (err) {
+        // 백엔드가 아직 없으면 여기로 옴 — 조용히 실패하고 수동 입력으로 넘어감
+        if (ocrStatus) ocrStatus.textContent = "자동 인식 불가 (직접 입력)";
+      }
+    }
+  });
+
+  function collect(status) {
+    const totalSec = currentDurationSec();
+
+    let dist = val("f-distance") ? Number(val("f-distance")) : null;
+    let strokeDistances = null;
+    if (t === "swimming") {
+      strokeDistances = {};
+      let any = false;
+      document.querySelectorAll(".f-swim-stroke").forEach((el) => {
+        const m = Number(el.value) || 0;
+        if (m > 0) { strokeDistances[el.dataset.stroke] = m; any = true; }
+      });
+      const totalM = currentSwimTotalM();
+      dist = totalM > 0 ? totalM / 1000 : null;
+      if (!any) strokeDistances = null;
+    }
+
+    const pace = (t === "running" && dist > 0 && totalSec > 0) ? formatPace(totalSec / dist) : null;
+    const avgSpeed = (t === "cycling" && dist > 0 && totalSec > 0) ? round1(dist / (totalSec / 3600)) : null;
+
+    let bodyParts = null;
+    let exercises = null;
+    if (t === "gym") {
+      bodyParts = Array.from(document.querySelectorAll('.et-bodypart-chip[data-selected="1"]')).map((c) => c.dataset.part);
+      if (bodyParts.length === 0) bodyParts = null;
+      exercises = Array.from(document.querySelectorAll(".gym-ex-row")).map((row) => ({
+        name: row.querySelector(".gym-ex-name").value.trim(),
+        reps: Number(row.querySelector(".gym-ex-reps").value) || null,
+        sets: Number(row.querySelector(".gym-ex-sets").value) || null,
+      })).filter((x) => x.name);
+      if (exercises.length === 0) exercises = null;
+    }
+
+    return {
+      id: uid(),
+      date: modalDate,
+      type: t,
+      distance: dist,
+      strokeDistances,
+      durationSec: totalSec > 0 ? totalSec : null,
+      pace,
+      avgSpeed,
+      calories: val("f-calories") ? Number(val("f-calories")) : null,
+      bodyParts,
+      exercises,
+      avgHeartRate: val("f-hr") ? Number(val("f-hr")) : null,
+      avgCadence: val("f-cadence") ? Number(val("f-cadence")) : null,
+      elevationGain: val("f-elevation") ? Number(val("f-elevation")) : null,
+      climbDistance: val("f-climb-distance") ? Number(val("f-climb-distance")) : null,
+      vo2max: val("f-vo2max") ? Number(val("f-vo2max")) : null,
+      avgSwolf: val("f-swolf") ? Number(val("f-swolf")) : null,
+      shoeId: t === "running" ? (val("f-shoe") || null) : null,
+      screenshot: pendingScreenshot,
+      status,
+    };
+  }
+
+  function saveEntry(status) {
+    const data = collect(status);
+    if (editingEntry) {
+      const idx = state.entries.findIndex((e) => e.id === editingEntry.id);
+      if (idx !== -1) state.entries[idx] = { ...data, id: editingEntry.id };
+    } else {
+      state.entries.push(data);
+    }
+    persist();
+    closeModal();
+  }
+
+  document.getElementById("f-save").addEventListener("click", () => saveEntry("confirmed"));
+  const draftBtn = document.getElementById("f-save-draft");
+  if (draftBtn) draftBtn.addEventListener("click", () => saveEntry("draft"));
+}
+
+function shoeManagerHtml() {
+  const mileage = shoeMileage();
+  const rows = state.shoes.map((s) => {
+    const km = mileage[s.id] || 0;
+    const pct = Math.min(100, Math.round(km / s.targetKm * 100));
+    return `
+    <div style="padding:12px 14px;border-radius:14px;background:var(--surface-alt);opacity:${s.retired?0.5:1};margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
+        <span style="font-size:13px;font-weight:600;">${escapeHtml(s.name)}</span>
+        <div style="display:flex;gap:10px;">
+          <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:11px;color:var(--run);background:none;border:none;">기존거리 수정</button>
+          <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:11px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
+        <span>${round1(km)} / ${s.targetKm}km${s.initialKm ? ` (기존 ${s.initialKm}km 포함)` : ""}</span><span>${pct}%</span>
+      </div>
+      <div style="height:5px;background:var(--surface);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `
+  ${modalHeaderHtml("러닝화 관리")}
+  <div>${rows}</div>
+  <div style="border-top:1px solid var(--border);padding-top:16px;">
+    <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;font-weight:600;">새 신발 추가</div>
+    <div style="margin-bottom:11px;"><label class="et-field-label">이름</label><input class="et-input" type="text" id="s-name" placeholder="Endorphin Speed 5"></div>
+    <div style="margin-bottom:11px;"><label class="et-field-label">지금까지 신은 거리 (km)</label><input class="et-input" type="number" id="s-initial" placeholder="0" value="0"></div>
+    <div style="margin-bottom:11px;"><label class="et-field-label">교체 권장 거리 (km)</label><input class="et-input" type="number" id="s-target" value="600"></div>
+    <button id="s-add-btn" class="et-primary-btn">추가</button>
+  </div>`;
+}
+function bindShoeManagerEvents() {
+  bindModalClose();
+  document.querySelectorAll(".et-toggle-retire").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const shoe = state.shoes.find((s) => s.id === btn.dataset.id);
+      shoe.retired = !shoe.retired;
+      persist();
+      renderModal();
+    });
+  });
+  document.querySelectorAll(".et-edit-initial").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const shoe = state.shoes.find((s) => s.id === btn.dataset.id);
+      const val = window.prompt(`${shoe.name} — 이 신발로 이미 뛴 거리(km)를 입력하세요`, shoe.initialKm || 0);
+      if (val === null) return;
+      const num = Number(val);
+      if (!isNaN(num) && num >= 0) {
+        shoe.initialKm = num;
+        persist();
+        renderModal();
+        render();
+      }
+    });
+  });
+  document.getElementById("s-add-btn").addEventListener("click", () => {
+    const name = document.getElementById("s-name").value.trim();
+    const target = Number(document.getElementById("s-target").value) || 600;
+    const initial = Number(document.getElementById("s-initial").value) || 0;
+    if (!name) return;
+    state.shoes.push({ id: uid(), name, targetKm: target, initialKm: initial, retired: false });
+    persist();
+    renderModal();
+    render();
+  });
+}
+
+/* ===========================================================
+   시작
+=========================================================== */
+render(); // 로딩 표시 먼저
+(async () => {
+  state = await loadData();
+  loaded = true;
+  render();
+})();
+
+</script>
+</body>
+</html>
