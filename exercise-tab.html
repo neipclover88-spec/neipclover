@@ -1115,19 +1115,20 @@ function shoeManagerHtml() {
     const pct = Math.min(100, Math.round(km / s.targetKm * 100));
     return `
     <div style="padding:12px 14px;border-radius:14px;background:var(--surface-alt);opacity:${s.retired?0.5:1};margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:7px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
         <span style="font-size:13px;font-weight:600;">${escapeHtml(s.name)}</span>
-        <div style="display:flex;gap:10px;">
-          <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:11px;color:var(--text-2);background:none;border:none;">이름 수정</button>
-          <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:11px;color:var(--run);background:none;border:none;">기존거리 수정</button>
-          <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:11px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
-        </div>
+        <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:11px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
         <span>${round1(km)} / ${s.targetKm}km${s.initialKm ? ` (기존 ${s.initialKm}km 포함)` : ""}</span><span>${pct}%</span>
       </div>
       <div style="height:5px;background:var(--surface);border-radius:3px;overflow:hidden;">
         <div style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">이름 수정</button>
+        <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">기존거리 수정</button>
+        <button class="et-btn et-edit-target" data-id="${s.id}" style="font-size:10px;color:var(--run);background:none;border:none;">최대치 수정</button>
       </div>
     </div>`;
   }).join("");
@@ -1175,6 +1176,20 @@ function bindShoeManagerEvents() {
       const num = Number(val);
       if (!isNaN(num) && num >= 0) {
         shoe.initialKm = num;
+        persist();
+        renderModal();
+        render();
+      }
+    });
+  });
+  document.querySelectorAll(".et-edit-target").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const shoe = state.shoes.find((s) => s.id === btn.dataset.id);
+      const val = window.prompt(`${shoe.name} — 교체 권장 거리(최대치, km)를 입력하세요`, shoe.targetKm || 600);
+      if (val === null) return;
+      const num = Number(val);
+      if (!isNaN(num) && num > 0) {
+        shoe.targetKm = num;
         persist();
         renderModal();
         render();
