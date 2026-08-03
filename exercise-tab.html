@@ -462,21 +462,21 @@ function renderShoeMileageCard() {
   const mileage = shoeMileage();
   const body = active.length === 0
     ? `<div style="font-size:12px;color:var(--text-3);">등록된 신발이 없어요.</div>`
-    : `<div style="display:flex;flex-direction:column;gap:8px;">${active.map((s) => {
+    : `<div style="display:flex;flex-direction:column;gap:2px;">${active.map((s) => {
         const km = mileage[s.id] || 0;
         const pct = Math.min(100, Math.round(km / s.targetKm * 100));
         const danger = pct >= 90;
         return `
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:3px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;line-height:1.3;">
             <span style="font-size:12px;font-weight:500;white-space:nowrap;">${escapeHtml(s.name)}</span>
             ${s.role ? `<span style="font-size:10px;color:var(--text-3);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.role)}</span>` : ""}
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="flex:1;height:6px;background:var(--surface-alt);border-radius:3px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+            <div style="flex:1;height:5px;background:var(--surface-alt);border-radius:3px;overflow:hidden;">
               <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${danger?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${danger?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
             </div>
-            <span class="et-num" style="font-size:12px;font-weight:400;color:${danger?"var(--danger)":"var(--text-2)"};white-space:nowrap;">${round1(km)}/${s.targetKm}</span>
+            <span class="et-num" style="font-size:11px;font-weight:400;line-height:1;color:${danger?"var(--danger)":"var(--text-2)"};white-space:nowrap;">${round1(km)}/${s.targetKm}</span>
           </div>
         </div>`;
       }).join("")}</div>`;
