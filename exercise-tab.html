@@ -227,6 +227,7 @@ let modalDate = null;
 let modalMode = null; // 'typeSelect' | 'form' | 'shoeManager'
 let modalSelectedType = null;
 let pendingScreenshot = null;
+let gymQuickList = []; // 헬스 폼에서 즉시 누적되는 종목 리스트
 
 function persist() { saveData(state); }
 
@@ -896,6 +897,7 @@ function bindTopLevelEvents() {
       modalDate = entry.date;
       modalSelectedType = entry.type;
       pendingScreenshot = entry.screenshot || null;
+      if (entry.type === "gym") gymQuickList = entry.exercises ? entry.exercises.map((x) => ({ ...x })) : [];
       modalMode = "form";
       render();
     });
@@ -971,7 +973,12 @@ function typeSelectHtml() {
 function bindTypeSelectEvents() {
   bindModalClose();
   document.querySelectorAll(".et-type-card").forEach((btn) => {
-    btn.addEventListener("click", () => { modalSelectedType = btn.dataset.type; modalMode = "form"; renderModal(); });
+    btn.addEventListener("click", () => {
+      modalSelectedType = btn.dataset.type;
+      if (modalSelectedType === "gym") gymQuickList = [];
+      modalMode = "form";
+      renderModal();
+    });
   });
 }
 
@@ -1055,10 +1062,23 @@ function typeFormHtml() {
           </div>`).join("")}
       </div>
     </div>
+    <div style="margin-bottom:14px;">
+      <label class="et-field-label">종목 추가</label>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <select class="et-input" id="f-gym-quick-select" style="flex:1;"><option value="">부위를 먼저 골라주세요</option></select>
+      </div>
+      <input class="et-input" type="text" id="f-gym-quick-custom" placeholder="종목명 직접입력" style="display:none;margin-bottom:6px;width:100%;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input class="et-input" type="number" inputmode="numeric" id="f-gym-quick-reps" placeholder="10" style="width:64px;">
+        <span style="font-size:11px;color:var(--text-2);">회</span>
+        <input class="et-input" type="number" inputmode="numeric" id="f-gym-quick-sets" placeholder="3" style="width:60px;">
+        <span style="font-size:11px;color:var(--text-2);">세트</span>
+        <button type="button" id="f-gym-quick-add" class="et-btn" style="flex:1;height:38px;border-radius:8px;border:none;background:var(--gym);color:#fff;font-size:13px;font-weight:700;">+ 추가</button>
+      </div>
+    </div>
     <div style="margin-bottom:11px;">
-      <label class="et-field-label">세부 종목</label>
-      <div id="f-gym-exercises" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
-      <button type="button" id="f-gym-add-exercise" class="et-btn" style="font-size:12px;padding:8px 14px;border-radius:10px;border:1px dashed var(--border-strong);background:none;color:var(--text-2);width:100%;">+ 종목 추가</button>
+      <label class="et-field-label">오늘 추가된 종목</label>
+      <div id="f-gym-list" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>` : "";
 
   const shoeField = (t === "running" && activeShoes.length > 0) ? `
@@ -1151,6 +1171,29 @@ function bindTypeFormEvents() {
   });
 
   if (t === "gym") {
+    function getSelectedBodyParts() {
+      return Array.from(document.querySelectorAll('.et-bodypart-chip[data-selected="1"]')).map((c) => c.dataset.part);
+    }
+    function getFilteredPresetGroups() {
+      const selectedParts = getSelectedBodyParts();
+      if (selectedParts.length === 0) return EXERCISE_PRESETS; // 아직 부위 안 골랐으면 전체 목록
+      return EXERCISE_PRESETS.filter((g) => selectedParts.includes(g.group));
+    }
+    function buildExerciseSelectOptions() {
+      const groups = getFilteredPresetGroups();
+      const optgroups = groups.map((g) => {
+        const opts = g.exercises.map((ex) => `<option value="${escapeHtml(ex)}">${escapeHtml(ex)}</option>`).join("");
+        return `<optgroup label="${g.group}">${opts}</optgroup>`;
+      }).join("");
+      return optgroups + `<option value="__custom__">✏️ 직접입력</option>`;
+    }
+    function refreshQuickSelect() {
+      const selectEl = document.getElementById("f-gym-quick-select");
+      if (!selectEl) return;
+      const placeholder = getSelectedBodyParts().length === 0 ? "부위를 먼저 골라주세요" : "종목 선택";
+      selectEl.innerHTML = `<option value="">${placeholder}</option>${buildExerciseSelectOptions()}`;
+    }
+
     document.querySelectorAll(".et-bodypart-chip").forEach((chip) => {
       chip.addEventListener("click", () => {
         const active = chip.dataset.selected === "1";
@@ -1159,61 +1202,56 @@ function bindTypeFormEvents() {
         chip.style.color = active ? "var(--text-2)" : "var(--gym-tx)";
         chip.style.borderColor = active ? "var(--border)" : "var(--gym)";
         chip.style.fontWeight = active ? "500" : "600";
+        refreshQuickSelect();
       });
     });
+    refreshQuickSelect();
 
-    const exList = document.getElementById("f-gym-exercises");
-    function buildExerciseSelectOptions(selectedName) {
-      let matched = false;
-      const optgroups = EXERCISE_PRESETS.map((g) => {
-        const opts = g.exercises.map((ex) => {
-          const isSel = ex === selectedName;
-          if (isSel) matched = true;
-          return `<option value="${escapeHtml(ex)}" ${isSel ? "selected" : ""}>${escapeHtml(ex)}</option>`;
-        }).join("");
-        return `<optgroup label="${g.group}">${opts}</optgroup>`;
-      }).join("");
-      const isCustom = !!(selectedName && !matched);
-      return { optHtml: optgroups + `<option value="__custom__" ${isCustom ? "selected" : ""}>✏️ 직접입력</option>`, isCustom };
-    }
-    function addExerciseRow(prefill) {
-      const row = document.createElement("div");
-      row.className = "gym-ex-row";
-      row.style.cssText = "display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:10px;background:var(--surface-alt);";
-      const name = prefill && prefill.name ? prefill.name : "";
-      const { optHtml, isCustom } = buildExerciseSelectOptions(name);
-      row.innerHTML = `
-        <div style="display:flex;gap:6px;align-items:center;">
-          <select class="et-input gym-ex-select" style="flex:1;">
-            <option value="">종목 선택</option>
-            ${optHtml}
-          </select>
-          <button type="button" class="et-btn gym-ex-remove" style="background:none;border:none;color:var(--text-3);font-size:16px;padding:0 2px;">×</button>
-        </div>
-        <input class="et-input gym-ex-custom" type="text" placeholder="종목명 직접입력" style="display:${isCustom ? "block" : "none"};" value="${isCustom ? escapeHtml(name) : ""}">
-        <div style="display:flex;gap:6px;align-items:center;">
-          <input class="et-input gym-ex-reps" type="number" inputmode="numeric" placeholder="10" style="width:60px;" value="${prefill && prefill.reps != null ? prefill.reps : ""}">
-          <span style="font-size:11px;color:var(--text-2);">회</span>
-          <input class="et-input gym-ex-sets" type="number" inputmode="numeric" placeholder="3" style="width:56px;" value="${prefill && prefill.sets != null ? prefill.sets : ""}">
-          <span style="font-size:11px;color:var(--text-2);">세트</span>
-        </div>
-      `;
-      const selectEl = row.querySelector(".gym-ex-select");
-      const customEl = row.querySelector(".gym-ex-custom");
-      if (isCustom) selectEl.value = "__custom__";
-      selectEl.addEventListener("change", () => {
-        customEl.style.display = selectEl.value === "__custom__" ? "block" : "none";
-        if (selectEl.value === "__custom__") customEl.focus();
+    const quickSelect = document.getElementById("f-gym-quick-select");
+    const quickCustom = document.getElementById("f-gym-quick-custom");
+    quickSelect.addEventListener("change", () => {
+      quickCustom.style.display = quickSelect.value === "__custom__" ? "block" : "none";
+      if (quickSelect.value === "__custom__") quickCustom.focus();
+    });
+
+    function renderGymList() {
+      const listEl = document.getElementById("f-gym-list");
+      if (!listEl) return;
+      if (gymQuickList.length === 0) {
+        listEl.innerHTML = `<div style="font-size:11px;color:var(--text-3);">아직 추가한 종목이 없어요.</div>`;
+        return;
+      }
+      listEl.innerHTML = gymQuickList.map((ex, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:var(--surface-alt);">
+          <span style="font-size:12px;font-weight:600;flex:1;">${escapeHtml(ex.name)}</span>
+          <span class="et-num" style="font-size:12px;color:var(--gym-tx);">${ex.reps || "-"}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);">회</span> × ${ex.sets || "-"}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);">세트</span></span>
+          <button type="button" class="et-btn gym-list-remove" data-idx="${i}" style="background:none;border:none;color:var(--text-3);font-size:15px;padding:0 2px;">×</button>
+        </div>`).join("");
+      listEl.querySelectorAll(".gym-list-remove").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          gymQuickList.splice(Number(btn.dataset.idx), 1);
+          renderGymList();
+        });
       });
-      row.querySelector(".gym-ex-remove").addEventListener("click", () => row.remove());
-      exList.appendChild(row);
     }
-    document.getElementById("f-gym-add-exercise").addEventListener("click", () => addExerciseRow());
-    if (editingEntry && editingEntry.exercises && editingEntry.exercises.length) {
-      editingEntry.exercises.forEach((ex) => addExerciseRow(ex));
-    } else {
-      addExerciseRow(); // 최소 1줄은 기본으로 보여줌
-    }
+    renderGymList();
+
+    document.getElementById("f-gym-quick-add").addEventListener("click", () => {
+      const selVal = quickSelect.value;
+      const name = selVal === "__custom__" ? quickCustom.value.trim() : selVal;
+      if (!name) return; // 종목 안 골랐으면 무시
+      const reps = Number(document.getElementById("f-gym-quick-reps").value) || null;
+      const sets = Number(document.getElementById("f-gym-quick-sets").value) || null;
+      gymQuickList.push({ name, reps, sets });
+      renderGymList();
+      // 다음 종목 입력을 위해 리셋 (부위 선택은 유지)
+      quickSelect.value = "";
+      quickCustom.value = "";
+      quickCustom.style.display = "none";
+      document.getElementById("f-gym-quick-reps").value = "";
+      document.getElementById("f-gym-quick-sets").value = "";
+      quickSelect.focus();
+    });
   }
 
   const val = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
@@ -1371,15 +1409,7 @@ function bindTypeFormEvents() {
     if (t === "gym") {
       bodyParts = Array.from(document.querySelectorAll('.et-bodypart-chip[data-selected="1"]')).map((c) => c.dataset.part);
       if (bodyParts.length === 0) bodyParts = null;
-      exercises = Array.from(document.querySelectorAll(".gym-ex-row")).map((row) => {
-        const selVal = row.querySelector(".gym-ex-select").value;
-        const name = selVal === "__custom__" ? row.querySelector(".gym-ex-custom").value.trim() : selVal;
-        return {
-          name,
-          reps: Number(row.querySelector(".gym-ex-reps").value) || null,
-          sets: Number(row.querySelector(".gym-ex-sets").value) || null,
-        };
-      }).filter((x) => x.name);
+      exercises = gymQuickList.filter((x) => x.name).map((x) => ({ ...x }));
       if (exercises.length === 0) exercises = null;
     }
 
