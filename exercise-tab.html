@@ -183,8 +183,9 @@ function startOfWeek(d) {
   nd.setDate(nd.getDate() - offset);
   return nd;
 }
-function buildThreeWeekGrid() {
-  const gridStart = addDays(startOfWeek(new Date()), -14);
+function buildThreeWeekGrid(weekOffset) {
+  weekOffset = weekOffset || 0;
+  const gridStart = addDays(startOfWeek(new Date()), -14 - weekOffset * 21);
   const days = [];
   for (let i = 0; i < 21; i++) days.push(addDays(gridStart, i));
   return days;
@@ -228,6 +229,7 @@ let modalMode = null; // 'typeSelect' | 'form' | 'shoeManager'
 let modalSelectedType = null;
 let pendingScreenshot = null;
 let gymQuickList = []; // 헬스 폼에서 즉시 누적되는 종목 리스트
+let calendarWeekOffset = 0; // 0=최근 3주, 1=그 이전 3주 ... 캘린더 뒤로가기
 
 function persist() { saveData(state); }
 
@@ -373,9 +375,10 @@ function collectPaceTrendSeries(type, limit) {
   }));
 }
 // entries[field] 값들로 미니 추이 SVG 라인차트 생성. higherIsBetter로 베스트 지점 강조
-function buildTrendSVG(entries, field, color, higherIsBetter) {
+function buildTrendSVG(entries, field, color, higherIsBetter, formatValue) {
   if (!entries.length) return null;
-  const W = 280, H = 92, padTop = 10, padBottom = 18, padX = 8;
+  const fmt = formatValue || ((v) => v);
+  const W = 280, H = 104, padTop = 18, padBottom = 18, padX = 8;
   const values = entries.map((e) => Number(e[field]));
   const min = Math.min(...values), max = Math.max(...values);
   const range = (max - min) || 1;
@@ -398,6 +401,12 @@ function buildTrendSVG(entries, field, color, higherIsBetter) {
     const isBest = i === bestIdx;
     return `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${isBest ? 4.5 : 2.5}" fill="${color}" opacity="${isBest ? 1 : 0.55}"${isBest ? ` style="filter:drop-shadow(0 0 5px ${color})"` : ""}/>`;
   }).join("");
+  // 점 위/아래가 겹치지 않게 값 위치가 위쪽 가장자리면 아래로, 아니면 위로 라벨 배치
+  const valueLabels = coords.map((c) => {
+    const above = c.y > padTop + 8;
+    const ly = above ? c.y - 7 : c.y + 12;
+    return `<text x="${c.x.toFixed(1)}" y="${ly.toFixed(1)}" font-size="7" fill="${color}" text-anchor="middle" font-family="Pretendard,sans-serif">${escapeHtml(String(fmt(c.val)))}</text>`;
+  }).join("");
   const firstLabel = entries[0].date.slice(5);
   const lastLabel = entries[entries.length - 1].date.slice(5);
   return `
@@ -405,6 +414,7 @@ function buildTrendSVG(entries, field, color, higherIsBetter) {
     <polygon points="${areaPts}" fill="${color}" opacity="0.08"></polygon>
     <polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
     ${circles}
+    ${valueLabels}
     <text x="${padX}" y="${H - 4}" font-size="8" fill="var(--text-3)" font-family="Pretendard,sans-serif">${firstLabel}</text>
     <text x="${W - padX}" y="${H - 4}" font-size="8" fill="var(--text-3)" font-family="Pretendard,sans-serif" text-anchor="end">${lastLabel}</text>
   </svg>`;
@@ -462,7 +472,7 @@ function renderHeader() {
 }
 
 function renderCalendar() {
-  const days = buildThreeWeekGrid();
+  const days = buildThreeWeekGrid(calendarWeekOffset);
   const today = todayStr();
   const byDate = entriesByDate();
   const weekday = ["월","화","수","목","금","토","일"];
@@ -472,7 +482,10 @@ function renderCalendar() {
     ? `${first.getFullYear()}년 ${first.getMonth() + 1}월`
     : `${first.getMonth() + 1}월 ${first.getDate()}일 – ${last.getMonth() + 1}월 ${last.getDate()}일`;
 
-  const weekdayRow = weekday.map((w) => `<span class="et-weekday">${w}</span>`).join("");
+  const weekdayRow = weekday.map((w) => {
+    const color = w === "토" ? "var(--swim)" : w === "일" ? "var(--gym)" : "var(--text-3)";
+    return `<span class="et-weekday" style="color:${color};">${w}</span>`;
+  }).join("");
   const cells = days.map((d) => {
     const dateStr = fmtDate(d);
     const dayEntries = (byDate[dateStr] || []).filter((e) => filter === "all" || e.type === filter);
@@ -482,8 +495,12 @@ function renderCalendar() {
   return `
   <div class="et-card" style="padding:16px 16px 14px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <span style="font-size:15px;font-weight:700;letter-spacing:-0.01em;">${monthLabel}</span>
-      <span style="font-size:11px;color:var(--text-3);font-weight:500;">최근 3주</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="et-cal-prev" class="et-btn" style="background:var(--surface-alt);border:none;width:24px;height:24px;border-radius:50%;font-size:12px;color:var(--text-2);display:flex;align-items:center;justify-content:center;">‹</button>
+        <span style="font-size:15px;font-weight:700;letter-spacing:-0.01em;">${monthLabel}</span>
+        <button id="et-cal-next" class="et-btn" style="background:var(--surface-alt);border:none;width:24px;height:24px;border-radius:50%;font-size:12px;color:${calendarWeekOffset > 0 ? "var(--text-2)" : "var(--text-3)"};display:flex;align-items:center;justify-content:center;opacity:${calendarWeekOffset > 0 ? 1 : 0.4};" ${calendarWeekOffset > 0 ? "" : "disabled"}>›</button>
+      </div>
+      <span style="font-size:11px;color:var(--text-3);font-weight:500;">${calendarWeekOffset === 0 ? "최근 3주" : "3주 전"}</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px;">${weekdayRow}</div>
     <div id="et-calendar-grid">${cells}</div>
@@ -501,7 +518,7 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
     const e = entries[0];
     const meta = TYPES[e.type];
     bg = `var(--${meta.v}-bg)`;
-    const stat = e.type === "gym" ? ((e.bodyParts && e.bodyParts.length) ? e.bodyParts.join("·") : "") : (e.distance ? `${round1(e.distance)}km` : (e.durationSec ? formatDurationShort(e.durationSec) : ""));
+    const stat = e.type === "gym" ? ((e.bodyParts && e.bodyParts.length) ? gymBroadCategories(e.bodyParts).join("·") : "") : (e.distance ? `${round1(e.distance)}km` : (e.durationSec ? formatDurationShort(e.durationSec) : ""));
     const isNumericStat = e.type !== "gym";
     inner = `<div style="display:flex;align-items:center;gap:4px;line-height:1;">
       <span style="font-size:15px;">${meta.icon}</span>
@@ -558,7 +575,7 @@ function renderWeekSummaryCard() {
       ${bestSwolf ? `
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
         <span style="font-size:10.5px;color:var(--text-3);">최고 SWOLF</span>
-        <span class="et-num" style="font-size:13px;color:var(--text);">${bestSwolf.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestSwolf.date.slice(5)}</span></span>
+        <span class="et-num" style="font-size:13px;color:var(--cycle-tx);">${bestSwolf.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestSwolf.date.slice(5)}</span></span>
       </div>` : ""}
     </div>`;
   }).join("");
@@ -609,9 +626,9 @@ function renderRightPanelByFilter() {
 function renderVo2maxTrendCard() {
   const series = collectTrendSeries("running", "vo2max", 12);
   const { bestVo2max, best } = computeRecords("running");
-  const chart = buildTrendSVG(series, "vo2max", "#a855f7", true);
+  const chart = buildTrendSVG(series, "vo2max", "#a855f7", true, (v) => v);
   const paceSeries = collectPaceTrendSeries("running", 12);
-  const paceChart = buildTrendSVG(paceSeries, "_paceSec", "var(--run)", false);
+  const paceChart = buildTrendSVG(paceSeries, "_paceSec", "var(--run)", false, (v) => formatPace(v));
   return `
   <div class="et-card" style="padding:16px;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
@@ -629,9 +646,9 @@ function renderVo2maxTrendCard() {
 function renderSwolfTrendCard() {
   const series = collectTrendSeries("swimming", "avgSwolf", 12);
   const { bestSwolf, best } = computeRecords("swimming");
-  const chart = buildTrendSVG(series, "avgSwolf", "#f5a623", false);
+  const chart = buildTrendSVG(series, "avgSwolf", "#f5a623", false, (v) => v);
   const paceSeries = collectPaceTrendSeries("swimming", 12);
-  const paceChart = buildTrendSVG(paceSeries, "_paceSec", "var(--swim)", false);
+  const paceChart = buildTrendSVG(paceSeries, "_paceSec", "var(--swim)", false, (v) => formatPace(v));
   return `
   <div class="et-card" style="padding:16px;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
@@ -650,7 +667,7 @@ function renderSwolfTrendCard() {
 function renderCyclingDistanceTrendCard() {
   const series = collectTrendSeries("cycling", "distance", 12);
   const { bestDistance } = computeRecords("cycling");
-  const chart = buildTrendSVG(series, "distance", "#f5a623", true);
+  const chart = buildTrendSVG(series, "distance", "#f5a623", true, (v) => round1(v));
   return `
   <div class="et-card" style="padding:16px;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
@@ -864,6 +881,11 @@ function bindTopLevelEvents() {
     btn.addEventListener("click", () => { filter = btn.dataset.filter; render(); });
   });
 
+  const calPrev = document.getElementById("et-cal-prev");
+  if (calPrev) calPrev.addEventListener("click", () => { calendarWeekOffset += 1; render(); });
+  const calNext = document.getElementById("et-cal-next");
+  if (calNext) calNext.addEventListener("click", () => { if (calendarWeekOffset > 0) { calendarWeekOffset -= 1; render(); } });
+
   document.querySelectorAll(".et-daycell").forEach((btn) => {
     btn.addEventListener("click", () => {
       const d = btn.dataset.date;
@@ -991,6 +1013,17 @@ const GYM_BODY_PART_GROUPS = [
   { group: "코어", parts: ["복근"] },
 ];
 const GYM_BODY_PARTS = GYM_BODY_PART_GROUPS.flatMap((g) => g.parts);
+// 세부 부위(예: "흉근 중부")를 대분류(예: "가슴")로 변환 - 캘린더처럼 좁은 공간에 표시할 때 사용
+function gymBroadCategories(bodyParts) {
+  if (!bodyParts || !bodyParts.length) return [];
+  const cats = [];
+  bodyParts.forEach((p) => {
+    const g = GYM_BODY_PART_GROUPS.find((grp) => grp.parts.includes(p));
+    const cat = g ? g.group : p;
+    if (!cats.includes(cat)) cats.push(cat);
+  });
+  return cats;
+}
 
 // 부위별 자주 하는 종목 프리셋 - 드롭다운에 optgroup으로 표시, "직접입력"도 항상 선택 가능
 const EXERCISE_PRESETS = [
