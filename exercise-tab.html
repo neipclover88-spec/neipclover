@@ -248,6 +248,26 @@ function shoeMileage() {
   }
   return map;
 }
+// 신발별 가장 최근 착용일 (YYYY-MM-DD) - 안 신은 신발은 null
+function shoeLastWorn() {
+  const map = {};
+  for (const e of state.entries) {
+    if (e.type === "running" && e.status === "confirmed" && e.shoeId) {
+      if (!map[e.shoeId] || e.date > map[e.shoeId]) map[e.shoeId] = e.date;
+    }
+  }
+  return map;
+}
+// 최근에 신은 신발일수록 목록 아래로 - 안 신었거나 오래 안 신은 신발이 위로 오게 정렬
+function sortShoesByRotation(shoes) {
+  const lastWorn = shoeLastWorn();
+  return [...shoes].sort((a, b) => {
+    const da = lastWorn[a.id] || "";
+    const db = lastWorn[b.id] || "";
+    if (da === db) return 0;
+    return da < db ? -1 : 1;
+  });
+}
 function weekSummary() {
   const weekStart = startOfWeek(new Date());
   const weekDates = new Set();
@@ -458,7 +478,7 @@ function renderRunningPaceCard() {
 }
 
 function renderShoeMileageCard() {
-  const active = state.shoes.filter((s) => !s.retired);
+  const active = sortShoesByRotation(state.shoes.filter((s) => !s.retired));
   const mileage = shoeMileage();
   const body = active.length === 0
     ? `<div style="font-size:12px;color:var(--text-3);">등록된 신발이 없어요.</div>`
@@ -1127,7 +1147,7 @@ function bindTypeFormEvents() {
 
 function shoeManagerHtml() {
   const mileage = shoeMileage();
-  const rows = state.shoes.map((s) => {
+  const rows = sortShoesByRotation(state.shoes).map((s) => {
     const km = mileage[s.id] || 0;
     const pct = Math.min(100, Math.round(km / s.targetKm * 100));
     return `
