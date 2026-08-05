@@ -1078,7 +1078,7 @@ function typeFormHtml() {
   const durS = (E && E.durationSec) ? (E.durationSec % 60) : "";
 
   const distanceField = isGpsSport ? `
-    <div style="margin-bottom:11px;"><label class="et-field-label">거리 (km)</label><input class="et-input" type="number" inputmode="decimal" id="f-distance" placeholder="5.2" value="${E && E.distance != null ? E.distance : ""}"></div>` : "";
+    <div style="margin-bottom:11px;"><label class="et-field-label">거리 (km)</label><input class="et-input" type="number" inputmode="decimal" step="any" id="f-distance" placeholder="5.2" value="${E && E.distance != null ? E.distance : ""}"></div>` : "";
 
   const swimStrokeField = t === "swimming" ? `
     <div style="margin-bottom:4px;">
@@ -1136,9 +1136,9 @@ function typeFormHtml() {
       <div><label class="et-field-label">평균심박수 (bpm)</label><input class="et-input" type="number" inputmode="numeric" id="f-hr" placeholder="152" value="${E && E.avgHeartRate != null ? E.avgHeartRate : ""}"></div>
       <div><label class="et-field-label">평균케이던스 (${t === "cycling" ? "rpm" : "spm"})</label><input class="et-input" type="number" inputmode="numeric" id="f-cadence" placeholder="${t === "cycling" ? "85" : "172"}" value="${E && E.avgCadence != null ? E.avgCadence : ""}"></div>
       <div><label class="et-field-label">상승고도 (m)</label><input class="et-input" type="number" inputmode="numeric" id="f-elevation" placeholder="156" value="${E && E.elevationGain != null ? E.elevationGain : ""}"></div>
-      <div><label class="et-field-label">총 오르막 (km)</label><input class="et-input" type="number" inputmode="decimal" id="f-climb-distance" placeholder="0.60" value="${E && E.climbDistance != null ? E.climbDistance : ""}"></div>
-      <div><label class="et-field-label">VO2max</label><input class="et-input" type="number" inputmode="decimal" id="f-vo2max" placeholder="48.5" value="${E && E.vo2max != null ? E.vo2max : ""}"></div>
-      <div><label class="et-field-label">기온 (°C)</label><input class="et-input" type="number" inputmode="decimal" id="f-temp" placeholder="27" value="${E && E.temperature != null ? E.temperature : ""}"></div>
+      <div><label class="et-field-label">총 오르막 (km)</label><input class="et-input" type="number" inputmode="decimal" step="any" id="f-climb-distance" placeholder="0.60" value="${E && E.climbDistance != null ? E.climbDistance : ""}"></div>
+      <div><label class="et-field-label">VO2max</label><input class="et-input" type="number" inputmode="decimal" step="any" id="f-vo2max" placeholder="48.5" value="${E && E.vo2max != null ? E.vo2max : ""}"></div>
+      <div><label class="et-field-label">기온 (°C)</label><input class="et-input" type="number" inputmode="decimal" step="any" id="f-temp" placeholder="27" value="${E && E.temperature != null ? E.temperature : ""}"></div>
       <div><label class="et-field-label">습도 (%)</label><input class="et-input" type="number" inputmode="numeric" id="f-humidity" placeholder="65" value="${E && E.humidity != null ? E.humidity : ""}"></div>
     </div>` : "";
 
@@ -1182,10 +1182,10 @@ function typeFormHtml() {
   ${t === "cycling" ? `<div id="f-speed-preview" style="font-size:11px;color:var(--cycle-tx);margin-bottom:11px;min-height:14px;"></div>` : ""}
 
   ${gymBodyPartField}
-  <div style="margin-bottom:11px;"><label class="et-field-label">칼로리</label><input class="et-input" type="number" inputmode="numeric" id="f-calories" placeholder="300" value="${E && E.calories != null ? E.calories : ""}"></div>
   ${extraStatsFields}
   ${swimStatsFields}
   ${shoeField}
+  <div style="margin-bottom:11px;"><label class="et-field-label">칼로리</label><input class="et-input" type="number" inputmode="numeric" id="f-calories" placeholder="300" value="${E && E.calories != null ? E.calories : ""}"></div>
   <div style="margin-bottom:11px;">
     <label class="et-field-label">스크린샷</label>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -1553,8 +1553,8 @@ function shoeManagerHtml() {
     <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;font-weight:600;">새 신발 추가</div>
     <div style="margin-bottom:11px;"><label class="et-field-label">이름</label><input class="et-input" type="text" id="s-name" placeholder="Endorphin Speed 5"></div>
     <div style="margin-bottom:11px;"><label class="et-field-label">역할 (선택)</label><input class="et-input" type="text" id="s-role" placeholder="인터벌, 템포런, 레이스"></div>
-    <div style="margin-bottom:11px;"><label class="et-field-label">지금까지 신은 거리 (km)</label><input class="et-input" type="number" id="s-initial" placeholder="0" value="0"></div>
-    <div style="margin-bottom:11px;"><label class="et-field-label">교체 권장 거리 (km)</label><input class="et-input" type="number" id="s-target" value="600"></div>
+    <div style="margin-bottom:11px;"><label class="et-field-label">지금까지 신은 거리 (km)</label><input class="et-input" type="number" step="any" id="s-initial" placeholder="0" value="0"></div>
+    <div style="margin-bottom:11px;"><label class="et-field-label">교체 권장 거리 (km)</label><input class="et-input" type="number" step="any" id="s-target" value="600"></div>
     <button id="s-add-btn" class="et-primary-btn">추가</button>
   </div>`;
 }
