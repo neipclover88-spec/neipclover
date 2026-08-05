@@ -310,6 +310,34 @@ function recentRuns() {
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, 5);
 }
+// 종목별 최고기록(페이스/속도) + 최장 저심박 기록(시간÷평균심박 비율 최대)
+function computeRecords(type) {
+  let best = null; // {value, date, entry}
+  let bestEff = null; // 저심박 지속 - {durationSec, hr, date}
+
+  for (const e of state.entries) {
+    if (e.type !== type || e.status !== "confirmed") continue;
+
+    if (type === "running" && e.distance > 0 && e.durationSec > 0) {
+      const paceSec = e.durationSec / e.distance;
+      if (!best || paceSec < best.value) best = { value: paceSec, date: e.date, label: formatPace(paceSec) + "/km" };
+    } else if (type === "swimming" && e.distance > 0 && e.durationSec > 0) {
+      const paceSec = e.durationSec / (e.distance * 10); // sec per 100m
+      if (!best || paceSec < best.value) best = { value: paceSec, date: e.date, label: formatPace(paceSec) + "/100m" };
+    } else if (type === "cycling" && e.distance > 0 && e.durationSec > 0) {
+      const speed = e.distance / (e.durationSec / 3600);
+      if (!best || speed > best.value) best = { value: speed, date: e.date, label: `${round1(speed)}km/h` };
+    }
+
+    if ((type === "running" || type === "swimming") && e.durationSec > 0 && e.avgHeartRate > 0) {
+      const ratio = e.durationSec / e.avgHeartRate;
+      if (!bestEff || ratio > bestEff.ratio) {
+        bestEff = { ratio, durationSec: e.durationSec, hr: e.avgHeartRate, date: e.date };
+      }
+    }
+  }
+  return { best, bestEff };
+}
 function draftCount() {
   return state.entries.filter((e) => e.status === "draft").length;
 }
@@ -425,44 +453,44 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
 
 function renderWeekSummaryCard() {
   const s = weekSummary();
-  const ms = monthSummary();
-  const items = TYPE_ORDER.map((t) => `
-    <div style="display:flex;align-items:center;gap:7px;">
-      <span style="width:24px;height:24px;border-radius:8px;background:var(--${TYPES[t].v}-bg);display:flex;align-items:center;justify-content:center;font-size:13px;">${TYPES[t].icon}</span>
-      <span class="et-num" style="font-size:16px;color:var(--text);">${s.counts[t]||0}<span style="font-family:'Pretendard',sans-serif;font-size:10px;color:var(--text-3);margin-left:1px;">회</span></span>
-    </div>`).join("");
-  const monthLine = TYPE_ORDER.map((t) => `${TYPES[t].icon} ${ms.counts[t]||0}`).join("  ");
+  const recTypes = ["running", "swimming", "cycling"];
+  const recRows = recTypes.map((t) => {
+    const { best, bestEff } = computeRecords(t);
+    if (!best && !bestEff) return "";
+    const meta = TYPES[t];
+    return `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span style="font-size:13px;">${meta.icon}</span>
+        <span style="font-size:11px;font-weight:600;color:var(--text-2);">${meta.label}</span>
+      </div>
+      ${best ? `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;">
+        <span style="font-size:10.5px;color:var(--text-3);">최고기록</span>
+        <span class="et-num et-glow-${meta.v}" style="font-size:14px;color:var(--${meta.v}-tx);">${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span>
+      </div>` : ""}
+      ${bestEff ? `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
+        <span style="font-size:10.5px;color:var(--text-3);">최장 저심박</span>
+        <span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span>
+      </div>` : ""}
+    </div>`;
+  }).join("");
+
   return `
   <div class="et-card" style="padding:16px;">
-    <div class="et-card-title">이번주 요약</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">${items}</div>
-    <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">총 운동시간</span><span style="font-size:13px;font-weight:700;color:var(--text);">${Math.floor(s.totalMin/60)}시간 ${s.totalMin%60}분</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-2);">누적 거리</span><span class="et-num et-glow-run" style="font-size:14px;color:var(--run-tx);">${round1(s.totalKm)}km</span></div>
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:12px;">
-      <div class="et-card-title" style="margin-bottom:7px;">이번 달</div>
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${monthLine}</div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">총 시간</span><span style="font-size:12px;font-weight:700;color:var(--text-2);">${Math.floor(ms.totalMin/60)}시간 ${ms.totalMin%60}분</span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span class="et-num" style="font-size:13px;color:var(--text-2);">${round1(ms.totalKm)}km</span></div>
+    <div class="et-card-title">베스트 기록</div>
+    ${recRows || `<div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">아직 기록이 없어요.</div>`}
+    <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;">
+      <span style="font-size:11px;color:var(--text-2);">이번주 운동시간</span>
+      <span class="et-num" style="font-size:12px;color:var(--text-2);">${Math.floor(s.totalMin/60)}시간 ${s.totalMin%60}분</span>
     </div>
   </div>`;
 }
 
 function renderRunningPaceCard() {
   const runs = recentRuns();
-  const now = new Date();
-  let monthRunKm = 0;
-  for (const e of state.entries) {
-    if (e.type !== "running" || e.status !== "confirmed" || !e.distance) continue;
-    const ed = new Date(e.date + "T00:00:00");
-    if (ed.getFullYear() === now.getFullYear() && ed.getMonth() === now.getMonth()) monthRunKm += Number(e.distance);
-  }
-  const monthRunCount = state.entries.filter((e) => {
-    if (e.type !== "running" || e.status !== "confirmed") return false;
-    const ed = new Date(e.date + "T00:00:00");
-    return ed.getFullYear() === now.getFullYear() && ed.getMonth() === now.getMonth();
-  }).length;
+  const { best, bestEff } = computeRecords("running");
   const body = runs.length === 0
     ? `<div style="font-size:12px;color:var(--text-3);">아직 기록이 없어요.</div>`
     : `<div style="display:flex;flex-direction:column;gap:9px;">${runs.map((r) => `
@@ -476,9 +504,10 @@ function renderRunningPaceCard() {
     <div class="et-card-title">최근 러닝</div>
     ${body}
     <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
-      <div class="et-card-title" style="margin-bottom:6px;">이번 달 러닝</div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">횟수</span><span class="et-num" style="font-size:13px;color:var(--text-2);">${monthRunCount}<span style="font-family:'Pretendard',sans-serif;font-size:10px;">회</span></span></div>
-      <div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-2);">누적 거리</span><span class="et-num" style="font-size:13px;color:var(--text-2);">${round1(monthRunKm)}km</span></div>
+      <div class="et-card-title" style="margin-bottom:7px;">베스트 기록</div>
+      ${best ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최고 페이스</span><span class="et-num et-glow-run" style="font-size:14px;color:var(--run-tx);">${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span></div>` : ""}
+      ${bestEff ? `<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:var(--text-3);">최장 저심박</span><span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span></div>` : ""}
+      ${!best && !bestEff ? `<div style="font-size:11px;color:var(--text-3);">아직 기록이 없어요.</div>` : ""}
     </div>
   </div>`;
 }
@@ -534,6 +563,8 @@ function entryDetailView(e) {
     if (e.elevationGain != null) chips.push(["ti-mountain", `${e.elevationGain}`, "m", null]); else missing.push("상승고도");
     if (e.climbDistance != null) chips.push(["ti-trending-up", `${e.climbDistance}`, "km", null]); else missing.push("총 오르막");
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
+    if (e.temperature != null) chips.push(["ti-temperature", `${e.temperature}`, "°C", null]); else missing.push("기온");
+    if (e.humidity != null) chips.push(["ti-droplet", `${e.humidity}`, "%", null]); else missing.push("습도");
     if (shoe) shoeInfo = shoe; else missing.push("러닝화");
   } else if (e.type === "cycling") {
     primary.push(["거리", e.distance != null ? `${round1(e.distance)}` : "-", "km"]);
@@ -545,6 +576,8 @@ function entryDetailView(e) {
     if (e.elevationGain != null) chips.push(["ti-mountain", `${e.elevationGain}`, "m", null]); else missing.push("상승고도");
     if (e.climbDistance != null) chips.push(["ti-trending-up", `${e.climbDistance}`, "km", null]); else missing.push("총 오르막");
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
+    if (e.temperature != null) chips.push(["ti-temperature", `${e.temperature}`, "°C", null]); else missing.push("기온");
+    if (e.humidity != null) chips.push(["ti-droplet", `${e.humidity}`, "%", null]); else missing.push("습도");
   } else if (e.type === "swimming") {
     primary.push(["총거리", e.distance != null ? `${Math.round(e.distance * 1000)}` : "-", "m"]);
     primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
@@ -859,6 +892,8 @@ function typeFormHtml() {
       <div><label class="et-field-label">상승고도 (m)</label><input class="et-input" type="number" inputmode="numeric" id="f-elevation" placeholder="156" value="${E && E.elevationGain != null ? E.elevationGain : ""}"></div>
       <div><label class="et-field-label">총 오르막 (km)</label><input class="et-input" type="number" inputmode="decimal" id="f-climb-distance" placeholder="0.60" value="${E && E.climbDistance != null ? E.climbDistance : ""}"></div>
       <div><label class="et-field-label">VO2max</label><input class="et-input" type="number" inputmode="decimal" id="f-vo2max" placeholder="48.5" value="${E && E.vo2max != null ? E.vo2max : ""}"></div>
+      <div><label class="et-field-label">기온 (°C)</label><input class="et-input" type="number" inputmode="decimal" id="f-temp" placeholder="27" value="${E && E.temperature != null ? E.temperature : ""}"></div>
+      <div><label class="et-field-label">습도 (%)</label><input class="et-input" type="number" inputmode="numeric" id="f-humidity" placeholder="65" value="${E && E.humidity != null ? E.humidity : ""}"></div>
     </div>` : "";
 
   const swimStatsFields = t === "swimming" ? `
@@ -1151,6 +1186,8 @@ function bindTypeFormEvents() {
       elevationGain: val("f-elevation") ? Number(val("f-elevation")) : null,
       climbDistance: val("f-climb-distance") ? Number(val("f-climb-distance")) : null,
       vo2max: val("f-vo2max") ? Number(val("f-vo2max")) : null,
+      temperature: val("f-temp") ? Number(val("f-temp")) : null,
+      humidity: val("f-humidity") ? Number(val("f-humidity")) : null,
       avgSwolf: val("f-swolf") ? Number(val("f-swolf")) : null,
       shoeId: t === "running" ? (val("f-shoe") || null) : null,
       screenshot: pendingScreenshot,
