@@ -263,6 +263,18 @@ function shoeLastWorn() {
   }
   return map;
 }
+// 신발별 러닝 통계 - 평균페이스, 총 횟수 (초기거리는 포함 안 됨, 실제 로그된 러닝만 집계)
+function shoeRunStats(shoeId) {
+  const runs = state.entries.filter((e) => e.type === "running" && e.status === "confirmed" && e.shoeId === shoeId && e.distance > 0 && e.durationSec > 0);
+  const count = runs.length;
+  let avgPaceSec = null;
+  if (count > 0) {
+    const totalSec = runs.reduce((sum, e) => sum + Number(e.durationSec), 0);
+    const totalKm = runs.reduce((sum, e) => sum + Number(e.distance), 0);
+    avgPaceSec = totalKm > 0 ? totalSec / totalKm : null;
+  }
+  return { count, avgPaceSec };
+}
 // 최근에 신은 신발일수록 목록 아래로 - 안 신었거나 오래 안 신은 신발이 위로 오게 정렬
 function sortShoesByRotation(shoes) {
   const lastWorn = shoeLastWorn();
@@ -1492,34 +1504,51 @@ function bindTypeFormEvents() {
 
 function shoeManagerHtml() {
   const mileage = shoeMileage();
-  const rows = sortShoesByRotation(state.shoes).map((s) => {
+  const lastWornMap = shoeLastWorn();
+  const cards = sortShoesByRotation(state.shoes).map((s) => {
     const km = mileage[s.id] || 0;
     const pct = Math.min(100, Math.round(km / s.targetKm * 100));
+    const stats = shoeRunStats(s.id);
+    const lastWorn = lastWornMap[s.id];
     return `
-    <div style="padding:12px 14px;border-radius:14px;background:var(--surface-alt);opacity:${s.retired?0.5:1};margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${s.role?2:7}px;">
-        <span style="font-size:13px;font-weight:600;">${escapeHtml(s.name)}</span>
-        <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:11px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
+    <div style="padding:11px 12px;border-radius:14px;background:var(--surface-alt);opacity:${s.retired?0.5:1};min-width:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:${s.role?2:6}px;">
+        <span style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.name)}</span>
+        <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:9.5px;color:var(--text-3);background:none;border:none;flex-shrink:0;">${s.retired?"복원":"은퇴"}</button>
       </div>
-      ${s.role ? `<div style="font-size:11px;color:var(--run-tx);margin-bottom:6px;">${escapeHtml(s.role)}</div>` : ""}
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);margin-bottom:5px;">
-        <span>${round1(km)} / ${s.targetKm}km${s.initialKm ? ` (기존 ${s.initialKm}km 포함)` : ""}</span><span>${pct}%</span>
+      ${s.role ? `<div style="font-size:9.5px;color:var(--run-tx);margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.role)}</div>` : ""}
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-2);margin-bottom:4px;">
+        <span class="et-num" style="color:${pct>=90?"var(--danger)":"var(--text-2)"};">${round1(km)}/${s.targetKm}km</span><span>${pct}%</span>
       </div>
-      <div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden;">
-        <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 8px ${pct>=90?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
+      <div style="height:5px;background:var(--surface);border-radius:3px;overflow:hidden;margin-bottom:8px;">
+        <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 6px ${pct>=90?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
       </div>
-      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
-        <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">이름 수정</button>
-        <button class="et-btn et-edit-role" data-id="${s.id}" style="font-size:10px;color:var(--swim-tx);background:none;border:none;">역할 수정</button>
-        <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">기존거리 수정</button>
-        <button class="et-btn et-edit-target" data-id="${s.id}" style="font-size:10px;color:var(--run);background:none;border:none;">최대치 수정</button>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:9px;padding-top:7px;border-top:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:9px;color:var(--text-3);">평균 페이스</span>
+          <span class="et-num et-glow-run" style="font-size:12px;color:var(--run-tx);">${stats.avgPaceSec ? formatPace(stats.avgPaceSec) : "-"}${stats.avgPaceSec ? `<span style="font-family:'Pretendard',sans-serif;font-size:8px;color:var(--text-3);">/km</span>` : ""}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:9px;color:var(--text-3);">러닝 횟수</span>
+          <span class="et-num" style="font-size:11px;color:var(--text-2);">${stats.count}<span style="font-family:'Pretendard',sans-serif;font-size:8px;">회</span></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:9px;color:var(--text-3);">최근 착용</span>
+          <span style="font-size:10px;color:var(--text-2);">${lastWorn ? lastWorn.slice(5) : "-"}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:9px;color:var(--text-2);background:none;border:none;">이름</button>
+        <button class="et-btn et-edit-role" data-id="${s.id}" style="font-size:9px;color:var(--swim-tx);background:none;border:none;">역할</button>
+        <button class="et-btn et-edit-initial" data-id="${s.id}" style="font-size:9px;color:var(--text-2);background:none;border:none;">기존거리</button>
+        <button class="et-btn et-edit-target" data-id="${s.id}" style="font-size:9px;color:var(--run);background:none;border:none;">최대치</button>
       </div>
     </div>`;
   }).join("");
 
   return `
   ${modalHeaderHtml("러닝화 관리")}
-  <div>${rows}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">${cards}</div>
   <div style="border-top:1px solid var(--border);padding-top:16px;">
     <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;font-weight:600;">새 신발 추가</div>
     <div style="margin-bottom:11px;"><label class="et-field-label">이름</label><input class="et-input" type="text" id="s-name" placeholder="Endorphin Speed 5"></div>
