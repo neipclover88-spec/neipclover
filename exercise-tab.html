@@ -314,6 +314,9 @@ function recentRuns() {
 function computeRecords(type) {
   let best = null; // {value, date, entry}
   let bestEff = null; // 저심박 지속 - {durationSec, hr, date}
+  let bestVo2max = null; // {value, date}
+  let bestSwolf = null; // {value, date} - 낮을수록 좋음
+  let bestDistance = null; // {value, date}
 
   for (const e of state.entries) {
     if (e.type !== type || e.status !== "confirmed") continue;
@@ -335,8 +338,64 @@ function computeRecords(type) {
         bestEff = { ratio, durationSec: e.durationSec, hr: e.avgHeartRate, date: e.date };
       }
     }
+
+    if ((type === "running" || type === "cycling") && e.vo2max != null) {
+      if (!bestVo2max || e.vo2max > bestVo2max.value) bestVo2max = { value: e.vo2max, date: e.date };
+    }
+
+    if (type === "swimming" && e.avgSwolf != null) {
+      if (!bestSwolf || e.avgSwolf < bestSwolf.value) bestSwolf = { value: e.avgSwolf, date: e.date };
+    }
+
+    if (type === "cycling" && e.distance > 0) {
+      if (!bestDistance || e.distance > bestDistance.value) bestDistance = { value: e.distance, date: e.date };
+    }
   }
-  return { best, bestEff };
+  return { best, bestEff, bestVo2max, bestSwolf, bestDistance };
+}
+// 특정 필드의 추이 데이터 (날짜순, 값이 있는 것만) - 최근 N개
+function collectTrendSeries(type, field, limit) {
+  return state.entries
+    .filter((e) => e.type === type && e.status === "confirmed" && e[field] != null)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .slice(-(limit || 12));
+}
+// entries[field] 값들로 미니 추이 SVG 라인차트 생성. higherIsBetter로 베스트 지점 강조
+function buildTrendSVG(entries, field, color, higherIsBetter) {
+  if (!entries.length) return null;
+  const W = 280, H = 92, padTop = 10, padBottom = 18, padX = 8;
+  const values = entries.map((e) => Number(e[field]));
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const plotH = H - padTop - padBottom;
+  const n = entries.length;
+  const xStep = n > 1 ? (W - padX * 2) / (n - 1) : 0;
+  const coords = entries.map((e, i) => {
+    const x = padX + i * xStep;
+    const norm = (Number(e[field]) - min) / range;
+    const y = padTop + plotH * (1 - norm);
+    return { x, y, val: Number(e[field]), date: e.date };
+  });
+  let bestIdx = 0;
+  for (let i = 1; i < coords.length; i++) {
+    if (higherIsBetter ? coords[i].val > coords[bestIdx].val : coords[i].val < coords[bestIdx].val) bestIdx = i;
+  }
+  const linePts = coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const areaPts = `${padX},${H - padBottom} ${linePts} ${coords[coords.length - 1].x.toFixed(1)},${H - padBottom}`;
+  const circles = coords.map((c, i) => {
+    const isBest = i === bestIdx;
+    return `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${isBest ? 4.5 : 2.5}" fill="${color}" opacity="${isBest ? 1 : 0.55}"${isBest ? ` style="filter:drop-shadow(0 0 5px ${color})"` : ""}/>`;
+  }).join("");
+  const firstLabel = entries[0].date.slice(5);
+  const lastLabel = entries[entries.length - 1].date.slice(5);
+  return `
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+    <polygon points="${areaPts}" fill="${color}" opacity="0.08"></polygon>
+    <polyline points="${linePts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+    ${circles}
+    <text x="${padX}" y="${H - 4}" font-size="8" fill="var(--text-3)" font-family="Pretendard,sans-serif">${firstLabel}</text>
+    <text x="${W - padX}" y="${H - 4}" font-size="8" fill="var(--text-3)" font-family="Pretendard,sans-serif" text-anchor="end">${lastLabel}</text>
+  </svg>`;
 }
 function draftCount() {
   return state.entries.filter((e) => e.status === "draft").length;
@@ -356,7 +415,7 @@ function render() {
     ${renderCalendar()}
     <div class="et-bottom-grid">
       ${filter === "running" ? renderRunningPaceCard() : renderWeekSummaryCard()}
-      ${selectedDate ? renderSelectedDayCard() : renderShoeMileageCard()}
+      ${selectedDate ? renderSelectedDayCard() : renderRightPanelByFilter()}
     </div>
   `;
   bindTopLevelEvents();
@@ -455,8 +514,8 @@ function renderWeekSummaryCard() {
   const s = weekSummary();
   const recTypes = ["running", "swimming", "cycling"];
   const recRows = recTypes.map((t) => {
-    const { best, bestEff } = computeRecords(t);
-    if (!best && !bestEff) return "";
+    const { best, bestEff, bestVo2max, bestSwolf, bestDistance } = computeRecords(t);
+    if (!best && !bestEff && !bestVo2max && !bestSwolf && !bestDistance) return "";
     const meta = TYPES[t];
     return `
     <div style="margin-bottom:10px;">
@@ -469,10 +528,25 @@ function renderWeekSummaryCard() {
         <span style="font-size:10.5px;color:var(--text-3);">최고기록</span>
         <span class="et-num et-glow-${meta.v}" style="font-size:14px;color:var(--${meta.v}-tx);">${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span>
       </div>` : ""}
+      ${bestDistance ? `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
+        <span style="font-size:10.5px;color:var(--text-3);">최장거리</span>
+        <span class="et-num" style="font-size:13px;color:var(--text);">${round1(bestDistance.value)}km<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestDistance.date.slice(5)}</span></span>
+      </div>` : ""}
       ${bestEff ? `
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
         <span style="font-size:10.5px;color:var(--text-3);">최장 저심박</span>
         <span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span>
+      </div>` : ""}
+      ${bestVo2max ? `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
+        <span style="font-size:10.5px;color:var(--text-3);">최고 VO2max</span>
+        <span class="et-num" style="font-size:13px;color:#a855f7;">${bestVo2max.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestVo2max.date.slice(5)}</span></span>
+      </div>` : ""}
+      ${bestSwolf ? `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
+        <span style="font-size:10.5px;color:var(--text-3);">최고 SWOLF</span>
+        <span class="et-num" style="font-size:13px;color:var(--text);">${bestSwolf.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestSwolf.date.slice(5)}</span></span>
       </div>` : ""}
     </div>`;
   }).join("");
@@ -490,7 +564,7 @@ function renderWeekSummaryCard() {
 
 function renderRunningPaceCard() {
   const runs = recentRuns();
-  const { best, bestEff } = computeRecords("running");
+  const { best, bestEff, bestVo2max } = computeRecords("running");
   const body = runs.length === 0
     ? `<div style="font-size:12px;color:var(--text-3);">아직 기록이 없어요.</div>`
     : `<div style="display:flex;flex-direction:column;gap:9px;">${runs.map((r) => `
@@ -506,9 +580,58 @@ function renderRunningPaceCard() {
     <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
       <div class="et-card-title" style="margin-bottom:7px;">베스트 기록</div>
       ${best ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최고 페이스</span><span class="et-num et-glow-run" style="font-size:14px;color:var(--run-tx);">${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span></div>` : ""}
-      ${bestEff ? `<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:var(--text-3);">최장 저심박</span><span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span></div>` : ""}
-      ${!best && !bestEff ? `<div style="font-size:11px;color:var(--text-3);">아직 기록이 없어요.</div>` : ""}
+      ${bestEff ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최장 저심박</span><span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span></div>` : ""}
+      ${bestVo2max ? `<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:var(--text-3);">최고 VO2max</span><span class="et-num" style="font-size:13px;color:#a855f7;">${bestVo2max.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestVo2max.date.slice(5)}</span></span></div>` : ""}
+      ${!best && !bestEff && !bestVo2max ? `<div style="font-size:11px;color:var(--text-3);">아직 기록이 없어요.</div>` : ""}
     </div>
+  </div>`;
+}
+
+function renderRightPanelByFilter() {
+  if (filter === "running") return renderVo2maxTrendCard();
+  if (filter === "swimming") return renderSwolfTrendCard();
+  if (filter === "cycling") return renderCyclingDistanceTrendCard();
+  return renderShoeMileageCard(); // 전체 / 헬스는 신발 마일리지 유지
+}
+
+function renderVo2maxTrendCard() {
+  const series = collectTrendSeries("running", "vo2max", 12);
+  const { bestVo2max } = computeRecords("running");
+  const chart = buildTrendSVG(series, "vo2max", "#a855f7", true);
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+      <span class="et-card-title" style="margin-bottom:0;">VO2max 추이</span>
+      ${bestVo2max ? `<span class="et-num" style="font-size:13px;color:#a855f7;">최고 ${bestVo2max.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${bestVo2max.date.slice(5)}</span></span>` : ""}
+    </div>
+    ${chart || `<div style="font-size:12px;color:var(--text-3);">VO2max 기록이 아직 없어요.</div>`}
+  </div>`;
+}
+function renderSwolfTrendCard() {
+  const series = collectTrendSeries("swimming", "avgSwolf", 12);
+  const { bestSwolf } = computeRecords("swimming");
+  const chart = buildTrendSVG(series, "avgSwolf", "#f5a623", false);
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+      <span class="et-card-title" style="margin-bottom:0;">SWOLF 추이</span>
+      ${bestSwolf ? `<span class="et-num" style="font-size:13px;color:var(--cycle-tx);">최고 ${bestSwolf.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${bestSwolf.date.slice(5)}</span></span>` : ""}
+    </div>
+    ${chart || `<div style="font-size:12px;color:var(--text-3);">SWOLF 기록이 아직 없어요.</div>`}
+    <div style="font-size:9px;color:var(--text-3);margin-top:6px;">낮을수록 효율적인 스트로크예요</div>
+  </div>`;
+}
+function renderCyclingDistanceTrendCard() {
+  const series = collectTrendSeries("cycling", "distance", 12);
+  const { bestDistance } = computeRecords("cycling");
+  const chart = buildTrendSVG(series, "distance", "#f5a623", true);
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+      <span class="et-card-title" style="margin-bottom:0;">라이딩 거리 추이</span>
+      ${bestDistance ? `<span class="et-num" style="font-size:13px;color:var(--cycle-tx);">최장 ${round1(bestDistance.value)}km<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${bestDistance.date.slice(5)}</span></span>` : ""}
+    </div>
+    ${chart || `<div style="font-size:12px;color:var(--text-3);">자전거 기록이 아직 없어요.</div>`}
   </div>`;
 }
 
