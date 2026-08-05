@@ -950,7 +950,36 @@ function bindTypeSelectEvents() {
   });
 }
 
-const GYM_BODY_PARTS = ["어깨", "가슴", "등", "팔", "하체"];
+const GYM_BODY_PART_GROUPS = [
+  { group: "가슴", parts: ["흉근 상부", "흉근 중부", "흉근 하부"] },
+  { group: "등", parts: ["광배근", "승모근", "척추기립근"] },
+  { group: "어깨", parts: ["삼각근 전면", "삼각근 측면", "삼각근 후면"] },
+  { group: "팔", parts: ["이두근", "삼두근", "전완근"] },
+  { group: "하체", parts: ["대퇴사두근", "햄스트링", "둔근", "종아리"] },
+  { group: "코어", parts: ["복근"] },
+];
+const GYM_BODY_PARTS = GYM_BODY_PART_GROUPS.flatMap((g) => g.parts);
+
+// 부위별 자주 하는 종목 프리셋 - 드롭다운에 optgroup으로 표시, "직접입력"도 항상 선택 가능
+const EXERCISE_PRESETS = [
+  { group: "흉근 상부", exercises: ["인클라인 벤치프레스", "인클라인 덤벨프레스", "인클라인 케이블 플라이"] },
+  { group: "흉근 중부", exercises: ["벤치프레스", "덤벨프레스", "체스트프레스 머신", "푸시업", "케이블 크로스오버"] },
+  { group: "흉근 하부", exercises: ["디클라인 벤치프레스", "딥스", "디클라인 케이블 플라이"] },
+  { group: "광배근", exercises: ["랫풀다운", "풀업", "바벨로우", "덤벨로우", "시티드 케이블로우"] },
+  { group: "승모근", exercises: ["바벨 슈러그", "덤벨 슈러그"] },
+  { group: "척추기립근", exercises: ["백 익스텐션", "데드리프트", "굿모닝"] },
+  { group: "삼각근 전면", exercises: ["밀리터리프레스", "숄더프레스", "프론트 레이즈"] },
+  { group: "삼각근 측면", exercises: ["사이드 레터럴 레이즈", "케이블 레터럴 레이즈"] },
+  { group: "삼각근 후면", exercises: ["리어 델트 플라이", "페이스풀"] },
+  { group: "이두근", exercises: ["바벨 컬", "덤벨 컬", "해머 컬", "프리처 컬"] },
+  { group: "삼두근", exercises: ["트라이셉스 익스텐션", "케이블 푸시다운", "클로즈그립 벤치프레스", "오버헤드 익스텐션"] },
+  { group: "전완근", exercises: ["리스트 컬", "행잉"] },
+  { group: "대퇴사두근", exercises: ["스쿼트", "레그프레스", "레그 익스텐션", "런지"] },
+  { group: "햄스트링", exercises: ["레그컬", "루마니안 데드리프트", "스티프레그 데드리프트"] },
+  { group: "둔근", exercises: ["힙쓰러스트", "케이블 킥백", "불가리안 스플릿 스쿼트"] },
+  { group: "종아리", exercises: ["카프레이즈", "시티드 카프레이즈"] },
+  { group: "복근", exercises: ["크런치", "플랭크", "레그레이즈", "행잉 레그레이즈"] },
+];
 
 const SWIM_STROKES = [
   { key: "freestyle", label: "자유형" },
@@ -990,11 +1019,15 @@ function typeFormHtml() {
   const gymBodyPartField = t === "gym" ? `
     <div style="margin-bottom:14px;">
       <label class="et-field-label">부위 (복수 선택 가능)</label>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        ${GYM_BODY_PARTS.map((p) => {
-          const sel = !!(E && E.bodyParts && E.bodyParts.includes(p));
-          return `<button type="button" class="et-btn et-bodypart-chip" data-part="${p}" data-selected="${sel ? 1 : 0}" style="font-size:12px;padding:7px 14px;border-radius:999px;border:1px solid ${sel ? "var(--gym)" : "var(--border)"};background:${sel ? "var(--gym-bg)" : "var(--surface-alt)"};color:${sel ? "var(--gym-tx)" : "var(--text-2)"};font-weight:${sel ? 600 : 500};">${p}</button>`;
-        }).join("")}
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${GYM_BODY_PART_GROUPS.map((g) => `
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:10px;color:var(--text-3);width:28px;flex-shrink:0;">${g.group}</span>
+            ${g.parts.map((p) => {
+              const sel = !!(E && E.bodyParts && E.bodyParts.includes(p));
+              return `<button type="button" class="et-btn et-bodypart-chip" data-part="${p}" data-selected="${sel ? 1 : 0}" style="font-size:11px;padding:6px 11px;border-radius:999px;border:1px solid ${sel ? "var(--gym)" : "var(--border)"};background:${sel ? "var(--gym-bg)" : "var(--surface-alt)"};color:${sel ? "var(--gym-tx)" : "var(--text-2)"};font-weight:${sel ? 600 : 500};">${p}</button>`;
+            }).join("")}
+          </div>`).join("")}
       </div>
     </div>
     <div style="margin-bottom:11px;">
@@ -1105,18 +1138,48 @@ function bindTypeFormEvents() {
     });
 
     const exList = document.getElementById("f-gym-exercises");
+    function buildExerciseSelectOptions(selectedName) {
+      let matched = false;
+      const optgroups = EXERCISE_PRESETS.map((g) => {
+        const opts = g.exercises.map((ex) => {
+          const isSel = ex === selectedName;
+          if (isSel) matched = true;
+          return `<option value="${escapeHtml(ex)}" ${isSel ? "selected" : ""}>${escapeHtml(ex)}</option>`;
+        }).join("");
+        return `<optgroup label="${g.group}">${opts}</optgroup>`;
+      }).join("");
+      const isCustom = !!(selectedName && !matched);
+      return { optHtml: optgroups + `<option value="__custom__" ${isCustom ? "selected" : ""}>✏️ 직접입력</option>`, isCustom };
+    }
     function addExerciseRow(prefill) {
       const row = document.createElement("div");
       row.className = "gym-ex-row";
-      row.style.cssText = "display:flex;gap:6px;align-items:center;";
+      row.style.cssText = "display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:10px;background:var(--surface-alt);";
+      const name = prefill && prefill.name ? prefill.name : "";
+      const { optHtml, isCustom } = buildExerciseSelectOptions(name);
       row.innerHTML = `
-        <input class="et-input gym-ex-name" type="text" placeholder="벤치프레스" style="flex:1.4;" value="${prefill && prefill.name ? escapeHtml(prefill.name) : ""}">
-        <input class="et-input gym-ex-reps" type="number" inputmode="numeric" placeholder="10" style="width:56px;" value="${prefill && prefill.reps != null ? prefill.reps : ""}">
-        <span style="font-size:11px;color:var(--text-2);">회</span>
-        <input class="et-input gym-ex-sets" type="number" inputmode="numeric" placeholder="3" style="width:52px;" value="${prefill && prefill.sets != null ? prefill.sets : ""}">
-        <span style="font-size:11px;color:var(--text-2);">세트</span>
-        <button type="button" class="et-btn gym-ex-remove" style="background:none;border:none;color:var(--text-3);font-size:16px;padding:0 2px;">×</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select class="et-input gym-ex-select" style="flex:1;">
+            <option value="">종목 선택</option>
+            ${optHtml}
+          </select>
+          <button type="button" class="et-btn gym-ex-remove" style="background:none;border:none;color:var(--text-3);font-size:16px;padding:0 2px;">×</button>
+        </div>
+        <input class="et-input gym-ex-custom" type="text" placeholder="종목명 직접입력" style="display:${isCustom ? "block" : "none"};" value="${isCustom ? escapeHtml(name) : ""}">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input class="et-input gym-ex-reps" type="number" inputmode="numeric" placeholder="10" style="width:60px;" value="${prefill && prefill.reps != null ? prefill.reps : ""}">
+          <span style="font-size:11px;color:var(--text-2);">회</span>
+          <input class="et-input gym-ex-sets" type="number" inputmode="numeric" placeholder="3" style="width:56px;" value="${prefill && prefill.sets != null ? prefill.sets : ""}">
+          <span style="font-size:11px;color:var(--text-2);">세트</span>
+        </div>
       `;
+      const selectEl = row.querySelector(".gym-ex-select");
+      const customEl = row.querySelector(".gym-ex-custom");
+      if (isCustom) selectEl.value = "__custom__";
+      selectEl.addEventListener("change", () => {
+        customEl.style.display = selectEl.value === "__custom__" ? "block" : "none";
+        if (selectEl.value === "__custom__") customEl.focus();
+      });
       row.querySelector(".gym-ex-remove").addEventListener("click", () => row.remove());
       exList.appendChild(row);
     }
@@ -1283,11 +1346,15 @@ function bindTypeFormEvents() {
     if (t === "gym") {
       bodyParts = Array.from(document.querySelectorAll('.et-bodypart-chip[data-selected="1"]')).map((c) => c.dataset.part);
       if (bodyParts.length === 0) bodyParts = null;
-      exercises = Array.from(document.querySelectorAll(".gym-ex-row")).map((row) => ({
-        name: row.querySelector(".gym-ex-name").value.trim(),
-        reps: Number(row.querySelector(".gym-ex-reps").value) || null,
-        sets: Number(row.querySelector(".gym-ex-sets").value) || null,
-      })).filter((x) => x.name);
+      exercises = Array.from(document.querySelectorAll(".gym-ex-row")).map((row) => {
+        const selVal = row.querySelector(".gym-ex-select").value;
+        const name = selVal === "__custom__" ? row.querySelector(".gym-ex-custom").value.trim() : selVal;
+        return {
+          name,
+          reps: Number(row.querySelector(".gym-ex-reps").value) || null,
+          sets: Number(row.querySelector(".gym-ex-sets").value) || null,
+        };
+      }).filter((x) => x.name);
       if (exercises.length === 0) exercises = null;
     }
 
