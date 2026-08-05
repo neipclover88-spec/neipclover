@@ -261,12 +261,16 @@ function shoeLastWorn() {
 // 최근에 신은 신발일수록 목록 아래로 - 안 신었거나 오래 안 신은 신발이 위로 오게 정렬
 function sortShoesByRotation(shoes) {
   const lastWorn = shoeLastWorn();
-  return [...shoes].sort((a, b) => {
+  const mileage = shoeMileage();
+  const worn = shoes.filter((s) => (mileage[s.id] || 0) >= 1);
+  const unworn = shoes.filter((s) => (mileage[s.id] || 0) < 1);
+  worn.sort((a, b) => {
     const da = lastWorn[a.id] || "";
     const db = lastWorn[b.id] || "";
     if (da === db) return 0;
     return da < db ? -1 : 1;
   });
+  return [...worn, ...unworn]; // 1km도 안 뛴 신발은 로테이션 정렬 대상이 아니라 맨 아래 고정
 }
 function weekSummary() {
   const weekStart = startOfWeek(new Date());
