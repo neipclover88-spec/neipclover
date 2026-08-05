@@ -160,7 +160,9 @@ function formatDurationShort(totalSec) {
   if (totalSec == null || isNaN(totalSec)) return "";
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
-  return h > 0 ? `${h}시간 ${m}분` : `${m}분`;
+  const s = totalSec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 // km당 초 -> "5'30""
 function formatPace(secPerKm) {
@@ -547,10 +549,11 @@ function entryDetailView(e) {
     primary.push(["총거리", e.distance != null ? `${Math.round(e.distance * 1000)}` : "-", "m"]);
     primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
     const distM = e.distance != null ? Math.round(e.distance * 1000) : 0;
-    const swimPace = (distM > 0 && e.durationSec > 0) ? formatPace(e.durationSec / (distM / 100)) : null;
+    const calcPace = (distM > 0 && e.durationSec > 0) ? formatPace(e.durationSec / (distM / 100)) : null;
+    const swimPace = e.swimPaceOverride || calcPace;
     primary.push(["평균 페이스", swimPace || "-", "/100m"]);
     if (e.avgHeartRate != null) chips.push(["ti-heart", `${e.avgHeartRate}`, "bpm", "gym"]); else missing.push("평균심박수");
-    if (e.avgSwolf != null) chips.push(["ti-wave-sine", `${e.avgSwolf}`, "SWOLF", null]); else missing.push("SWOLF");
+    if (e.avgSwolf != null) chips.push(["ti-wave-sine", `${e.avgSwolf}`, "SWOLF", "cycle"]); else missing.push("SWOLF");
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
     if (e.strokeDistances && Object.keys(e.strokeDistances).length) {
       extraLines.push(Object.entries(e.strokeDistances).map(([k, v]) => `${SWIM_STROKES.find(x => x.key === k)?.label || k} ${v}m`).join(" · "));
@@ -862,6 +865,10 @@ function typeFormHtml() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px;">
       <div><label class="et-field-label">평균심박수 (bpm)</label><input class="et-input" type="number" inputmode="numeric" id="f-hr" placeholder="128" value="${E && E.avgHeartRate != null ? E.avgHeartRate : ""}"></div>
       <div><label class="et-field-label">평균 SWOLF</label><input class="et-input" type="number" inputmode="numeric" id="f-swolf" placeholder="38" value="${E && E.avgSwolf != null ? E.avgSwolf : ""}"></div>
+    </div>
+    <div style="margin-bottom:11px;">
+      <label class="et-field-label">평균 페이스 /100m (직접입력, 비우면 거리·시간으로 자동계산)</label>
+      <input class="et-input" type="text" id="f-swim-pace-override" placeholder="2'27&quot;" value="${E && E.swimPaceOverride ? E.swimPaceOverride : ""}">
     </div>` : "";
 
   const photoPreviewHtml = (E && E.screenshot) ? `<img src="${E.screenshot}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;">` : "";
@@ -1019,6 +1026,23 @@ function bindTypeFormEvents() {
   document.querySelectorAll(".f-swim-stroke").forEach((el) => el.addEventListener("input", updateSwimTotal));
   updateSwimTotal();
 
+  function updateSwimPaceHint() {
+    const overrideInput = document.getElementById("f-swim-pace-override");
+    if (!overrideInput) return;
+    const totalSec = currentDurationSec();
+    const totalM = currentSwimTotalM();
+    if (totalM > 0 && totalSec > 0) {
+      const calc = formatPace(totalSec / (totalM / 100));
+      overrideInput.placeholder = calc ? `자동계산: ${calc}` : "2'27\"";
+    }
+  }
+  ["f-duration-min", "f-duration-sec"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updateSwimPaceHint);
+  });
+  document.querySelectorAll(".f-swim-stroke").forEach((el) => el.addEventListener("input", updateSwimPaceHint));
+  updateSwimPaceHint();
+
   const photoBtn = document.getElementById("f-photo-btn");
   const photoInput = document.getElementById("f-photo-input");
   const ocrStatus = document.getElementById("f-ocr-status");
@@ -1093,6 +1117,7 @@ function bindTypeFormEvents() {
     }
 
     const pace = (t === "running" && dist > 0 && totalSec > 0) ? formatPace(totalSec / dist) : null;
+    const swimPaceOverride = t === "swimming" ? (val("f-swim-pace-override").trim() || null) : null;
     const avgSpeed = (t === "cycling" && dist > 0 && totalSec > 0) ? round1(dist / (totalSec / 3600)) : null;
 
     let bodyParts = null;
@@ -1116,6 +1141,7 @@ function bindTypeFormEvents() {
       strokeDistances,
       durationSec: totalSec > 0 ? totalSec : null,
       pace,
+      swimPaceOverride,
       avgSpeed,
       calories: val("f-calories") ? Number(val("f-calories")) : null,
       bodyParts,
