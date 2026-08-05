@@ -360,6 +360,17 @@ function collectTrendSeries(type, field, limit) {
     .sort((a, b) => (a.date < b.date ? -1 : 1))
     .slice(-(limit || 12));
 }
+// 거리+시간으로 계산한 페이스(초/km 또는 초/100m) 추이 - _paceSec 필드를 얹어서 반환
+function collectPaceTrendSeries(type, limit) {
+  const entries = state.entries
+    .filter((e) => e.type === type && e.status === "confirmed" && e.distance > 0 && e.durationSec > 0)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .slice(-(limit || 12));
+  return entries.map((e) => ({
+    ...e,
+    _paceSec: type === "swimming" ? e.durationSec / (e.distance * 10) : e.durationSec / e.distance,
+  }));
+}
 // entries[field] 값들로 미니 추이 SVG 라인차트 생성. higherIsBetter로 베스트 지점 강조
 function buildTrendSVG(entries, field, color, higherIsBetter) {
   if (!entries.length) return null;
@@ -596,8 +607,10 @@ function renderRightPanelByFilter() {
 
 function renderVo2maxTrendCard() {
   const series = collectTrendSeries("running", "vo2max", 12);
-  const { bestVo2max } = computeRecords("running");
+  const { bestVo2max, best } = computeRecords("running");
   const chart = buildTrendSVG(series, "vo2max", "#a855f7", true);
+  const paceSeries = collectPaceTrendSeries("running", 12);
+  const paceChart = buildTrendSVG(paceSeries, "_paceSec", "var(--run)", false);
   return `
   <div class="et-card" style="padding:16px;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
@@ -605,12 +618,19 @@ function renderVo2maxTrendCard() {
       ${bestVo2max ? `<span class="et-num" style="font-size:13px;color:#a855f7;">최고 ${bestVo2max.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${bestVo2max.date.slice(5)}</span></span>` : ""}
     </div>
     ${chart || `<div style="font-size:12px;color:var(--text-3);">VO2max 기록이 아직 없어요.</div>`}
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--border);">
+      <span class="et-card-title" style="margin-bottom:0;">페이스 추이</span>
+      ${best ? `<span class="et-num et-glow-run" style="font-size:13px;color:var(--run-tx);">최고 ${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span>` : ""}
+    </div>
+    ${paceChart || `<div style="font-size:12px;color:var(--text-3);">페이스 기록이 아직 없어요.</div>`}
   </div>`;
 }
 function renderSwolfTrendCard() {
   const series = collectTrendSeries("swimming", "avgSwolf", 12);
-  const { bestSwolf } = computeRecords("swimming");
+  const { bestSwolf, best } = computeRecords("swimming");
   const chart = buildTrendSVG(series, "avgSwolf", "#f5a623", false);
+  const paceSeries = collectPaceTrendSeries("swimming", 12);
+  const paceChart = buildTrendSVG(paceSeries, "_paceSec", "var(--swim)", false);
   return `
   <div class="et-card" style="padding:16px;">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
@@ -619,6 +639,11 @@ function renderSwolfTrendCard() {
     </div>
     ${chart || `<div style="font-size:12px;color:var(--text-3);">SWOLF 기록이 아직 없어요.</div>`}
     <div style="font-size:9px;color:var(--text-3);margin-top:6px;">낮을수록 효율적인 스트로크예요</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--border);">
+      <span class="et-card-title" style="margin-bottom:0;">페이스 추이</span>
+      ${best ? `<span class="et-num et-glow-swim" style="font-size:13px;color:var(--swim-tx);">최고 ${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span>` : ""}
+    </div>
+    ${paceChart || `<div style="font-size:12px;color:var(--text-3);">페이스 기록이 아직 없어요.</div>`}
   </div>`;
 }
 function renderCyclingDistanceTrendCard() {
