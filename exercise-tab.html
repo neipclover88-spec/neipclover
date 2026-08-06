@@ -730,6 +730,7 @@ function entryDetailView(e) {
   const extraLines = [];
   const missing = [];
   let shoeInfo = null;
+  let strokeChips = null;
 
   if (e.type === "running") {
     primary.push(["거리", e.distance != null ? `${round1(e.distance)}` : "-", "km"]);
@@ -767,7 +768,9 @@ function entryDetailView(e) {
     if (e.avgSwolf != null) chips.push(["ti-wave-sine", `${e.avgSwolf}`, "SWOLF", "cycle"]); else missing.push("SWOLF");
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
     if (e.strokeDistances && Object.keys(e.strokeDistances).length) {
-      extraLines.push(Object.entries(e.strokeDistances).map(([k, v]) => `${SWIM_STROKES.find(x => x.key === k)?.label || k} ${v}m`).join(" · "));
+      strokeChips = Object.entries(e.strokeDistances)
+        .filter(([, v]) => Number(v) > 0)
+        .map(([k, v]) => ({ label: SWIM_STROKES.find((x) => x.key === k)?.label || k, meters: v }));
     } else {
       missing.push("영법별 거리");
     }
@@ -782,7 +785,7 @@ function entryDetailView(e) {
     }
   }
 
-  return { primary, chips, extraLines, missing, shoeInfo };
+  return { primary, chips, extraLines, missing, shoeInfo, strokeChips };
 }
 
 function renderSelectedDayCard() {
@@ -794,7 +797,7 @@ function renderSelectedDayCard() {
   const rows = dateEntries.map((e) => {
     const meta = TYPES[e.type];
     const isDraft = e.status === "draft";
-    const { primary, chips, extraLines, missing, shoeInfo } = entryDetailView(e);
+    const { primary, chips, extraLines, missing, shoeInfo, strokeChips } = entryDetailView(e);
 
     const primaryHtml = primary.length ? `
       <div style="display:grid;grid-template-columns:repeat(${primary.length},1fr);gap:6px;margin-bottom:${chips.length||shoeInfo||extraLines.length?9:0}px;">
@@ -813,6 +816,15 @@ function renderSelectedDayCard() {
         ${coloredChips.map(([icon, v, u, role]) => `
           <span style="display:inline-flex;align-items:center;gap:4px;background:var(--${role}-bg);border-radius:999px;padding:4px 9px 4px 10px;">
             <i class="ti ${icon}" style="font-size:12px;color:var(--${role});" aria-hidden="true"></i><span class="et-num et-glow-${role}" style="font-size:13px;color:var(--${role}-tx);">${escapeHtml(v)}</span><span style="color:var(--${role}-tx);font-size:9px;font-weight:600;opacity:0.8;">${u}</span>
+          </span>`).join("")}
+      </div>` : "";
+
+    const strokeChipsHtml = strokeChips && strokeChips.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;${shoeInfo||neutralChips.length||extraLines.length?"margin-bottom:6px;":""}">
+        ${strokeChips.map((s) => `
+          <span style="display:inline-flex;align-items:baseline;gap:4px;background:var(--swim-bg);border:1px solid var(--swim);border-radius:10px;padding:5px 10px;">
+            <span style="font-size:10.5px;font-weight:700;color:var(--swim-tx);">${escapeHtml(s.label)}</span>
+            <span class="et-num et-glow-swim" style="font-size:14px;color:var(--swim-tx);">${s.meters}<span style="font-family:'Pretendard',sans-serif;font-size:8px;font-weight:600;color:var(--swim-tx);opacity:0.8;">m</span></span>
           </span>`).join("")}
       </div>` : "";
 
@@ -863,6 +875,7 @@ function renderSelectedDayCard() {
         <button class="et-btn et-day-delete" data-id="${e.id}" style="background:none;border:none;color:var(--text-3);font-size:16px;">×</button>
       </div>
       ${primaryHtml}
+      ${strokeChipsHtml}
       ${chipsHtml}
       ${shoeRowHtml}
       ${neutralChipsHtml}
