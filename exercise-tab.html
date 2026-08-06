@@ -770,7 +770,7 @@ function entryDetailView(e) {
     if (e.strokeDistances && Object.keys(e.strokeDistances).length) {
       strokeChips = Object.entries(e.strokeDistances)
         .filter(([, v]) => Number(v) > 0)
-        .map(([k, v]) => ({ label: SWIM_STROKES.find((x) => x.key === k)?.label || k, meters: v }));
+        .map(([k, v]) => ({ label: SWIM_STROKES.find((x) => x.key === k)?.label || k, meters: v, key: k }));
     } else {
       missing.push("영법별 거리");
     }
@@ -821,11 +821,14 @@ function renderSelectedDayCard() {
 
     const strokeChipsHtml = strokeChips && strokeChips.length ? `
       <div style="display:flex;flex-wrap:wrap;gap:6px;${shoeInfo||neutralChips.length||extraLines.length?"margin-bottom:6px;":""}">
-        ${strokeChips.map((s) => `
-          <span style="display:inline-flex;align-items:baseline;gap:4px;background:var(--swim-bg);border:1px solid var(--swim);border-radius:10px;padding:5px 10px;">
-            <span style="font-size:10.5px;font-weight:700;color:var(--swim-tx);">${escapeHtml(s.label)}</span>
-            <span class="et-num et-glow-swim" style="font-size:14px;color:var(--swim-tx);">${s.meters}<span style="font-family:'Pretendard',sans-serif;font-size:8px;font-weight:600;color:var(--swim-tx);opacity:0.8;">m</span></span>
-          </span>`).join("")}
+        ${strokeChips.map((s) => {
+          const c = STROKE_COLORS[s.key] || { color: "var(--swim)", bg: "var(--swim-bg)" };
+          return `
+          <span style="display:inline-flex;align-items:baseline;gap:4px;background:${c.bg};border:1px solid ${c.color};border-radius:10px;padding:5px 10px;">
+            <span style="font-size:10.5px;font-weight:700;color:${c.color};">${escapeHtml(s.label)}</span>
+            <span class="et-num" style="font-size:14px;color:${c.color};text-shadow:0 0 10px ${c.color}88;">${s.meters}<span style="font-family:'Pretendard',sans-serif;font-size:8px;font-weight:600;color:${c.color};opacity:0.85;">m</span></span>
+          </span>`;
+        }).join("")}
       </div>` : "";
 
     let shoeRowHtml = "";
@@ -1077,6 +1080,13 @@ const SWIM_STROKES = [
   { key: "back", label: "배영" },
   { key: "fly", label: "접영" },
 ];
+// 영법별 고유 색상: 자유형=파랑, 평영=초록, 배영=노랑, 접영=빨강
+const STROKE_COLORS = {
+  freestyle: { color: "#4f8ef7", bg: "rgba(79,142,247,.14)" },
+  breast: { color: "#27c96e", bg: "rgba(39,201,110,.14)" },
+  back: { color: "#f0c419", bg: "rgba(240,196,25,.16)" },
+  fly: { color: "#e74c3c", bg: "rgba(231,76,60,.14)" },
+};
 
 function typeFormHtml() {
   const t = modalSelectedType;
