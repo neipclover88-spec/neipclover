@@ -768,9 +768,9 @@ function entryDetailView(e) {
     if (e.avgSwolf != null) chips.push(["ti-wave-sine", `${e.avgSwolf}`, "SWOLF", "cycle"]); else missing.push("SWOLF");
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
     if (e.strokeDistances && Object.keys(e.strokeDistances).length) {
-      strokeChips = Object.entries(e.strokeDistances)
-        .filter(([, v]) => Number(v) > 0)
-        .map(([k, v]) => ({ label: SWIM_STROKES.find((x) => x.key === k)?.label || k, meters: v, key: k }));
+      strokeChips = SWIM_STROKES
+        .filter((s) => Number(e.strokeDistances[s.key]) > 0)
+        .map((s) => ({ label: s.label, meters: e.strokeDistances[s.key], key: s.key }));
     } else {
       missing.push("영법별 거리");
     }
@@ -1075,10 +1075,10 @@ const EXERCISE_PRESETS = [
 ];
 
 const SWIM_STROKES = [
-  { key: "freestyle", label: "자유형" },
-  { key: "breast", label: "평영" },
-  { key: "back", label: "배영" },
   { key: "fly", label: "접영" },
+  { key: "back", label: "배영" },
+  { key: "breast", label: "평영" },
+  { key: "freestyle", label: "자유형" },
 ];
 // 영법별 고유 색상: 자유형=파랑, 평영=초록, 배영=노랑, 접영=빨강
 const STROKE_COLORS = {
