@@ -1591,18 +1591,19 @@ function bindTypeFormEvents() {
 // 페이스(초/km) -> 게이지 레벨 1~7 (7:00~6:40=1 ... 5:00~=7)
 function paceToGaugeLevel(paceSec) {
   if (paceSec == null) return 0;
-  if (paceSec < 300) return 7;
-  if (paceSec < 320) return 6;
-  if (paceSec < 340) return 5;
-  if (paceSec < 360) return 4;
-  if (paceSec < 380) return 3;
-  if (paceSec < 400) return 2;
-  return 1;
+  if (paceSec < 280) return 8; // 4:40~
+  if (paceSec < 300) return 7; // 5:00~4:40
+  if (paceSec < 320) return 6; // 5:20~5:00
+  if (paceSec < 340) return 5; // 5:40~5:20
+  if (paceSec < 360) return 4; // 6:00~5:40
+  if (paceSec < 380) return 3; // 6:20~6:00
+  if (paceSec < 400) return 2; // 6:40~6:20
+  return 1; // ~7:00~6:40
 }
-const PACE_GAUGE_COLORS = { 1: "#9b59b6", 2: "#2e3192", 3: "#4f8ef7", 4: "#27c96e", 5: "#f0c419", 6: "#f5a623", 7: "#e74c3c" }; // 보남파초노주빨 (느림→빠름)
+const PACE_GAUGE_COLORS = { 1: "#4f8ef7", 2: "#4f8ef7", 3: "#27c96e", 4: "#27c96e", 5: "#f0c419", 6: "#f0c419", 7: "#e74c3c", 8: "#e74c3c" }; // 파파-녹녹-노노-빨빨
 function renderPaceGauge(paceSec) {
   const filled = paceToGaugeLevel(paceSec);
-  const segsHtml = [7, 6, 5, 4, 3, 2, 1].map((lvl) => {
+  const segsHtml = [8, 7, 6, 5, 4, 3, 2, 1].map((lvl) => {
     const lit = paceSec != null && lvl <= filled;
     const c = PACE_GAUGE_COLORS[lvl];
     return `<div style="width:26px;height:4px;border-radius:2px;background:${lit ? c : "var(--surface)"};${lit ? `box-shadow:0 0 5px ${c}99;` : ""}margin-bottom:2px;"></div>`;
