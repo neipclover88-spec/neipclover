@@ -1594,7 +1594,7 @@ function paceToGaugeLevel(paceSec) {
   if (paceSec < 400) return 2;
   return 1;
 }
-const PACE_GAUGE_COLORS = { 1: "#4f8ef7", 2: "#4f8ef7", 3: "#27c96e", 4: "#27c96e", 5: "#f0c419", 6: "#f0c419", 7: "#e74c3c" };
+const PACE_GAUGE_COLORS = { 1: "#9b59b6", 2: "#2e3192", 3: "#4f8ef7", 4: "#27c96e", 5: "#f0c419", 6: "#f5a623", 7: "#e74c3c" }; // 보남파초노주빨 (느림→빠름)
 function renderPaceGauge(paceSec) {
   const filled = paceToGaugeLevel(paceSec);
   const segsHtml = [7, 6, 5, 4, 3, 2, 1].map((lvl) => {
