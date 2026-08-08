@@ -123,6 +123,7 @@ function exDefaultData() {
       { id: uid(), name: "Nova Blast 5", targetKm: 600, retired: false },
       { id: uid(), name: "Gel Kayano 32", targetKm: 700, retired: false },
     ],
+    shoeCategories: DEFAULT_SHOE_CATEGORIES.map((c) => ({ ...c })),
   };
 }
 
@@ -137,6 +138,14 @@ function uploadScreenshot(dataUrl) {
 /* ===========================================================
    상수 / 유틸
 =========================================================== */
+// 신발 카테고리에 쓸 색상 팔레트 (사용자가 직접 고름)
+const CATEGORY_COLOR_PALETTE = ["#e74c3c", "#f5a623", "#f0c419", "#27c96e", "#2fc7a3", "#4f8ef7", "#9b59b6", "#8888a0"];
+const DEFAULT_SHOE_CATEGORIES = [
+  { id: "cat-speed", name: "속도", color: "#e74c3c" },
+  { id: "cat-long", name: "장거리", color: "#f0c419" },
+  { id: "cat-cushion", name: "쿠션", color: "#27c96e" },
+  { id: "cat-recovery", name: "회복", color: "#4f8ef7" },
+];
 const WEATHER_OPTIONS = [
   { key: "sunny", icon: "☀️", label: "맑음" },
   { key: "partly_cloudy", icon: "🌤️", label: "구름낀 맑음" },
@@ -1620,17 +1629,42 @@ function shoeManagerHtml() {
   const lastWornMap = shoeLastWorn();
   const shoeList = sortShoesByRotation(state.shoes);
   const rows = shoeList.map((s) => ({ shoe: s, stats: shoeRunStats(s.id) }));
+  const categories = state.shoeCategories || [];
+
+  const categoryManageHtml = `
+  <div style="margin-bottom:16px;">
+    <button id="cat-add-toggle" class="et-btn" style="font-size:11px;color:var(--text-2);background:none;border:none;padding:0;">카테고리 관리 ${categories.length ? `(${categories.length})` : ""} ▾</button>
+    <div id="cat-add-form" style="display:none;margin-top:10px;padding:10px;border-radius:10px;background:var(--surface-alt);">
+      ${categories.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+        ${categories.map((cat) => `
+          <span style="display:inline-flex;align-items:center;gap:5px;background:${cat.color}22;border:1px solid ${cat.color};border-radius:999px;padding:5px 6px 5px 10px;">
+            <span style="font-size:11px;color:${cat.color};font-weight:600;">${escapeHtml(cat.name)}</span>
+            <button class="et-btn cat-delete" data-id="${cat.id}" style="background:none;border:none;color:${cat.color};font-size:12px;padding:0 2px;opacity:0.7;">×</button>
+          </span>`).join("")}
+      </div>` : ""}
+      <input class="et-input" id="cat-name-input" placeholder="카테고리 이름 (예: 속도)" style="width:100%;margin-bottom:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px;">
+        ${CATEGORY_COLOR_PALETTE.map((c, i) => `<button type="button" class="cat-color-swatch" data-color="${c}" data-selected="${i===0?1:0}" style="width:22px;height:22px;border-radius:50%;background:${c};border:2px solid ${i===0?"var(--text)":"transparent"};cursor:pointer;padding:0;"></button>`).join("")}
+      </div>
+      <button id="cat-save-btn" class="et-primary-btn" style="padding:8px;">카테고리 추가</button>
+    </div>
+  </div>`;
 
   const rowsHtml = rows.map(({ shoe: s, stats }) => {
     const km = mileage[s.id] || 0;
     const pct = Math.min(100, Math.round(km / s.targetKm * 100));
     const lastWorn = lastWornMap[s.id];
+    const cat = categories.find((c) => c.id === s.category);
     return `
     <div style="padding:10px 12px;border-radius:12px;background:var(--surface-alt);opacity:${s.retired?0.5:1};margin-bottom:8px;">
       <div style="display:flex;align-items:flex-start;gap:10px;">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-            <span style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.name)}</span>
+            <span style="display:flex;align-items:center;gap:6px;overflow:hidden;">
+              ${cat ? `<span style="width:8px;height:8px;border-radius:50%;background:${cat.color};flex-shrink:0;box-shadow:0 0 5px ${cat.color}99;"></span>` : ""}
+              <span style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.name)}</span>
+            </span>
             <button class="et-btn shoe-expand-toggle" data-id="${s.id}" style="background:none;border:none;color:var(--text-3);font-size:13px;padding:2px 4px;flex-shrink:0;">▾</button>
           </div>
 
@@ -1650,6 +1684,16 @@ function shoeManagerHtml() {
       </div>
       <div class="shoe-expand-panel" data-id="${s.id}" style="display:none;margin-top:9px;padding-top:9px;border-top:1px solid var(--border);">
         ${s.role ? `<div style="font-size:10px;color:var(--run-tx);margin-bottom:8px;">${escapeHtml(s.role)}</div>` : ""}
+        ${categories.length ? `
+        <div style="margin-bottom:9px;">
+          <div style="font-size:9px;color:var(--text-3);margin-bottom:5px;">카테고리</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">
+            ${categories.map((c) => {
+              const sel = s.category === c.id;
+              return `<button class="et-btn shoe-cat-chip" data-shoe="${s.id}" data-cat="${c.id}" style="font-size:10px;padding:4px 10px;border-radius:999px;border:1px solid ${sel?c.color:"var(--border)"};background:${sel?c.color+"22":"var(--surface)"};color:${sel?c.color:"var(--text-2)"};">${escapeHtml(c.name)}</button>`;
+            }).join("")}
+          </div>
+        </div>` : ""}
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="et-btn et-toggle-retire" data-id="${s.id}" style="font-size:10px;color:var(--text-3);background:none;border:none;">${s.retired?"복원":"은퇴"}</button>
           <button class="et-btn et-edit-name" data-id="${s.id}" style="font-size:10px;color:var(--text-2);background:none;border:none;">이름 수정</button>
@@ -1663,6 +1707,7 @@ function shoeManagerHtml() {
 
   return `
   ${modalHeaderHtml("러닝화 관리")}
+  ${categoryManageHtml}
   <div style="margin-bottom:16px;">${rowsHtml}</div>
   <div style="border-top:1px solid var(--border);padding-top:16px;">
     <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;font-weight:600;">새 신발 추가</div>
@@ -1675,6 +1720,56 @@ function shoeManagerHtml() {
 }
 function bindShoeManagerEvents() {
   bindModalClose();
+
+  // 카테고리 추가 폼 열기/닫기
+  const catAddToggle = document.getElementById("cat-add-toggle");
+  if (catAddToggle) catAddToggle.addEventListener("click", () => {
+    const form = document.getElementById("cat-add-form");
+    if (form) form.style.display = form.style.display === "none" ? "block" : "none";
+  });
+  // 색상 스와치 선택
+  document.querySelectorAll(".cat-color-swatch").forEach((sw) => {
+    sw.addEventListener("click", () => {
+      document.querySelectorAll(".cat-color-swatch").forEach((s2) => {
+        s2.dataset.selected = "0";
+        s2.style.border = "2px solid transparent";
+      });
+      sw.dataset.selected = "1";
+      sw.style.border = "2px solid var(--text)";
+    });
+  });
+  // 카테고리 추가
+  const catSaveBtn = document.getElementById("cat-save-btn");
+  if (catSaveBtn) catSaveBtn.addEventListener("click", () => {
+    const name = document.getElementById("cat-name-input").value.trim();
+    if (!name) return;
+    const swatch = document.querySelector('.cat-color-swatch[data-selected="1"]');
+    const color = swatch ? swatch.dataset.color : CATEGORY_COLOR_PALETTE[0];
+    if (!state.shoeCategories) state.shoeCategories = [];
+    state.shoeCategories.push({ id: uid(), name, color });
+    persist();
+    renderModal();
+  });
+  // 카테고리 삭제 (해당 카테고리 배정된 신발은 자동으로 미분류 처리)
+  document.querySelectorAll(".cat-delete").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.shoeCategories = (state.shoeCategories || []).filter((c) => c.id !== btn.dataset.id);
+      state.shoes.forEach((s) => { if (s.category === btn.dataset.id) s.category = null; });
+      persist();
+      renderModal();
+    });
+  });
+  // 신발에 카테고리 배정/해제
+  document.querySelectorAll(".shoe-cat-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const shoe = state.shoes.find((s) => s.id === chip.dataset.shoe);
+      if (!shoe) return;
+      shoe.category = (shoe.category === chip.dataset.cat) ? null : chip.dataset.cat;
+      persist();
+      renderModal();
+    });
+  });
+
   document.querySelectorAll(".shoe-expand-toggle").forEach((btn) => {
     btn.addEventListener("click", () => {
       const panel = document.querySelector(`.shoe-expand-panel[data-id="${btn.dataset.id}"]`);
@@ -1764,6 +1859,7 @@ function bindShoeManagerEvents() {
 render(); // 로딩 표시 먼저
 (async () => {
   state = await loadData();
+  if (!state.shoeCategories) state.shoeCategories = DEFAULT_SHOE_CATEGORIES.map((c) => ({ ...c }));
   loaded = true;
   render();
 })();
