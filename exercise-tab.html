@@ -1536,27 +1536,29 @@ function bindTypeFormEvents() {
   if (draftBtn) draftBtn.addEventListener("click", () => saveEntry("draft"));
 }
 
-function renderShoePaceComparisonChart(rows) {
-  const withPace = rows.filter((r) => r.stats.avgPaceSec);
-  if (!withPace.length) return "";
-  const sorted = [...withPace].sort((a, b) => a.stats.avgPaceSec - b.stats.avgPaceSec);
-  const maxSpeed = Math.max(...sorted.map((r) => 1 / r.stats.avgPaceSec));
-  const bars = sorted.map((r) => {
-    const speed = 1 / r.stats.avgPaceSec;
-    const widthPct = Math.max(10, Math.round((speed / maxSpeed) * 100));
-    return `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-      <span style="font-size:9.5px;color:var(--text-2);width:72px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.shoe.name)}</span>
-      <div style="flex:1;height:13px;background:var(--surface);border-radius:4px;overflow:hidden;">
-        <div style="height:100%;width:${widthPct}%;background:var(--run);border-radius:4px;box-shadow:0 0 6px rgba(39,201,110,.6);"></div>
-      </div>
-      <span class="et-num" style="font-size:10.5px;color:var(--run-tx);width:44px;text-align:right;flex-shrink:0;">${formatPace(r.stats.avgPaceSec)}</span>
-    </div>`;
+// 페이스(초/km) -> 게이지 레벨 1~7 (7:00~6:40=1 ... 5:00~=7)
+function paceToGaugeLevel(paceSec) {
+  if (paceSec == null) return 0;
+  if (paceSec < 300) return 7;
+  if (paceSec < 320) return 6;
+  if (paceSec < 340) return 5;
+  if (paceSec < 360) return 4;
+  if (paceSec < 380) return 3;
+  if (paceSec < 400) return 2;
+  return 1;
+}
+const PACE_GAUGE_COLORS = { 1: "#4f8ef7", 2: "#4f8ef7", 3: "#27c96e", 4: "#27c96e", 5: "#f0c419", 6: "#f0c419", 7: "#e74c3c" };
+function renderPaceGauge(paceSec) {
+  const filled = paceToGaugeLevel(paceSec);
+  const segsHtml = [7, 6, 5, 4, 3, 2, 1].map((lvl) => {
+    const lit = paceSec != null && lvl <= filled;
+    const c = PACE_GAUGE_COLORS[lvl];
+    return `<div style="width:26px;height:4px;border-radius:2px;background:${lit ? c : "var(--surface)"};${lit ? `box-shadow:0 0 5px ${c}99;` : ""}margin-bottom:2px;"></div>`;
   }).join("");
   return `
-  <div style="background:var(--surface-alt);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
-    <div style="font-size:10px;color:var(--text-3);font-weight:700;margin-bottom:9px;text-transform:uppercase;letter-spacing:.05em;">페이스 비교 (빠른 순)</div>
-    ${bars}
+  <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+    <div style="display:flex;flex-direction:column;">${segsHtml}</div>
+    <span style="font-size:7.5px;color:var(--text-3);margin-top:4px;white-space:nowrap;text-align:center;line-height:1.2;">${paceSec != null ? `${formatPace(paceSec)}<br>페이스` : "-"}</span>
   </div>`;
 }
 
@@ -1572,24 +1574,26 @@ function shoeManagerHtml() {
     const lastWorn = lastWornMap[s.id];
     return `
     <div style="padding:10px 12px;border-radius:12px;background:var(--surface-alt);opacity:${s.retired?0.5:1};margin-bottom:8px;">
-      <div style="display:flex;align-items:flex-start;gap:8px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
             <span style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.name)}</span>
-            <span class="et-num et-glow-run" style="font-size:13px;color:var(--run-tx);white-space:nowrap;">${stats.avgPaceSec ? formatPace(stats.avgPaceSec) : "-"}${stats.avgPaceSec ? `<span style="font-family:'Pretendard',sans-serif;font-size:8px;color:var(--text-3);">/km</span>` : ""}</span>
+            <button class="et-btn shoe-expand-toggle" data-id="${s.id}" style="background:none;border:none;color:var(--text-3);font-size:13px;padding:2px 4px;flex-shrink:0;">▾</button>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
             <div style="flex:1;height:5px;background:var(--surface);border-radius:3px;overflow:hidden;">
               <div class="et-bar-fill" style="height:100%;width:${pct}%;background:${pct>=90?"var(--danger)":"var(--run)"};border-radius:3px;box-shadow:0 0 6px ${pct>=90?"rgba(231,76,60,.7)":"rgba(39,201,110,.7)"};"></div>
             </div>
             <span style="font-size:9px;color:${pct>=90?"var(--danger)":"var(--text-3)"};white-space:nowrap;">${pct}%</span>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:3px;">
+
+          <div style="display:flex;justify-content:space-between;margin-top:5px;">
             <span style="font-size:9px;color:var(--text-3);">${round1(km)}/${s.targetKm}km</span>
-            <span style="font-size:9px;color:var(--text-3);">${stats.count}회 · ${daysAgoLabel(lastWorn)}</span>
+            <span style="font-size:9px;color:var(--text-3);">${stats.count}회 · <span style="font-size:11px;color:var(--swim-tx);font-weight:700;">${daysAgoLabel(lastWorn)}</span></span>
           </div>
         </div>
-        <button class="et-btn shoe-expand-toggle" data-id="${s.id}" style="background:none;border:none;color:var(--text-3);font-size:13px;padding:2px 4px;flex-shrink:0;">▾</button>
+        ${renderPaceGauge(stats.avgPaceSec)}
       </div>
       <div class="shoe-expand-panel" data-id="${s.id}" style="display:none;margin-top:9px;padding-top:9px;border-top:1px solid var(--border);">
         ${s.role ? `<div style="font-size:10px;color:var(--run-tx);margin-bottom:8px;">${escapeHtml(s.role)}</div>` : ""}
@@ -1606,7 +1610,6 @@ function shoeManagerHtml() {
 
   return `
   ${modalHeaderHtml("러닝화 관리")}
-  ${renderShoePaceComparisonChart(rows)}
   <div style="margin-bottom:16px;">${rowsHtml}</div>
   <div style="border-top:1px solid var(--border);padding-top:16px;">
     <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;font-weight:600;">새 신발 추가</div>
