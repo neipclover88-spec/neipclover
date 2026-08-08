@@ -137,6 +137,13 @@ function uploadScreenshot(dataUrl) {
 /* ===========================================================
    상수 / 유틸
 =========================================================== */
+const WEATHER_OPTIONS = [
+  { key: "sunny", icon: "☀️", label: "맑음" },
+  { key: "cloudy", icon: "⛅", label: "흐림" },
+  { key: "rainy", icon: "🌧️", label: "비" },
+  { key: "snowy", icon: "❄️", label: "눈" },
+  { key: "windy", icon: "💨", label: "바람" },
+];
 const TYPES = {
   running:  { label: "러닝",  icon: "🏃", v: "run" },
   swimming: { label: "수영",  icon: "🏊", v: "swim" },
@@ -555,8 +562,16 @@ function renderDayCell(date, dateStr, entries, isToday, isFuture) {
   const opacity = (isFuture && entries.length === 0) ? "opacity:0.45;" : "";
   const todayGlow = isToday ? "box-shadow:0 0 0 1.5px var(--run), 0 0 12px rgba(39,201,110,.45);" : "";
   const shadow = isSelected ? "box-shadow:0 0 0 2px var(--text);" : todayGlow;
+
+  const weatherEntry = entries.find((e) => e.weather || e.temperature != null);
+  const weatherBadge = weatherEntry ? `
+    <span style="position:absolute;top:3px;right:4px;font-size:7px;color:var(--text-3);display:flex;align-items:center;gap:1px;line-height:1;">
+      ${weatherEntry.weather ? (WEATHER_OPTIONS.find((w) => w.key === weatherEntry.weather)?.icon || "") : ""}${weatherEntry.temperature != null ? `${Math.round(weatherEntry.temperature)}°` : ""}
+    </span>` : "";
+
   return `
-  <button class="et-daycell et-day et-btn" data-date="${dateStr}" style="background:${entries.length>0?bg:"var(--surface-alt)"};border:${border};${opacity}${shadow}">
+  <button class="et-daycell et-day et-btn" data-date="${dateStr}" style="position:relative;background:${entries.length>0?bg:"var(--surface-alt)"};border:${border};${opacity}${shadow}">
+    ${weatherBadge}
     <span class="et-num" style="font-size:14px;font-weight:400;color:${isToday?"var(--run)":"var(--text-2)"};line-height:1;${isToday?"text-shadow:0 0 10px rgba(39,201,110,.6);":""}">${date.getDate()}</span>
     ${inner}
   </button>`;
@@ -755,6 +770,7 @@ function entryDetailView(e) {
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
     if (e.temperature != null) chips.push(["ti-temperature", `${e.temperature}`, "°C", null]); else missing.push("기온");
     if (e.humidity != null) chips.push(["ti-droplet", `${e.humidity}`, "%", null]); else missing.push("습도");
+    if (e.weather) extraLines.push(`${WEATHER_OPTIONS.find((w) => w.key === e.weather)?.icon || ""} ${WEATHER_OPTIONS.find((w) => w.key === e.weather)?.label || e.weather}`);
     if (shoe) shoeInfo = shoe; else missing.push("러닝화");
   } else if (e.type === "cycling") {
     primary.push(["거리", e.distance != null ? `${round1(e.distance)}` : "-", "km"]);
@@ -768,6 +784,7 @@ function entryDetailView(e) {
     if (e.calories != null) chips.push(["ti-flame", `${e.calories}`, "kcal", null]); else missing.push("칼로리");
     if (e.temperature != null) chips.push(["ti-temperature", `${e.temperature}`, "°C", null]); else missing.push("기온");
     if (e.humidity != null) chips.push(["ti-droplet", `${e.humidity}`, "%", null]); else missing.push("습도");
+    if (e.weather) extraLines.push(`${WEATHER_OPTIONS.find((w) => w.key === e.weather)?.icon || ""} ${WEATHER_OPTIONS.find((w) => w.key === e.weather)?.label || e.weather}`);
   } else if (e.type === "swimming") {
     primary.push(["총거리", e.distance != null ? `${Math.round(e.distance * 1000)}` : "-", "m"]);
     primary.push(["시간", e.durationSec != null ? formatDurationShort(e.durationSec) : "-", ""]);
@@ -1174,6 +1191,15 @@ function typeFormHtml() {
       <div><label class="et-field-label">VO2max</label><input class="et-input" type="number" inputmode="decimal" step="any" id="f-vo2max" placeholder="48.5" value="${E && E.vo2max != null ? E.vo2max : ""}"></div>
       <div><label class="et-field-label">기온 (°C)</label><input class="et-input" type="number" inputmode="decimal" step="any" id="f-temp" placeholder="27" value="${E && E.temperature != null ? E.temperature : ""}"></div>
       <div><label class="et-field-label">습도 (%)</label><input class="et-input" type="number" inputmode="numeric" id="f-humidity" placeholder="65" value="${E && E.humidity != null ? E.humidity : ""}"></div>
+    </div>
+    <div style="margin-bottom:11px;">
+      <label class="et-field-label">날씨</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${WEATHER_OPTIONS.map((w) => {
+          const sel = !!(E && E.weather === w.key);
+          return `<button type="button" class="et-btn et-weather-chip" data-weather="${w.key}" data-selected="${sel ? 1 : 0}" style="font-size:11px;padding:6px 12px;border-radius:999px;border:1px solid ${sel ? "var(--swim)" : "var(--border)"};background:${sel ? "var(--swim-bg)" : "var(--surface-alt)"};color:${sel ? "var(--swim-tx)" : "var(--text-2)"};font-weight:${sel ? 600 : 500};">${w.icon} ${w.label}</button>`;
+        }).join("")}
+      </div>
     </div>` : "";
 
   const swimStatsFields = t === "swimming" ? `
@@ -1247,6 +1273,26 @@ function bindTypeFormEvents() {
   document.getElementById("f-cancel").addEventListener("click", () => {
     if (editingEntry) { closeModal(); }
     else { modalMode = "typeSelect"; renderModal(); }
+  });
+
+  document.querySelectorAll(".et-weather-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const already = chip.dataset.selected === "1";
+      document.querySelectorAll(".et-weather-chip").forEach((c) => {
+        c.dataset.selected = "0";
+        c.style.background = "var(--surface-alt)";
+        c.style.color = "var(--text-2)";
+        c.style.borderColor = "var(--border)";
+        c.style.fontWeight = "500";
+      });
+      if (!already) {
+        chip.dataset.selected = "1";
+        chip.style.background = "var(--swim-bg)";
+        chip.style.color = "var(--swim-tx)";
+        chip.style.borderColor = "var(--swim)";
+        chip.style.fontWeight = "600";
+      }
+    });
   });
 
   if (t === "gym") {
@@ -1512,6 +1558,7 @@ function bindTypeFormEvents() {
       vo2max: val("f-vo2max") ? Number(val("f-vo2max")) : null,
       temperature: val("f-temp") ? Number(val("f-temp")) : null,
       humidity: val("f-humidity") ? Number(val("f-humidity")) : null,
+      weather: document.querySelector('.et-weather-chip[data-selected="1"]')?.dataset.weather || null,
       avgSwolf: val("f-swolf") ? Number(val("f-swolf")) : null,
       shoeId: t === "running" ? (val("f-shoe") || null) : null,
       screenshot: pendingScreenshot,
