@@ -299,15 +299,18 @@ function shoeRunStats(shoeId) {
 function sortShoesByRotation(shoes) {
   const lastWorn = shoeLastWorn();
   const mileage = shoeMileage();
-  const worn = shoes.filter((s) => (mileage[s.id] || 0) >= 1);
-  const unworn = shoes.filter((s) => (mileage[s.id] || 0) < 1);
+  const active = shoes.filter((s) => !s.retired);
+  const retired = shoes.filter((s) => s.retired);
+  const worn = active.filter((s) => (mileage[s.id] || 0) >= 1);
+  const unworn = active.filter((s) => (mileage[s.id] || 0) < 1);
   worn.sort((a, b) => {
     const da = lastWorn[a.id] || "";
     const db = lastWorn[b.id] || "";
     if (da === db) return 0;
     return da < db ? -1 : 1;
   });
-  return [...worn, ...unworn]; // 1km도 안 뛴 신발은 로테이션 정렬 대상이 아니라 맨 아래 고정
+  // 활성 신발(로테이션 대상 → 미착용) 다음, 은퇴한 신발은 항상 맨 아래
+  return [...worn, ...unworn, ...retired];
 }
 function weekSummary() {
   const weekStart = startOfWeek(new Date());
