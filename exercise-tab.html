@@ -511,6 +511,7 @@ function renderHeader() {
     <div id="et-filters">
       ${pills}
       <button id="et-manage-shoes-btn" class="et-btn" style="font-size:12px;padding:6px 13px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);">신발관리</button>
+      <button id="et-export-btn" class="et-btn" style="font-size:12px;padding:6px 13px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);">내보내기</button>
     </div>
   </div>`;
 }
@@ -968,6 +969,9 @@ function bindTopLevelEvents() {
   const shoeBtn2 = document.getElementById("et-manage-shoes-btn2");
   [shoeBtn1, shoeBtn2].forEach((b) => b && b.addEventListener("click", () => { modalMode = "shoeManager"; render(); }));
 
+  const exportBtn = document.getElementById("et-export-btn");
+  if (exportBtn) exportBtn.addEventListener("click", () => { modalMode = "export"; render(); });
+
   const deselectBtn = document.getElementById("et-deselect-day");
   if (deselectBtn) deselectBtn.addEventListener("click", () => { selectedDate = null; render(); });
 
@@ -1031,6 +1035,7 @@ function renderModal() {
   const box = document.getElementById("et-modal-box");
 
   if (modalMode === "shoeManager") { box.innerHTML = shoeManagerHtml(); bindShoeManagerEvents(); return; }
+  if (modalMode === "export") { box.innerHTML = exportModalHtml(); bindExportModalEvents(); return; }
   if (modalMode === "typeSelect") { box.innerHTML = typeSelectHtml(); bindTypeSelectEvents(); return; }
   if (modalMode === "form") { box.innerHTML = typeFormHtml(); bindTypeFormEvents(); return; }
 }
@@ -1622,6 +1627,86 @@ function renderPaceGauge(paceSec) {
     <div style="display:flex;flex-direction:column;">${segsHtml}</div>
     <span style="font-size:7.5px;color:var(--text-3);margin-top:4px;white-space:nowrap;text-align:center;line-height:1.2;">${paceSec != null ? `${formatPace(paceSec)}<br>페이스` : "-"}</span>
   </div>`;
+}
+
+function exportModalHtml() {
+  const confirmedCount = state.entries.filter((e) => e.status === "confirmed").length;
+  return `
+  ${modalHeaderHtml("데이터 내보내기")}
+  <div style="font-size:12px;color:var(--text-2);margin-bottom:16px;">확정된 기록 ${confirmedCount}건을 내보낼 수 있어요. AI한테 분석을 맡기고 싶으면 CSV를, 백업이나 다른 곳으로 옮기고 싶으면 JSON을 추천해.</div>
+  <button id="export-csv-btn" class="et-primary-btn" style="margin-bottom:10px;">CSV로 내보내기 (분석용)</button>
+  <button id="export-json-btn" class="et-secondary-btn" style="width:100%;">JSON으로 내보내기 (전체 백업)</button>`;
+}
+
+function bindExportModalEvents() {
+  bindModalClose();
+  const csvBtn = document.getElementById("export-csv-btn");
+  if (csvBtn) csvBtn.addEventListener("click", () => downloadFile(buildCsvExport(), "exercise-export.csv", "text/csv;charset=utf-8;"));
+  const jsonBtn = document.getElementById("export-json-btn");
+  if (jsonBtn) jsonBtn.addEventListener("click", () => downloadFile(JSON.stringify(state, null, 2), "exercise-export.json", "application/json;charset=utf-8;"));
+}
+
+function downloadFile(content, filename, mimeType) {
+  const bom = mimeType.startsWith("text/csv") ? "\uFEFF" : ""; // 엑셀에서 한글 안 깨지게 BOM 추가
+  const blob = new Blob([bom + content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function csvField(v) {
+  if (v == null) return "";
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function buildCsvExport() {
+  const headers = [
+    "날짜", "종목", "상태", "거리(km)", "시간(초)", "페이스/속도",
+    "평균심박수", "평균케이던스", "상승고도(m)", "총오르막(km)", "VO2max",
+    "칼로리", "기온(°C)", "습도(%)", "날씨", "평균SWOLF", "영법별거리",
+    "신발", "부위", "세부종목",
+  ];
+  const shoeMap = {};
+  state.shoes.forEach((s) => { shoeMap[s.id] = s.name; });
+
+  const rows = state.entries
+    .filter((e) => e.status === "confirmed")
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+    .map((e) => {
+      const paceOrSpeed = e.type === "cycling" ? (e.avgSpeed != null ? `${e.avgSpeed}km/h` : "") : (e.pace || (e.swimPaceOverride || ""));
+      const weatherLabel = e.weather ? (WEATHER_OPTIONS.find((w) => w.key === e.weather)?.label || e.weather) : "";
+      const strokeStr = e.strokeDistances ? Object.entries(e.strokeDistances).filter(([, v]) => Number(v) > 0).map(([k, v]) => `${SWIM_STROKES.find((s) => s.key === k)?.label || k}:${v}m`).join(";") : "";
+      const exStr = e.exercises ? e.exercises.map((x) => `${x.name}:${x.reps || "-"}x${x.sets || "-"}`).join(";") : "";
+      return [
+        e.date, TYPES[e.type]?.label || e.type, e.status,
+        e.distance != null ? round1(e.distance) : "",
+        e.durationSec != null ? e.durationSec : "",
+        paceOrSpeed,
+        e.avgHeartRate != null ? e.avgHeartRate : "",
+        e.avgCadence != null ? e.avgCadence : "",
+        e.elevationGain != null ? e.elevationGain : "",
+        e.climbDistance != null ? e.climbDistance : "",
+        e.vo2max != null ? e.vo2max : "",
+        e.calories != null ? e.calories : "",
+        e.temperature != null ? e.temperature : "",
+        e.humidity != null ? e.humidity : "",
+        weatherLabel,
+        e.avgSwolf != null ? e.avgSwolf : "",
+        strokeStr,
+        e.shoeId ? (shoeMap[e.shoeId] || "") : "",
+        e.bodyParts ? e.bodyParts.join(";") : "",
+        exStr,
+      ].map(csvField).join(",");
+    });
+
+  return [headers.map(csvField).join(","), ...rows].join("\n");
 }
 
 function shoeManagerHtml() {
