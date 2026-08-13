@@ -368,21 +368,35 @@ function exerciseToCategory(name) {
 // 헬스 부위(대분류)별 최고 무게 기록 - 종목명으로 정확한 부위를 먼저 찾고,
 // 직접입력 등 프리셋에 없는 종목만 그날 선택한 부위 전체에 적용
 function computeGymBodyPartRecords() {
-  const records = {};
+  const withWeight = {};
+  const bodyweightOnly = {};
   for (const e of state.entries) {
     if (e.type !== "gym" || e.status !== "confirmed" || !e.exercises || !e.exercises.length) continue;
     const entryCats = gymBroadCategories(e.bodyParts || []);
     for (const x of e.exercises) {
-      if (!x.weight) continue;
       const specificCat = exerciseToCategory(x.name);
       const cats = specificCat ? [specificCat] : entryCats;
       for (const cat of cats) {
-        if (!records[cat] || x.weight > records[cat].weight) {
-          records[cat] = { weight: x.weight, reps: x.reps, exerciseName: x.name, date: e.date };
+        if (x.weight) {
+          if (!withWeight[cat] || x.weight > withWeight[cat].weight) {
+            withWeight[cat] = { weight: x.weight, reps: x.reps, exerciseName: x.name, date: e.date };
+          }
+        } else if (x.reps) {
+          if (!bodyweightOnly[cat] || x.reps > bodyweightOnly[cat].reps) {
+            bodyweightOnly[cat] = { reps: x.reps, exerciseName: x.name, date: e.date };
+          }
         }
       }
     }
   }
+  // 부위별로 무게 기록이 있으면 그걸, 없으면(맨몸운동만 있으면) 최고 횟수 기록을 사용
+  const records = {};
+  const allCats = new Set([...Object.keys(withWeight), ...Object.keys(bodyweightOnly)]);
+  allCats.forEach((cat) => {
+    records[cat] = withWeight[cat]
+      ? { type: "weight", ...withWeight[cat] }
+      : { type: "reps", ...bodyweightOnly[cat] };
+  });
   return records;
 }
 function computeRecords(type) {
@@ -670,10 +684,13 @@ function renderWeekSummaryCard() {
       </div>
       ${gymCats.map((cat) => {
         const r = gymRecords[cat];
+        const valueLabel = r.type === "weight"
+          ? `${r.weight}kg<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:3px;">${r.reps ? `× ${r.reps}회` : ""} · ${r.date.slice(5)}</span>`
+          : `${r.reps}회<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:3px;">(맨몸) · ${r.date.slice(5)}</span>`;
         return `
         <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:19px;margin-top:2px;">
           <span style="font-size:10.5px;color:var(--text-3);">${cat}</span>
-          <span class="et-num et-glow-gym" style="font-size:14px;color:var(--gym-tx);">${r.weight}kg<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:3px;">${r.reps ? `× ${r.reps}회` : ""} · ${r.date.slice(5)}</span></span>
+          <span class="et-num et-glow-gym" style="font-size:14px;color:var(--gym-tx);">${valueLabel}</span>
         </div>`;
       }).join("")}
     </div>` : "";
