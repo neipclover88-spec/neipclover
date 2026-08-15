@@ -357,6 +357,12 @@ function recentRuns() {
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, 5);
 }
+function recentSwims() {
+  return state.entries
+    .filter((e) => e.type === "swimming" && e.status === "confirmed")
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 5);
+}
 // 종목별 최고기록(페이스/속도) + 최장 저심박 기록(시간÷평균심박 비율 최대)
 // 종목명 -> 정확한 대분류 부위 (프리셋 목록에서 역추적)
 function exerciseToCategory(name) {
@@ -405,6 +411,7 @@ function computeRecords(type) {
   let bestVo2max = null; // {value, date}
   let bestSwolf = null; // {value, date} - 낮을수록 좋음
   let bestDistance = null; // {value, date}
+  let bestElevation = null; // {value, date}
 
   for (const e of state.entries) {
     if (e.type !== type || e.status !== "confirmed") continue;
@@ -438,8 +445,12 @@ function computeRecords(type) {
     if (type === "cycling" && e.distance > 0) {
       if (!bestDistance || e.distance > bestDistance.value) bestDistance = { value: e.distance, date: e.date };
     }
+
+    if ((type === "running" || type === "cycling") && e.elevationGain != null) {
+      if (!bestElevation || e.elevationGain > bestElevation.value) bestElevation = { value: e.elevationGain, date: e.date };
+    }
   }
-  return { best, bestEff, bestVo2max, bestSwolf, bestDistance };
+  return { best, bestEff, bestVo2max, bestSwolf, bestDistance, bestElevation };
 }
 // 특정 필드의 추이 데이터 (날짜순, 값이 있는 것만) - 최근 N개
 function collectTrendSeries(type, field, limit) {
@@ -521,7 +532,7 @@ function render() {
     ${renderHeader()}
     ${renderCalendar()}
     <div class="et-bottom-grid">
-      ${filter === "running" ? renderRunningPaceCard() : renderWeekSummaryCard()}
+      ${filter === "running" ? renderRunningPaceCard() : filter === "swimming" ? renderSwimmingPaceCard() : renderWeekSummaryCard()}
       ${selectedDate ? renderSelectedDayCard() : renderRightPanelByFilter()}
     </div>
   `;
@@ -709,14 +720,15 @@ function renderWeekSummaryCard() {
 
 function renderRunningPaceCard() {
   const runs = recentRuns();
-  const { best, bestEff, bestVo2max } = computeRecords("running");
+  const { best, bestEff, bestVo2max, bestElevation } = computeRecords("running");
   const body = runs.length === 0
     ? `<div style="font-size:12px;color:var(--text-3);">아직 기록이 없어요.</div>`
     : `<div style="display:flex;flex-direction:column;gap:9px;">${runs.map((r) => `
-        <div style="display:flex;justify-content:space-between;font-size:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;">
           <span style="color:var(--text-2);">${r.date.slice(5)}</span>
           <span class="et-num" style="font-size:14px;color:var(--text);">${r.distance ? round1(r.distance)+"km" : "-"}</span>
           <span style="color:var(--text-2);">${escapeHtml(r.pace||"-")}</span>
+          <span style="font-size:10px;color:var(--gym-tx);min-width:34px;text-align:right;">${r.avgHeartRate ? `♥${r.avgHeartRate}` : ""}</span>
         </div>`).join("")}</div>`;
   return `
   <div class="et-card" style="padding:16px;">
@@ -726,8 +738,42 @@ function renderRunningPaceCard() {
       <div class="et-card-title" style="margin-bottom:7px;">베스트 기록</div>
       ${best ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최고 페이스</span><span class="et-num et-glow-run" style="font-size:14px;color:var(--run-tx);">${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span></div>` : ""}
       ${bestEff ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최장 저심박</span><span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span></div>` : ""}
-      ${bestVo2max ? `<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:var(--text-3);">최고 VO2max</span><span class="et-num" style="font-size:13px;color:#a855f7;">${bestVo2max.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestVo2max.date.slice(5)}</span></span></div>` : ""}
-      ${!best && !bestEff && !bestVo2max ? `<div style="font-size:11px;color:var(--text-3);">아직 기록이 없어요.</div>` : ""}
+      ${bestVo2max ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최고 VO2max</span><span class="et-num" style="font-size:13px;color:#a855f7;">${bestVo2max.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestVo2max.date.slice(5)}</span></span></div>` : ""}
+      ${bestElevation ? `<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:var(--text-3);">최장 상승고도</span><span class="et-num" style="font-size:13px;color:var(--text);">${bestElevation.value}m<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestElevation.date.slice(5)}</span></span></div>` : ""}
+      ${!best && !bestEff && !bestVo2max && !bestElevation ? `<div style="font-size:11px;color:var(--text-3);">아직 기록이 없어요.</div>` : ""}
+    </div>
+  </div>`;
+}
+
+function renderSwimmingPaceCard() {
+  const swims = recentSwims();
+  const { best, bestEff, bestSwolf } = computeRecords("swimming");
+  const body = swims.length === 0
+    ? `<div style="font-size:12px;color:var(--text-3);">아직 기록이 없어요.</div>`
+    : `<div style="display:flex;flex-direction:column;gap:10px;">${swims.map((r) => {
+        const strokeStr = r.strokeDistances
+          ? SWIM_STROKES.filter((s) => Number(r.strokeDistances[s.key]) > 0).map((s) => `${s.label} ${r.strokeDistances[s.key]}m`).join(" · ")
+          : "";
+        return `
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12px;">
+            <span style="color:var(--text-2);">${r.date.slice(5)}</span>
+            <span class="et-num" style="font-size:14px;color:var(--text);">${r.distance ? `${Math.round(r.distance*1000)}m` : "-"}</span>
+            <span style="color:var(--text-2);">${escapeHtml(r.swimPaceOverride || (r.durationSec && r.distance ? formatPace(r.durationSec/(r.distance*10)) : "-"))}</span>
+          </div>
+          ${strokeStr ? `<div style="font-size:9.5px;color:var(--text-3);margin-top:2px;">${escapeHtml(strokeStr)}</div>` : ""}
+        </div>`;
+      }).join("")}</div>`;
+  return `
+  <div class="et-card" style="padding:16px;">
+    <div class="et-card-title">최근 수영</div>
+    ${body}
+    <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px;">
+      <div class="et-card-title" style="margin-bottom:7px;">베스트 기록</div>
+      ${best ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최고 페이스</span><span class="et-num et-glow-swim" style="font-size:14px;color:var(--swim-tx);">${best.label}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);margin-left:4px;">${best.date.slice(5)}</span></span></div>` : ""}
+      ${bestEff ? `<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-3);">최장 저심박</span><span class="et-num" style="font-size:13px;color:var(--text);">${formatDurationShort(bestEff.durationSec)}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestEff.hr}bpm</span></span></div>` : ""}
+      ${bestSwolf ? `<div style="display:flex;justify-content:space-between;align-items:baseline;"><span style="font-size:11px;color:var(--text-3);">최고 SWOLF</span><span class="et-num" style="font-size:13px;color:var(--cycle-tx);">${bestSwolf.value}<span style="font-family:'Pretendard',sans-serif;font-size:9px;color:var(--text-3);"> · ${bestSwolf.date.slice(5)}</span></span></div>` : ""}
+      ${!best && !bestEff && !bestSwolf ? `<div style="font-size:11px;color:var(--text-3);">아직 기록이 없어요.</div>` : ""}
     </div>
   </div>`;
 }
