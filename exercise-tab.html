@@ -1367,7 +1367,7 @@ function typeFormHtml() {
   <div style="margin-bottom:4px;">
     <label class="et-field-label">시간</label>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      ${t === "cycling" ? `
+      ${t !== "gym" ? `
       <input class="et-input" type="number" inputmode="numeric" id="f-duration-hour" placeholder="1" style="width:70px;" value="${durH}">
       <span style="font-size:12px;color:var(--text-2);">시간</span>` : ""}
       <input class="et-input" type="number" inputmode="numeric" id="f-duration-min" placeholder="80" style="width:80px;" value="${durM}">
