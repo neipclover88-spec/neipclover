@@ -617,16 +617,19 @@
   function migrateAddMissingDefaults(){
     // Adds built-in activities (like 취침, introduced after some users
     // had already saved a chip list) if the user doesn't already have
-    // one with that id or name.
-    let changed = false;
+    // one with that id or name. Runs ONCE ever (tracked via a flag saved
+    // in state) — otherwise it would keep resurrecting activities the
+    // user has deliberately deleted (e.g. 귀가, 복기) on every reload.
+    if(!state.migrationsApplied) state.migrationsApplied = {};
+    if(state.migrationsApplied.addMissingDefaults) return;
     DEFAULT_ACTIVITIES.forEach(def=>{
       const exists = state.activities.some(a=>a.id===def.id || a.name===def.name);
       if(!exists){
         state.activities.push(Object.assign({}, def));
-        changed = true;
       }
     });
-    if(changed) saveAll();
+    state.migrationsApplied.addMissingDefaults = true;
+    saveAll();
   }
 
   function todayStr(d){
