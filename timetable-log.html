@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>오늘의 타임테이블</title>
+<style>
+  :root{
+    --paper: #f4f2ec;
+    --paper-edge: #e9e6dc;
+    --ink: #2b2a26;
+    --ink-soft: #6b6858;
+    --rule: #c9c5b6;
+    --stamp: #b23a2e;
+    --accent: #3a5f4f;
+    --chip-bg: #ffffff;
+    --chip-active: #2b2a26;
+    --cat-study: #3a5f4f;
+    --cat-work: #b8792f;
+    --cat-exercise: #3f6fa8;
+    --cat-other: #9a9686;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; background:#dedad0; }
+  body{
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    color: var(--ink);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding: 18px 10px 60px;
+  }
+  .app{ width:100%; max-width:460px; }
+
+  /* ---- controls above the ticket ---- */
+  .toolbar{
+    display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;
+  }
+  .toolbar button{
+    flex:1; min-width:100px;
+    border:none; border-radius:10px;
+    padding:11px 10px;
+    font-size:13px; font-weight:600;
+    background: var(--ink); color:#fff;
+    cursor:pointer;
+  }
+  .toolbar button.secondary{
+    background:#fff; color:var(--ink); border:1px solid var(--rule);
+  }
+  .toolbar button:active{ transform: scale(0.97); }
+
+  .datebar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px; font-size:13px; color:var(--ink-soft);
+  }
+  .datebar select{
+    border:1px solid var(--rule); border-radius:8px; background:#fff;
+    padding:5px 8px; font-size:13px; color:var(--ink);
+  }
+
+  .date-toggle{
+    width:100%;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:#fff; border:1px solid var(--rule); border-radius:12px;
+    padding:12px 14px; margin-bottom:14px;
+    font-size:15px; font-weight:700; color:var(--ink);
+    cursor:pointer;
+  }
+  .date-toggle:active{ transform: scale(0.98); }
+  .date-toggle .chev{ color: var(--ink-soft); font-size:12px; }
+
+  /* ---- calendar modal ---- */
+  .calendar-modal{ max-height:88vh; overflow-y:auto; max-width:640px; }
+  .cal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .cal-header button{
+    background:#f0eee7; border:none; border-radius:8px;
+    width:34px; height:34px; font-size:16px; color:var(--ink);
+    cursor:pointer;
+  }
+  .cal-header #cal-month-label{ font-size:15px; font-weight:800; }
+  .cal-weekdays{
+    display:grid; grid-template-columns: repeat(7,1fr);
+    text-align:center; font-size:11.5px; color:var(--ink-soft);
+    margin-bottom:4px;
+  }
+  .cal-grid{
+    display:grid; grid-template-columns: repeat(7,1fr);
+    gap:3px;
+  }
+  .cal-cell{
+    position:relative;
+    min-height:56px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    gap:2px;
+    padding:5px 2px 4px;
+    font-size:12.5px; color:var(--ink);
+    border-radius:10px;
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .cal-cell.empty{ cursor:default; }
+  .cal-cell .cal-daynum{ font-size:12.5px; }
+  .cal-cell.today .cal-daynum{ font-weight:800; color: var(--accent); }
+  .cal-cell.selected{ background: var(--ink); color:#fff; }
+  .cal-cell.selected .cal-daynum{ color:#fff; }
+  .cal-cell .cal-income-mark{
+    font-size:9.5px; font-weight:700; color: var(--stamp); line-height:1.1;
+    white-space:nowrap;
+  }
+  .cal-cell.selected .cal-income-mark{ color:#ffd6d0; }
+  .cal-cell .cal-eval-mark{
+    font-size:9.5px; color: var(--ink-soft); line-height:1.1;
+  }
+  .cal-cell.selected .cal-eval-mark{ color:#d8d5c8; }
+
+  .cal-daypanel{
+    margin-top:14px; padding-top:14px; border-top:1px dashed var(--rule);
+  }
+  .cal-daypanel-title{ font-size:14px; font-weight:800; margin-bottom:6px; }
+  .cal-income-total{ font-size:13px; color: var(--accent); font-weight:700; margin-bottom:4px; }
+  .cal-eval{ font-size:12px; color: var(--ink-soft); margin-bottom:12px; font-style:italic; }
+  .cal-income-inputs{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+  .cal-income-col{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .cal-income-col label{
+    font-size:12px; color:var(--ink-soft); display:flex; flex-direction:column; gap:5px; min-width:0;
+  }
+  .cal-income-col input{
+    width:100%; min-width:0; box-sizing:border-box;
+    border:1px solid var(--rule); border-radius:10px; padding:9px 8px;
+    font-size:13.5px; color:var(--ink); font-family:inherit;
+  }
+  .cal-income-col input[type=number]::-webkit-outer-spin-button,
+  .cal-income-col input[type=number]::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+  .cal-income-col input[type=number]{ -moz-appearance:textfield; }
+
+  /* ---- chip grid for logging ---- */
+  .chipgrid{
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;
+  }
+  .chip{
+    border:1px solid var(--rule);
+    background: var(--chip-bg);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 13.5px;
+    font-weight:600;
+    color: var(--ink);
+    cursor:pointer;
+    display:flex; align-items:center; gap:6px;
+    user-select:none;
+  }
+  .chip:active{ transform: scale(0.96); }
+  .chip.running{
+    background: var(--stamp); color:#fff; border-color: var(--stamp);
+  }
+  .chip.running .dot{
+    width:6px; height:6px; border-radius:50%; background:#fff;
+    animation: pulse 1.1s infinite;
+  }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.3} }
+  .chip.addnew{
+    background:transparent; border-style:dashed; color:var(--ink-soft);
+  }
+
+  /* ---- the receipt / ticket ---- */
+  #ticket-wrap{ display:flex; justify-content:center; }
+  .ticket{
+    width:100%;
+    background: var(--paper);
+    padding: 22px 20px 26px;
+    position:relative;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  .ticket::before, .ticket::after{
+    content:"";
+    display:block;
+    position:absolute; left:0; right:0; height:10px;
+    background:
+      radial-gradient(circle at 8px 5px, #dedad0 5px, transparent 5.5px) repeat-x;
+    background-size: 16px 10px;
+  }
+  .ticket::before{ top:-5px; }
+  .ticket::after{ bottom:-5px; }
+
+  .ticket-head{
+    text-align:center;
+    border-bottom: 1px dashed var(--rule);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+  .ticket-head .brand{
+    font-size: 11px; letter-spacing: 3px; color: var(--ink-soft);
+    text-transform:uppercase; margin-bottom:4px;
+  }
+  .ticket-head .title{
+    font-size: 20px; font-weight:800; letter-spacing:0.5px;
+  }
+  .ticket-head .sub{
+    font-size:12px; color:var(--ink-soft); margin-top:3px;
+  }
+
+  .entries{
+    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .entry-row{
+    display:flex; gap:10px; align-items:flex-start;
+    padding: 3px 0;
+  }
+  .entry-row .t{
+    flex: 0 0 44px;
+    color: var(--ink-soft);
+    font-weight:600;
+    cursor:pointer;
+    border-bottom: 1px dotted var(--ink-soft);
+  }
+  .entry-row .a{
+    flex:1;
+    color: var(--ink);
+    cursor:pointer;
+  }
+  .entry-row .a .dur{
+    color: var(--accent); font-weight:700; margin-left:4px;
+  }
+  .entry-row .del{
+    flex:0 0 16px; color:#b7b2a0; font-size:12px; cursor:pointer;
+  }
+  .memo-row{
+    padding: 0 0 4px 54px;
+    color: var(--ink-soft);
+    font-size:12.5px;
+    display:flex; gap:8px; align-items:flex-start;
+    cursor:pointer;
+  }
+  .memo-row .del{ color:#c8c3b0; font-size:11px; cursor:pointer; }
+  .empty-hint{
+    text-align:center; color:var(--ink-soft); font-size:12.5px;
+    padding: 18px 0;
+  }
+
+  .summary{
+    border-top: 1px dashed var(--rule);
+    margin-top: 14px;
+    padding-top: 12px;
+    font-family: "SF Mono","Menlo","Consolas", monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .summary .line{ display:flex; justify-content:space-between; margin-bottom:3px; }
+  .summary .line b{ color: var(--accent); }
+  .summary .total{
+    display:flex; justify-content:space-between;
+    font-weight:800; font-size:14px; margin-top:8px;
+    border-top:1px solid var(--rule); padding-top:8px;
+  }
+
+  .mood-block{
+    margin: 10px 0 4px;
+    padding: 10px 0;
+    border-top: 1px dashed var(--rule);
+    border-bottom: 1px dashed var(--rule);
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif;
+  }
+  .mood-question{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; text-align:center; }
+  .mood-options{ display:flex; justify-content:space-between; gap:4px; }
+  .mood-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    border:1px solid var(--rule); background:#fff; border-radius:10px;
+    padding:7px 2px; cursor:pointer; font-family:inherit;
+  }
+  .mood-btn .mood-emoji{ font-size:17px; line-height:1; }
+  .mood-btn .mood-label{ font-size:9.5px; color:var(--ink-soft); }
+  .mood-btn.selected{ background: var(--ink); border-color: var(--ink); }
+  .mood-btn.selected .mood-label{ color:#fff; }
+  .mood-btn:active{ transform: scale(0.95); }
+
+  .waste-line{
+    margin-top:8px; font-size:12.5px; font-weight:700; color: var(--stamp);
+    text-align:center;
+  }
+  .waste-hint{
+    margin-top:8px; font-size:11px; color: var(--ink-soft);
+    font-style:italic; text-align:center;
+  }
+
+  .stamp{
+    position:absolute; right:22px; bottom:70px;
+    width:74px; height:74px; border-radius:50%;
+    border:2.5px solid var(--stamp);
+    color: var(--stamp);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    transform: rotate(-14deg);
+    font-weight:800; font-size:11px; text-align:center;
+    letter-spacing:1px;
+    opacity:0.85;
+    line-height:1.3;
+    display:none;
+  }
+  .stamp.show{ display:flex; }
+
+  .daybar-wrap{ margin-top:16px; }
+  .daybar-title{
+    font-size:10.5px; letter-spacing:1.5px; color: var(--ink-soft);
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  .daybar{
+    position:relative; height:32px; border-radius:8px;
+    background: #eae7dc; border:1px solid var(--rule); overflow:hidden;
+  }
+  .daybar-guide{
+    position:absolute; top:0; bottom:0; width:1px; background: rgba(0,0,0,0.09);
+  }
+  .daybar-seg{
+    position:absolute; top:0; bottom:0; opacity:0.92; border-radius:2px;
+  }
+  .daybar-point{
+    position:absolute; top:3px; bottom:3px; width:3px; border-radius:2px;
+  }
+  .daybar-ticks{
+    display:flex; justify-content:space-between;
+    font-size:9.5px; color: var(--ink-soft); margin-top:4px;
+    font-family: "SF Mono","Menlo","Consolas", monospace;
+  }
+  .daybar-legend{
+    display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;
+    font-size:10.5px; color: var(--ink-soft);
+  }
+  .daybar-legend .item{ display:flex; align-items:center; gap:5px; }
+  .daybar-legend .sw{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+
+  /* ---- memo input modal ---- */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(0,0,0,0.45);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal-bg.show{ display:flex; }
+  .modal{
+    background:#fff; width:100%; max-width:460px;
+    border-radius: 16px 16px 0 0;
+    padding: 18px 18px 24px;
+  }
+  .modal h3{ margin:0 0 10px; font-size:15px; }
+  .modal textarea{
+    width:100%; min-height:70px; border:1px solid var(--rule);
+    border-radius:10px; padding:10px; font-size:14px; font-family:inherit;
+    resize:vertical;
+  }
+  .modal .row{ display:flex; gap:8px; margin-top:12px; }
+  .modal button{
+    flex:1; border:none; border-radius:10px; padding:11px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .modal .save{ background:var(--ink); color:#fff; }
+  .modal .skip{ background:#f0eee7; color:var(--ink-soft); }
+
+  .addchip-row{ display:flex; gap:8px; }
+  .addchip-row input{
+    flex:1; border:1px solid var(--rule); border-radius:10px; padding:10px; font-size:14px;
+  }
+
+  .manage-list{
+    display:flex; flex-direction:column; gap:2px;
+    max-height:52vh; overflow-y:auto; margin-bottom:8px;
+  }
+  .manage-row{
+    display:flex; align-items:center; gap:9px;
+    padding:9px 2px; border-bottom:1px solid var(--rule);
+  }
+  .manage-swatch{ width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
+  .manage-name{ flex:1; font-size:14.5px; font-weight:600; color:var(--ink); }
+  .manage-controls{ display:flex; gap:5px; }
+  .manage-controls button{
+    width:30px; height:30px; border:none; border-radius:8px;
+    background:#f0eee7; color:var(--ink); font-size:13px; cursor:pointer;
+  }
+  .manage-controls button:disabled{ opacity:0.3; }
+  .manage-controls .mv-del{ background:#f6e0dc; color:var(--stamp); }
+  .manage-hint{ font-size:11px; color:var(--ink-soft); margin-bottom:4px; text-align:center; }
+
+  .cal-month-income{
+    text-align:center; font-size:12.5px; font-weight:700; color: var(--accent);
+    margin-bottom:8px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <button class="date-toggle" id="date-toggle-btn">
+    <span id="date-toggle-label">-</span>
+    <span class="chev">▾</span>
+  </button>
+
+  <div class="chipgrid" id="chipgrid"></div>
+
+  <div id="ticket-wrap">
+    <div class="ticket" id="ticket">
+      <div class="ticket-head">
+        <div class="brand">배달한의 · 일일 인증표</div>
+        <div class="title" id="ticket-title">2026년 8월 10일</div>
+        <div class="sub" id="ticket-sub">월요일</div>
+      </div>
+
+      <div class="entries" id="entries"></div>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="stamp" id="stamp">오늘도<br>완주</div>
+
+      <div class="daybar-wrap">
+        <div class="daybar-title">일과표 · 06:00–24:00</div>
+        <div class="daybar" id="daybar-track"></div>
+        <div class="daybar-ticks">
+          <span>6시</span><span>9시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span><span>24시</span>
+        </div>
+        <div class="daybar-legend" id="daybar-legend"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar" style="margin-top:14px;">
+    <button class="secondary" id="btn-manage-chips">활동 관리</button>
+    <button id="btn-capture">🧾 이미지로 저장</button>
+  </div>
+
+  <div class="toolbar" style="margin-top:10px;">
+    <button class="secondary" id="btn-reset-day">이 날짜 초기화</button>
+  </div>
+
+</div>
+
+<!-- calendar modal -->
+<div class="modal-bg" id="calendar-modal-bg">
+  <div class="modal calendar-modal">
+    <div class="cal-header">
+      <button id="cal-prev">‹</button>
+      <div id="cal-month-label">-</div>
+      <button id="cal-next">›</button>
+    </div>
+    <div class="cal-month-income" id="cal-month-income">이번 달 수입 0원</div>
+    <div class="cal-weekdays">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+
+    <div class="cal-daypanel">
+      <div class="cal-daypanel-title" id="cal-daypanel-title">-</div>
+      <div class="cal-income-total" id="cal-income-total">수입 0원</div>
+      <div class="cal-eval" id="cal-eval">평가: -</div>
+      <div class="cal-income-inputs">
+        <div class="cal-income-col">
+          <label>쿠팡 수입
+            <input type="number" id="cal-input-coupang" inputmode="numeric" placeholder="0">
+          </label>
+          <label>쿠팡 미션보너스
+            <input type="number" id="cal-input-coupang-bonus" inputmode="numeric" placeholder="0">
+          </label>
+        </div>
+        <div class="cal-income-col">
+          <label>배민 수입
+            <input type="number" id="cal-input-baemin" inputmode="numeric" placeholder="0">
+          </label>
+          <label>배민 미션보너스
+            <input type="number" id="cal-input-baemin-bonus" inputmode="numeric" placeholder="0">
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="save" id="cal-close">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- memo modal -->
+<div class="modal-bg" id="memo-modal-bg">
+  <div class="modal">
+    <h3 id="memo-modal-title">메모 남기기 (선택)</h3>
+    <textarea id="memo-input" placeholder="예: 선지의 핵심 조건을 놓치는 문제가 있음"></textarea>
+    <div class="row">
+      <button class="skip" id="memo-skip">건너뛰기</button>
+      <button class="save" id="memo-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- edit time modal -->
+<div class="modal-bg" id="edit-time-modal-bg">
+  <div class="modal">
+    <h3 id="edit-time-title">시각 수정</h3>
+    <input type="time" id="edit-time-input" style="width:100%;padding:11px;border:1px solid var(--rule);border-radius:10px;font-size:16px;font-family:inherit;">
+    <div class="row">
+      <button class="skip" id="edit-time-cancel">취소</button>
+      <button class="save" id="edit-time-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- manage activities modal -->
+<div class="modal-bg" id="manage-modal-bg">
+  <div class="modal">
+    <h3>활동 관리</h3>
+    <div class="manage-list" id="manage-list"></div>
+    <div class="row">
+      <button class="save" id="manage-close">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- add chip modal -->
+<div class="modal-bg" id="add-modal-bg">
+  <div class="modal">
+    <h3>새 활동 추가</h3>
+    <div class="addchip-row">
+      <input id="add-chip-name" placeholder="예: 러닝, 스터디카페, 장보기">
+    </div>
+    <div class="row">
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--ink-soft);flex:1;">
+        카테고리 (그래프 색상)
+        <select id="add-chip-category" style="padding:9px;border:1px solid var(--rule);border-radius:8px;font-size:14px;font-family:inherit;">
+          <option value="study">공부</option>
+          <option value="work">업무</option>
+          <option value="exercise">운동</option>
+          <option value="other">기타</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-soft);flex:1;">
+        <input type="checkbox" id="add-chip-session" checked> 시작/완료로 시간 재기
+      </label>
+    </div>
+    <div class="row">
+      <button class="skip" id="add-chip-cancel">취소</button>
+      <button class="save" id="add-chip-save">추가</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const STORAGE_KEY = "yw_timetable_log_v1";
+  const CATEGORY_LABELS = { study:"공부", work:"업무", exercise:"운동", other:"기타" };
+  const CATEGORY_ORDER = ["study","work","exercise","other"];
+  const NAME_CATEGORY_GUESS = {
+    "국어":"study", "수학":"study", "영어":"study",
+    "업무":"work", "배달":"work",
+    "수영":"exercise", "러닝":"exercise",
+    "기상":"other", "귀가":"other", "복기":"other", "취침":"other"
+  };
+  const DEFAULT_ACTIVITIES = [
+    {id:"wake", name:"기상", session:false, category:"other"},
+    {id:"korean", name:"국어", session:true, category:"study"},
+    {id:"math", name:"수학", session:true, category:"study"},
+    {id:"english", name:"영어", session:true, category:"study"},
+    {id:"delivery", name:"업무", session:true, category:"work"},
+    {id:"swim", name:"수영", session:true, category:"exercise"},
+    {id:"run", name:"러닝", session:true, category:"exercise"},
+    {id:"home", name:"귀가", session:false, category:"other"},
+    {id:"sleep", name:"취침", session:false, category:"other"},
+    {id:"review", name:"복기", session:false, category:"other"},
+  ];
+
+  function categoryColor(cat){
+    return { study:"var(--cat-study)", work:"var(--cat-work)", exercise:"var(--cat-exercise)", other:"var(--cat-other)" }[cat] || "var(--cat-other)";
+  }
+  function getActivityCategory(activityId){
+    const act = state.activities.find(a=>a.id===activityId);
+    return (act && act.category) || "other";
+  }
+  function migrateActivityCategories(){
+    let changed = false;
+    state.activities.forEach(act=>{
+      if(!act.category){
+        act.category = NAME_CATEGORY_GUESS[act.name] || "other";
+        changed = true;
+      }
+    });
+    if(changed) saveAll();
+  }
+
+  function migrateAddMissingDefaults(){
+    // Adds built-in activities (like 취침, introduced after some users
+    // had already saved a chip list) if the user doesn't already have
+    // one with that id or name.
+    let changed = false;
+    DEFAULT_ACTIVITIES.forEach(def=>{
+      const exists = state.activities.some(a=>a.id===def.id || a.name===def.name);
+      if(!exists){
+        state.activities.push(Object.assign({}, def));
+        changed = true;
+      }
+    });
+    if(changed) saveAll();
+  }
+
+  function todayStr(d){
+    const dt = d || new Date();
+    const y = dt.getFullYear(), m=String(dt.getMonth()+1).padStart(2,"0"), day=String(dt.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  }
+  function nowHHMM(){
+    const d = new Date();
+    return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  }
+  function loadAll(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return { activities: DEFAULT_ACTIVITIES.slice(), days: {} };
+      const parsed = JSON.parse(raw);
+      if(!parsed.activities) parsed.activities = DEFAULT_ACTIVITIES.slice();
+      if(!parsed.days) parsed.days = {};
+      return parsed;
+    }catch(e){
+      return { activities: DEFAULT_ACTIVITIES.slice(), days: {} };
+    }
+  }
+
+  /* ===========================================================
+     Firebase 연동 — 연우한의 대시보드(neipclover88-3db3f)와 같은 프로젝트,
+     단 별도 경로(bdh3_timetable)를 써서 기존 데이터(bdh3, bdh3_exercise)와
+     안 섞이게 함. localStorage는 오프라인 캐시 겸 첫 화면용으로 계속 사용.
+  =========================================================== */
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyC9QBrj_8YSvT1Nk7CsTPu_vKk-zetdmnU",
+    authDomain:        "neipclover88-3db3f.firebaseapp.com",
+    databaseURL:       "https://neipclover88-3db3f-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "neipclover88-3db3f",
+    storageBucket:     "neipclover88-3db3f.firebasestorage.app",
+    messagingSenderId: "419747329488",
+    appId:             "1:419747329488:web:a506aad1485222c548f5d5",
+    measurementId:     "G-CGM0M6HLHS",
+  };
+  const FB_PATH = "bdh3_timetable";
+
+  let fbApp = null;
+  try{
+    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+  }catch(e){
+    console.error("Firebase 초기화 실패", e);
+  }
+
+  function fbSave(data){
+    if(!fbApp) return;
+    firebase.database().ref(FB_PATH).set(data).catch(e=>{
+      console.error("Firebase 저장 실패", e);
+    });
+  }
+  function fbLoad(){
+    return new Promise(resolve=>{
+      if(!fbApp){ resolve(null); return; }
+      firebase.database().ref(FB_PATH).once("value")
+        .then(snap=> resolve(snap.val()))
+        .catch(e=>{
+          console.error("Firebase 불러오기 실패", e);
+          resolve(null);
+        });
+    });
+  }
+
+  function saveAll(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    fbSave(state);
+  }
+
+  let state = loadAll();
+  migrateActivityCategories();
+  migrateAddMissingDefaults();
+  let currentDate = todayStr();
+  let pendingMemoEntryId = null;
+  let calendarViewYear, calendarViewMonth; // 0-based month, for the calendar modal
+
+  function ensureDay(dateStr){
+    if(!state.days[dateStr]) state.days[dateStr] = { entries: [] };
+    const day = state.days[dateStr];
+    if(!day.entries) day.entries = [];
+    if(!day.income) day.income = {};
+    day.income.coupang = day.income.coupang || 0;
+    day.income.coupangBonus = day.income.coupangBonus || 0;
+    day.income.baemin = day.income.baemin || 0;
+    day.income.baeminBonus = day.income.baeminBonus || 0;
+    return day;
+  }
+
+  function getRunningEntry(activityId){
+    const day = ensureDay(currentDate);
+    for(let i=day.entries.length-1; i>=0; i--){
+      const e = day.entries[i];
+      if(e.activityId===activityId && e.kind==="start" && !e.endedBy) return e;
+    }
+    return null;
+  }
+
+  function makeId(){ return "e" + Date.now() + Math.random().toString(36).slice(2,7); }
+
+  function logPoint(activity){
+    const day = ensureDay(currentDate);
+    day.entries.push({
+      id: makeId(),
+      activityId: activity.id,
+      name: activity.name,
+      time: nowHHMM(),
+      kind: "point",
+      memo: ""
+    });
+    saveAll();
+    render();
+  }
+
+  function logStart(activity){
+    const day = ensureDay(currentDate);
+    const entry = {
+      id: makeId(),
+      activityId: activity.id,
+      name: activity.name,
+      time: nowHHMM(),
+      kind: "start",
+      endedBy: null,
+      memo: ""
+    };
+    day.entries.push(entry);
+    saveAll();
+    render();
+  }
+
+  function logEnd(activity, startEntry){
+    const day = ensureDay(currentDate);
+    const endEntry = {
+      id: makeId(),
+      activityId: activity.id,
+      name: activity.name,
+      time: nowHHMM(),
+      kind: "end",
+      startId: startEntry.id,
+      memo: ""
+    };
+    startEntry.endedBy = endEntry.id;
+    day.entries.push(endEntry);
+    saveAll();
+    render();
+    // open memo modal for the completed session
+    openMemoModal(endEntry.id, `${activity.name} 완료 — 메모 남기기`);
+  }
+
+  function onChipTap(activity){
+    if(!activity.session){
+      logPoint(activity);
+      return;
+    }
+    const running = getRunningEntry(activity.id);
+    if(running){
+      logEnd(activity, running);
+    }else{
+      logStart(activity);
+    }
+  }
+
+  function openMemoModal(entryId, title){
+    const day = ensureDay(currentDate);
+    const en = day.entries.find(x=>x.id===entryId);
+    pendingMemoEntryId = entryId;
+    document.getElementById("memo-modal-title").textContent = title || "메모 남기기 (선택)";
+    const ta = document.getElementById("memo-input");
+    ta.value = (en && en.memo) || "";
+    document.getElementById("memo-modal-bg").classList.add("show");
+    setTimeout(()=>{
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }, 50);
+  }
+  function closeMemoModal(){
+    document.getElementById("memo-modal-bg").classList.remove("show");
+    pendingMemoEntryId = null;
+  }
+  function saveMemo(){
+    const text = document.getElementById("memo-input").value.trim();
+    if(pendingMemoEntryId){
+      const day = ensureDay(currentDate);
+      const e = day.entries.find(x=>x.id===pendingMemoEntryId);
+      if(e) e.memo = text; // saving an empty field clears the memo
+      saveAll();
+      render();
+    }
+    closeMemoModal();
+  }
+
+  let pendingEditTimeEntryId = null;
+  function openEditTimeModal(entryId){
+    const day = ensureDay(currentDate);
+    const e = day.entries.find(x=>x.id===entryId);
+    if(!e) return;
+    pendingEditTimeEntryId = entryId;
+    let title = e.name;
+    if(e.kind==="start") title += " 시작 시각 수정";
+    else if(e.kind==="end") title += " 완료 시각 수정";
+    else title += " 시각 수정";
+    document.getElementById("edit-time-title").textContent = title;
+    document.getElementById("edit-time-input").value = e.time;
+    document.getElementById("edit-time-modal-bg").classList.add("show");
+  }
+  function closeEditTimeModal(){
+    document.getElementById("edit-time-modal-bg").classList.remove("show");
+    pendingEditTimeEntryId = null;
+  }
+  function saveEditTime(){
+    const val = document.getElementById("edit-time-input").value;
+    if(pendingEditTimeEntryId && val){
+      const day = ensureDay(currentDate);
+      const e = day.entries.find(x=>x.id===pendingEditTimeEntryId);
+      if(e) e.time = val;
+      saveAll();
+      render();
+    }
+    closeEditTimeModal();
+  }
+
+  function minutesBetween(t1, t2){
+    const [h1,m1] = t1.split(":").map(Number);
+    const [h2,m2] = t2.split(":").map(Number);
+    let diff = (h2*60+m2) - (h1*60+m1);
+    if(diff < 0) diff += 24*60;
+    return diff;
+  }
+
+  function timeToMinutes(hhmm){
+    const [h,m] = hhmm.split(":").map(Number);
+    return h*60+m;
+  }
+
+  const DAYBAR_START = 6*60;   // 06:00
+  const DAYBAR_END = 24*60;    // 24:00
+  const DAYBAR_RANGE = DAYBAR_END - DAYBAR_START;
+
+  function computeWastedTime(day){
+    // Match by the entry's own stored name (not activityId) so this still
+    // works for custom-added "기상"/"취침" chips, or older saved data
+    // predating the built-in 취침 chip.
+    const wakeEntries = day.entries.filter(e=>e.kind==="point" && e.name==="기상");
+    const sleepEntries = day.entries.filter(e=>e.kind==="point" && e.name==="취침");
+    if(wakeEntries.length===0 || sleepEntries.length===0) return null;
+    const wakeTime = wakeEntries.slice().sort((a,b)=> a.time < b.time ? -1 : 1)[0].time;
+    const sleepTime = sleepEntries.slice().sort((a,b)=> a.time < b.time ? -1 : 1).slice(-1)[0].time;
+    let wakeMin = timeToMinutes(wakeTime);
+    let sleepMin = timeToMinutes(sleepTime);
+    if(sleepMin <= wakeMin) sleepMin += 24*60;
+    const totalRange = sleepMin - wakeMin;
+    if(totalRange <= 0) return null;
+
+    let accounted = 0;
+    day.entries.forEach(e=>{
+      if(e.kind==="end" && e.startId){
+        const startEl = day.entries.find(x=>x.id===e.startId);
+        if(startEl) accounted += minutesBetween(startEl.time, e.time);
+      }
+    });
+    const wasted = Math.max(totalRange - accounted, 0);
+    return { totalRange, accounted, wasted };
+  }
+
+  function renderDayTimeline(){
+    const day = ensureDay(currentDate);
+    const track = document.getElementById("daybar-track");
+    track.innerHTML = "";
+
+    for(let i=1;i<6;i++){
+      const guide = document.createElement("div");
+      guide.className = "daybar-guide";
+      guide.style.left = (i/6*100)+"%";
+      track.appendChild(guide);
+    }
+
+    const usedCats = new Set();
+
+    day.entries.forEach(e=>{
+      if(e.kind!=="end" || !e.startId) return;
+      const startEl = day.entries.find(x=>x.id===e.startId);
+      if(!startEl) return;
+      let startMin = timeToMinutes(startEl.time);
+      let endMin = timeToMinutes(e.time);
+      if(endMin < startMin) endMin += 24*60; // crossed midnight (strictly less-than avoids false wrap on same-minute start/end)
+      const s = Math.max(startMin, DAYBAR_START);
+      const en = Math.min(endMin, DAYBAR_END);
+      if(en <= s) return;
+      const cat = getActivityCategory(e.activityId);
+      usedCats.add(cat);
+      const seg = document.createElement("div");
+      seg.className = "daybar-seg";
+      seg.style.left = (((s-DAYBAR_START)/DAYBAR_RANGE)*100)+"%";
+      seg.style.width = Math.max(((en-s)/DAYBAR_RANGE)*100, 0.6)+"%";
+      seg.style.background = categoryColor(cat);
+      seg.title = `${e.name} (${startEl.time}~${e.time})`;
+      track.appendChild(seg);
+    });
+
+    day.entries.forEach(e=>{
+      if(e.kind!=="point") return;
+      const min = timeToMinutes(e.time);
+      if(min < DAYBAR_START || min > DAYBAR_END) return;
+      const cat = getActivityCategory(e.activityId);
+      usedCats.add(cat);
+      const pt = document.createElement("div");
+      pt.className = "daybar-point";
+      pt.style.left = (((min-DAYBAR_START)/DAYBAR_RANGE)*100)+"%";
+      pt.style.background = categoryColor(cat);
+      pt.title = `${e.name} ${e.time}`;
+      track.appendChild(pt);
+    });
+
+    const legend = document.getElementById("daybar-legend");
+    const activeCats = CATEGORY_ORDER.filter(c=>usedCats.has(c));
+    const shownCats = activeCats.length>0 ? activeCats : CATEGORY_ORDER;
+    legend.innerHTML = shownCats.map(c=>
+      `<span class="item"><span class="sw" style="background:${categoryColor(c)}"></span>${CATEGORY_LABELS[c]}</span>`
+    ).join("");
+  }
+
+  function deleteEntry(entryId){
+    const day = ensureDay(currentDate);
+    const idx = day.entries.findIndex(e=>e.id===entryId);
+    if(idx===-1) return;
+    const e = day.entries[idx];
+    // if it's a start with a matching end, remove the end's backref too
+    if(e.kind==="start" && e.endedBy){
+      const endIdx = day.entries.findIndex(x=>x.id===e.endedBy);
+      if(endIdx>-1) day.entries.splice(endIdx,1);
+    }
+    if(e.kind==="end" && e.startId){
+      const startEl = day.entries.find(x=>x.id===e.startId);
+      if(startEl) startEl.endedBy = null;
+    }
+    day.entries.splice(day.entries.findIndex(x=>x.id===entryId),1);
+    saveAll();
+    render();
+  }
+
+  const WEEKDAYS = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
+
+  function renderTicketHeader(){
+    const [y,m,d] = currentDate.split("-").map(Number);
+    const dt = new Date(y, m-1, d);
+    document.getElementById("ticket-title").textContent = `${y}년 ${m}월 ${d}일`;
+    document.getElementById("ticket-sub").textContent = WEEKDAYS[dt.getDay()];
+    document.getElementById("date-toggle-label").textContent = `${y}년 ${m}월 ${d}일 · ${WEEKDAYS[dt.getDay()]}`;
+  }
+
+  function renderChips(){
+    const grid = document.getElementById("chipgrid");
+    grid.innerHTML = "";
+    state.activities.forEach(act=>{
+      const chip = document.createElement("div");
+      const running = act.session && getRunningEntry(act.id);
+      chip.className = "chip" + (running ? " running" : "");
+      chip.innerHTML = running
+        ? `<span class="dot"></span>${act.name} 진행중`
+        : `${act.name}`;
+      chip.onclick = ()=>onChipTap(act);
+      grid.appendChild(chip);
+    });
+    const addChip = document.createElement("div");
+    addChip.className = "chip addnew";
+    addChip.textContent = "+ 추가";
+    addChip.onclick = openAddModal;
+    grid.appendChild(addChip);
+  }
+
+  function renderEntries(){
+    const day = ensureDay(currentDate);
+    const container = document.getElementById("entries");
+    container.innerHTML = "";
+    if(day.entries.length===0){
+      container.innerHTML = `<div class="empty-hint">아직 기록이 없어요. 위 버튼을 눌러 시작하세요.</div>`;
+      return;
+    }
+    // sort chronologically by time, stable by insertion for same time
+    const sorted = day.entries.slice().sort((a,b)=>{
+      if(a.time===b.time) return 0;
+      return a.time < b.time ? -1 : 1;
+    });
+
+    sorted.forEach(e=>{
+      const row = document.createElement("div");
+      row.className = "entry-row";
+      let label = e.name;
+      if(e.kind==="start") label += " 시작";
+      if(e.kind==="end"){
+        label += " 완료";
+        const startEl = day.entries.find(x=>x.id===e.startId);
+        if(startEl){
+          const dur = minutesBetween(startEl.time, e.time);
+          label = `${e.name} 완료 <span class="dur">(${dur}분)</span>`;
+        }
+      }
+      row.innerHTML = `<div class="t" data-id="${e.id}">${e.time}</div><div class="a">${label}</div><div class="del" data-id="${e.id}">✕</div>`;
+      row.querySelector(".t").onclick = ()=>openEditTimeModal(e.id);
+      row.querySelector(".a").onclick = ()=>openMemoModal(e.id, memoModalTitle(e));
+      row.querySelector(".del").onclick = ()=>deleteEntry(e.id);
+      container.appendChild(row);
+
+      if(e.memo){
+        const memoRow = document.createElement("div");
+        memoRow.className = "memo-row";
+        memoRow.innerHTML = `<div>→ ${escapeHtml(e.memo)}</div>`;
+        memoRow.onclick = ()=>openMemoModal(e.id, memoModalTitle(e));
+        container.appendChild(memoRow);
+      }
+    });
+  }
+
+  function memoModalTitle(e){
+    let suffix = "";
+    if(e.kind==="start") suffix = " 시작";
+    else if(e.kind==="end") suffix = " 완료";
+    return `${e.name}${suffix} 메모`;
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  function renderSummary(){
+    const day = ensureDay(currentDate);
+    const summaryEl = document.getElementById("summary");
+    const totals = {}; // activityId -> minutes
+    day.entries.forEach(e=>{
+      if(e.kind==="end" && e.startId){
+        const startEl = day.entries.find(x=>x.id===e.startId);
+        if(startEl){
+          const dur = minutesBetween(startEl.time, e.time);
+          totals[e.name] = (totals[e.name]||0) + dur;
+        }
+      }
+    });
+    const names = Object.keys(totals);
+    let html = "";
+    let grand = 0;
+    names.forEach(n=>{
+      html += `<div class="line"><span>${n}</span><b>${totals[n]}분</b></div>`;
+      grand += totals[n];
+    });
+    html += renderMoodPickerHtml(day.mood);
+    if(names.length>0){
+      html += `<div class="total"><span>총 순공/활동 시간</span><span>${Math.floor(grand/60)}시간 ${grand%60}분</span></div>`;
+    }
+    const wastedInfo = computeWastedTime(day);
+    if(wastedInfo){
+      const wh = Math.floor(wastedInfo.wasted/60), wm = wastedInfo.wasted%60;
+      const wastedLabel = wm>0 ? `${wh}시간 ${wm}분` : `${wh}시간`;
+      html += `<div class="waste-line">오늘 낭비한 시간은 '${wastedLabel}' 입니다.</div>`;
+    }else{
+      html += `<div class="waste-hint">기상·취침을 기록하면 낭비 시간을 계산해드려요.</div>`;
+    }
+    summaryEl.innerHTML = html;
+    summaryEl.querySelectorAll(".mood-btn").forEach(btn=>{
+      btn.onclick = ()=> setMood(btn.dataset.mood);
+    });
+    if(names.length>0){
+      document.getElementById("stamp").classList.add("show");
+    }else{
+      document.getElementById("stamp").classList.remove("show");
+    }
+  }
+
+  const MOOD_OPTIONS = [
+    {key:"best", label:"최고", emoji:"🤩"},
+    {key:"diligent", label:"성실", emoji:"💪"},
+    {key:"soso", label:"그럭저럭", emoji:"😐"},
+    {key:"sigh", label:"한숨", emoji:"😔"},
+    {key:"worst", label:"최악", emoji:"😩"},
+  ];
+  function findMood(key){ return MOOD_OPTIONS.find(m=>m.key===key); }
+  function renderMoodPickerHtml(selected){
+    const buttons = MOOD_OPTIONS.map(m=>
+      `<button type="button" class="mood-btn${selected===m.key?" selected":""}" data-mood="${m.key}">`+
+      `<span class="mood-emoji">${m.emoji}</span><span class="mood-label">${m.label}</span></button>`
+    ).join("");
+    return `<div class="mood-block">
+      <div class="mood-question">오늘 하루 어땠나요?</div>
+      <div class="mood-options">${buttons}</div>
+    </div>`;
+  }
+  function setMood(key){
+    const day = ensureDay(currentDate);
+    day.mood = (day.mood === key) ? null : key;
+    saveAll();
+    renderSummary();
+  }
+
+  // ---- calendar modal ----
+  function openCalendarModal(){
+    const [y,m] = currentDate.split("-").map(Number);
+    calendarViewYear = y; calendarViewMonth = m-1;
+    renderCalendarGrid();
+    renderCalendarDayPanel(currentDate);
+    document.getElementById("calendar-modal-bg").classList.add("show");
+  }
+  function closeCalendarModal(){
+    document.getElementById("calendar-modal-bg").classList.remove("show");
+  }
+  function changeCalMonth(delta){
+    calendarViewMonth += delta;
+    if(calendarViewMonth < 0){ calendarViewMonth = 11; calendarViewYear--; }
+    if(calendarViewMonth > 11){ calendarViewMonth = 0; calendarViewYear++; }
+    renderCalendarGrid();
+  }
+  function dateStrOf(y,m,d){
+    return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  }
+  function dayIncomeTotal(day){
+    const inc = day.income || {};
+    return (inc.coupang||0) + (inc.coupangBonus||0) + (inc.baemin||0) + (inc.baeminBonus||0);
+  }
+  function formatWonCompact(amount){
+    if(amount >= 10000){
+      const man = amount/10000;
+      return (Number.isInteger(man) ? man : man.toFixed(1)) + "만";
+    }
+    return amount.toLocaleString("ko-KR");
+  }
+  function dayHasData(dateStr){
+    const day = state.days[dateStr];
+    if(!day) return false;
+    return (day.entries && day.entries.length>0) || dayIncomeTotal(day)>0;
+  }
+  function monthlyIncomeTotal(year, month){
+    const prefix = `${year}-${String(month+1).padStart(2,"0")}-`;
+    let total = 0;
+    Object.keys(state.days).forEach(dateStr=>{
+      if(dateStr.startsWith(prefix)) total += dayIncomeTotal(state.days[dateStr]);
+    });
+    return total;
+  }
+  function renderCalendarGrid(){
+    document.getElementById("cal-month-label").textContent = `${calendarViewYear}년 ${calendarViewMonth+1}월`;
+    document.getElementById("cal-month-income").textContent = `이번 달 수입 ${monthlyIncomeTotal(calendarViewYear, calendarViewMonth).toLocaleString("ko-KR")}원`;
+    const grid = document.getElementById("cal-grid");
+    grid.innerHTML = "";
+    const firstDow = new Date(calendarViewYear, calendarViewMonth, 1).getDay();
+    const daysInMonth = new Date(calendarViewYear, calendarViewMonth+1, 0).getDate();
+    const todayS = todayStr();
+
+    for(let i=0;i<firstDow;i++){
+      const blank = document.createElement("div");
+      blank.className = "cal-cell empty";
+      grid.appendChild(blank);
+    }
+    for(let d=1; d<=daysInMonth; d++){
+      const dStr = dateStrOf(calendarViewYear, calendarViewMonth, d);
+      const cell = document.createElement("div");
+      cell.className = "cal-cell";
+      if(dStr === todayS) cell.classList.add("today");
+      if(dStr === currentDate) cell.classList.add("selected");
+      const existing = state.days[dStr];
+      const total = existing ? dayIncomeTotal(existing) : 0;
+      let inner = `<div class="cal-daynum">${d}</div>`;
+      if(total > 0){
+        inner += `<div class="cal-income-mark">${formatWonCompact(total)}원</div>`;
+      }
+      if(existing && existing.mood){
+        const m = findMood(existing.mood);
+        if(m) inner += `<div class="cal-eval-mark">${m.emoji}</div>`;
+      }
+      cell.innerHTML = inner;
+      cell.onclick = ()=>selectCalendarDay(dStr);
+      grid.appendChild(cell);
+    }
+  }
+  function renderCalendarDayPanel(dateStr){
+    const day = ensureDay(dateStr);
+    const [y,m,d] = dateStr.split("-").map(Number);
+    const dt = new Date(y, m-1, d);
+    document.getElementById("cal-daypanel-title").textContent = `${y}년 ${m}월 ${d}일 · ${WEEKDAYS[dt.getDay()]}`;
+    document.getElementById("cal-income-total").textContent = `수입 ${dayIncomeTotal(day).toLocaleString("ko-KR")}원`;
+    const moodInfo = day.mood ? findMood(day.mood) : null;
+    document.getElementById("cal-eval").textContent = moodInfo ? `평가: ${moodInfo.emoji} ${moodInfo.label}` : "평가: 아직 선택 안 함";
+    document.getElementById("cal-input-coupang").value = day.income.coupang || "";
+    document.getElementById("cal-input-coupang-bonus").value = day.income.coupangBonus || "";
+    document.getElementById("cal-input-baemin").value = day.income.baemin || "";
+    document.getElementById("cal-input-baemin-bonus").value = day.income.baeminBonus || "";
+  }
+  function selectCalendarDay(dateStr){
+    currentDate = dateStr;
+    renderCalendarGrid();
+    renderCalendarDayPanel(dateStr);
+    render();
+  }
+  function onIncomeInputChange(){
+    const day = ensureDay(currentDate);
+    day.income.coupang = Number(document.getElementById("cal-input-coupang").value) || 0;
+    day.income.coupangBonus = Number(document.getElementById("cal-input-coupang-bonus").value) || 0;
+    day.income.baemin = Number(document.getElementById("cal-input-baemin").value) || 0;
+    day.income.baeminBonus = Number(document.getElementById("cal-input-baemin-bonus").value) || 0;
+    saveAll();
+    renderCalendarDayPanel(currentDate);
+    renderCalendarGrid();
+    renderSummary();
+  }
+
+  function render(){
+    renderTicketHeader();
+    renderChips();
+    renderEntries();
+    renderSummary();
+    renderDayTimeline();
+  }
+
+  // ---- add custom chip ----
+  function openAddModal(){
+    document.getElementById("add-chip-name").value = "";
+    document.getElementById("add-chip-session").checked = true;
+    document.getElementById("add-chip-category").value = "study";
+    document.getElementById("add-modal-bg").classList.add("show");
+  }
+  function closeAddModal(){
+    document.getElementById("add-modal-bg").classList.remove("show");
+  }
+  function saveAddChip(){
+    const name = document.getElementById("add-chip-name").value.trim();
+    if(!name){ closeAddModal(); return; }
+    const isSession = document.getElementById("add-chip-session").checked;
+    const category = document.getElementById("add-chip-category").value;
+    state.activities.push({ id: "custom_"+Date.now(), name, session: isSession, category });
+    saveAll();
+    closeAddModal();
+    render();
+  }
+
+  // ---- manage activities (delete / reorder) ----
+  function openManageModal(){
+    renderManageList();
+    document.getElementById("manage-modal-bg").classList.add("show");
+  }
+  function closeManageModal(){
+    document.getElementById("manage-modal-bg").classList.remove("show");
+  }
+  function renderManageList(){
+    const list = document.getElementById("manage-list");
+    list.innerHTML = "";
+    if(state.activities.length===0){
+      list.innerHTML = `<div class="empty-hint">등록된 활동이 없어요.</div>`;
+      return;
+    }
+    const hint = document.createElement("div");
+    hint.className = "manage-hint";
+    hint.textContent = "✕를 두 번 누르면 삭제돼요.";
+    list.appendChild(hint);
+    state.activities.forEach((act, idx)=>{
+      const row = document.createElement("div");
+      row.className = "manage-row";
+      row.innerHTML = `
+        <span class="manage-swatch" style="background:${categoryColor(act.category||'other')}"></span>
+        <span class="manage-name">${escapeHtml(act.name)}</span>
+        <div class="manage-controls">
+          <button class="mv-up" ${idx===0 ? "disabled" : ""}>↑</button>
+          <button class="mv-down" ${idx===state.activities.length-1 ? "disabled" : ""}>↓</button>
+          <button class="mv-del">✕</button>
+        </div>`;
+      row.querySelector(".mv-up").onclick = ()=>moveActivity(idx,-1);
+      row.querySelector(".mv-down").onclick = ()=>moveActivity(idx,1);
+      wireDeleteButton(row.querySelector(".mv-del"), idx);
+      list.appendChild(row);
+    });
+  }
+  function moveActivity(idx, dir){
+    const newIdx = idx + dir;
+    if(newIdx < 0 || newIdx >= state.activities.length) return;
+    const arr = state.activities;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    saveAll();
+    renderManageList();
+    renderChips();
+  }
+  function deleteActivity(idx){
+    state.activities.splice(idx,1);
+    saveAll();
+    renderManageList();
+    renderChips();
+  }
+  function wireDeleteButton(btn, idx){
+    btn.onclick = ()=>{
+      if(btn.dataset.armed === "1"){
+        deleteActivity(idx);
+      }else{
+        btn.dataset.armed = "1";
+        btn.textContent = "확인";
+        btn.style.background = "var(--stamp)";
+        btn.style.color = "#fff";
+        setTimeout(()=>{
+          btn.dataset.armed = "";
+          btn.textContent = "✕";
+          btn.style.background = "";
+          btn.style.color = "";
+        }, 2500);
+      }
+    };
+  }
+
+  // ---- image capture ----
+  function captureTicket(){
+    if(typeof html2canvas === "undefined"){
+      alert("이미지 저장 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 후 다시 시도해주세요.");
+      return;
+    }
+    const btn = document.getElementById("btn-capture");
+    const originalLabel = btn.textContent;
+    btn.textContent = "캡처 중...";
+    const ticket = document.getElementById("ticket");
+
+    html2canvas(ticket, { backgroundColor: "#f4f2ec", scale: 2, useCORS: true })
+      .then(canvas=>{
+        btn.textContent = originalLabel;
+        canvas.toBlob(blob=>{
+          if(!blob){
+            fallbackOpenDataUrl(canvas.toDataURL("image/png"));
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          tryDownload(url, `타임테이블_${currentDate}.png`);
+          // Always also offer the fallback tab, since anchor-download
+          // silently no-ops on some mobile browsers (esp. file:// pages).
+          setTimeout(()=>{ fallbackOpenDataUrl(url); }, 300);
+        }, "image/png");
+      })
+      .catch(err=>{
+        btn.textContent = originalLabel;
+        console.error("capture failed", err);
+        alert("이미지 생성 중 문제가 발생했어요: " + (err && err.message ? err.message : err));
+      });
+  }
+
+  function tryDownload(url, filename){
+    try{
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = url;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }catch(err){
+      console.error("download attempt failed", err);
+    }
+  }
+
+  function fallbackOpenDataUrl(url){
+    // Opens the captured image in a new tab. On mobile this lets the
+    // user long-press → "이미지 저장" even when the download attribute
+    // is ignored by the browser.
+    const win = window.open(url, "_blank");
+    if(!win){
+      alert("팝업이 차단된 것 같아요. 브라우저 팝업 차단을 해제하거나, 다시 눌러주세요.");
+    }
+  }
+
+  function resetDay(){
+    delete state.days[currentDate];
+    saveAll();
+    render();
+  }
+  function wireResetButton(btn){
+    btn.onclick = ()=>{
+      if(btn.dataset.armed === "1"){
+        resetDay();
+        btn.dataset.armed = "";
+        btn.textContent = "이 날짜 초기화";
+      }else{
+        btn.dataset.armed = "1";
+        btn.textContent = `정말 지울까요? (다시 누르면 삭제)`;
+        setTimeout(()=>{
+          btn.dataset.armed = "";
+          btn.textContent = "이 날짜 초기화";
+        }, 3000);
+      }
+    };
+  }
+
+  // ---- wire up static buttons ----
+  document.getElementById("btn-capture").onclick = captureTicket;
+  wireResetButton(document.getElementById("btn-reset-day"));
+  document.getElementById("memo-skip").onclick = closeMemoModal;
+  document.getElementById("memo-save").onclick = saveMemo;
+  document.getElementById("edit-time-cancel").onclick = closeEditTimeModal;
+  document.getElementById("edit-time-save").onclick = saveEditTime;
+  document.getElementById("add-chip-cancel").onclick = closeAddModal;
+  document.getElementById("add-chip-save").onclick = saveAddChip;
+  document.getElementById("btn-manage-chips").onclick = openManageModal;
+  document.getElementById("manage-close").onclick = closeManageModal;
+  document.getElementById("date-toggle-btn").onclick = openCalendarModal;
+  document.getElementById("cal-close").onclick = closeCalendarModal;
+  document.getElementById("cal-prev").onclick = ()=>changeCalMonth(-1);
+  document.getElementById("cal-next").onclick = ()=>changeCalMonth(1);
+  document.getElementById("cal-input-coupang").oninput = onIncomeInputChange;
+  document.getElementById("cal-input-coupang-bonus").oninput = onIncomeInputChange;
+  document.getElementById("cal-input-baemin").oninput = onIncomeInputChange;
+  document.getElementById("cal-input-baemin-bonus").oninput = onIncomeInputChange;
+
+  render();
+
+  // Pull the latest synced data from Firebase after the first (instant,
+  // local-cache) paint. If another device has newer data, it wins here.
+  fbLoad().then(remote=>{
+    if(remote){
+      state = remote;
+      if(!state.activities) state.activities = DEFAULT_ACTIVITIES.slice();
+      if(!state.days) state.days = {};
+      migrateActivityCategories();
+      migrateAddMissingDefaults();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+    }else{
+      // Nothing in Firebase yet — seed it with whatever's stored locally.
+      fbSave(state);
+    }
+  });
+})();
+</script>
+</body>
+</html>
