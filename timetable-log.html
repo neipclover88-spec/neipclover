@@ -79,11 +79,15 @@
     display:flex; align-items:center; justify-content:space-between;
     margin-bottom:10px;
   }
-  .cal-header button{
-    background:#f0eee7; border:none; border-radius:8px;
-    width:34px; height:34px; font-size:16px; color:var(--ink);
+  .calendar-modal .cal-header button{
+    flex: 0 0 32px;
+    background:#f0eee7; border:none; border-radius:50%;
+    width:32px; height:32px; padding:0;
+    font-size:15px; font-weight:700; color:var(--ink);
     cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
   }
+  .calendar-modal .cal-header button:active{ background:#e4e1d6; }
   .cal-header #cal-month-label{ font-size:15px; font-weight:800; }
   .cal-weekdays{
     display:grid; grid-template-columns: repeat(7,1fr);
@@ -96,7 +100,7 @@
   }
   .cal-cell{
     position:relative;
-    min-height:56px;
+    height:62px;
     display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
     gap:2px;
     padding:5px 2px 4px;
@@ -398,8 +402,13 @@
   .manage-hint{ font-size:11px; color:var(--ink-soft); margin-bottom:4px; text-align:center; }
 
   .cal-month-income{
-    text-align:center; font-size:12.5px; font-weight:700; color: var(--accent);
-    margin-bottom:8px;
+    text-align:center; font-size:19px; font-weight:800; color: var(--accent);
+    margin-bottom:10px;
+    padding:10px 12px;
+    background: #eaf1ee;
+    border:1px solid var(--cat-study);
+    border-radius:12px;
+    font-family: "Gothic A1", "Pretendard", -apple-system, sans-serif;
   }
 </style>
 </head>
