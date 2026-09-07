@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>오늘의 타임테이블</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Gothic+A1:wght@500;700;800;900&display=swap">
 <style>
   :root{
     --paper: #f4f2ec;
@@ -23,7 +27,7 @@
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; background:#dedad0; }
   body{
-    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
     color: var(--ink);
     min-height:100vh;
     display:flex;
@@ -212,7 +216,7 @@
   }
 
   .entries{
-    font-family: "SF Mono", "Menlo", "Consolas", monospace;
+    font-family: "JetBrains Mono", "Pretendard", "SF Mono", "Menlo", "Consolas", monospace;
     font-size: 13px;
     line-height: 1.55;
   }
@@ -232,6 +236,8 @@
     color: var(--ink);
     cursor:pointer;
     font-weight:800;
+    font-family: "Gothic A1", "Pretendard", -apple-system, sans-serif;
+    letter-spacing: -0.2px;
   }
   .entry-row .a .dur{
     color: var(--accent); font-weight:700; margin-left:4px;
@@ -256,7 +262,7 @@
     border-top: 1px dashed var(--rule);
     margin-top: 14px;
     padding-top: 12px;
-    font-family: "SF Mono","Menlo","Consolas", monospace;
+    font-family: "JetBrains Mono", "Pretendard", "SF Mono", "Menlo", "Consolas", monospace;
     font-size: 12.5px;
     color: var(--ink);
   }
@@ -273,7 +279,7 @@
     padding: 10px 0;
     border-top: 1px dashed var(--rule);
     border-bottom: 1px dashed var(--rule);
-    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif;
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif;
   }
   .mood-question{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; text-align:center; }
   .mood-options{ display:flex; justify-content:space-between; gap:4px; }
@@ -334,7 +340,7 @@
   .daybar-ticks{
     display:flex; justify-content:space-between;
     font-size:9.5px; color: var(--ink-soft); margin-top:4px;
-    font-family: "SF Mono","Menlo","Consolas", monospace;
+    font-family: "JetBrains Mono", "Pretendard", "SF Mono", "Menlo", "Consolas", monospace;
   }
   .daybar-legend{
     display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;
@@ -410,7 +416,7 @@
   <div id="ticket-wrap">
     <div class="ticket" id="ticket">
       <div class="ticket-head">
-        <div class="brand">배달한의 · 일일 인증표</div>
+        <div class="brand">일일 인증표</div>
         <div class="title" id="ticket-title">2026년 8월 10일</div>
         <div class="sub" id="ticket-sub">월요일</div>
       </div>
@@ -1333,7 +1339,10 @@
     btn.textContent = "캡처 중...";
     const ticket = document.getElementById("ticket");
 
-    html2canvas(ticket, { backgroundColor: "#f4f2ec", scale: 2, useCORS: true })
+    const runCapture = ()=> html2canvas(ticket, { backgroundColor: "#f4f2ec", scale: 2, useCORS: true });
+    const captured = (document.fonts && document.fonts.ready) ? document.fonts.ready.then(runCapture) : runCapture();
+
+    captured
       .then(canvas=>{
         btn.textContent = originalLabel;
         canvas.toBlob(blob=>{
