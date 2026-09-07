@@ -23,6 +23,10 @@
     --cat-work: #b8792f;
     --cat-exercise: #3f6fa8;
     --cat-other: #9a9686;
+    --cat-study-soft: #e3ede9;
+    --cat-work-soft: #f5e8d6;
+    --cat-exercise-soft: #e2eaf3;
+    --cat-other-soft: #ebe8df;
   }
   *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html,body{ margin:0; padding:0; background:#dedad0; }
@@ -225,32 +229,71 @@
     line-height: 1.55;
   }
   .entry-row{
-    display:flex; gap:10px; align-items:flex-start;
-    padding: 3px 0;
+    display:flex; gap:9px; align-items:center;
+    padding: 8px 2px;
+    border-bottom: 1px solid rgba(43,42,38,0.08);
+  }
+  .entry-row:last-child{ border-bottom:none; }
+  .entry-row .cat-dot{
+    flex:0 0 auto;
+    width:9px; height:9px; border-radius:50%;
   }
   .entry-row .t{
-    flex: 0 0 44px;
+    flex: 0 0 42px;
     color: var(--ink-soft);
-    font-weight:600;
+    font-weight:700;
+    font-size:12px;
     cursor:pointer;
     border-bottom: 1px dotted var(--ink-soft);
   }
   .entry-row .a{
     flex:1;
+    min-width:0;
     color: var(--ink);
     cursor:pointer;
     font-weight:800;
+    font-size:14.5px;
     font-family: "Gothic A1", "Pretendard", -apple-system, sans-serif;
     letter-spacing: -0.2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .entry-row .a .dur{
     color: var(--accent); font-weight:700; margin-left:4px;
   }
+  .entry-row .t-range{
+    flex: 0 0 78px;
+    font-size:11.5px;
+    font-weight:700;
+    color: var(--ink-soft);
+    white-space:nowrap;
+  }
+  .entry-row .t-range .t-start,
+  .entry-row .t-range .t-end-time{
+    cursor:pointer;
+    border-bottom: 1px dotted var(--ink-soft);
+  }
+  .entry-row .t-range .t-end-time.open{
+    cursor:default; border-bottom:none; font-style:italic; opacity:0.7;
+  }
+  .entry-row .dur-badge{
+    flex:0 0 auto;
+    padding:4px 10px; border-radius:999px;
+    font-size:12px; font-weight:800;
+    white-space:nowrap;
+  }
+  .entry-row .in-progress{
+    flex:0 0 auto;
+    display:inline-flex; align-items:center; gap:4px;
+    padding:4px 9px; border-radius:999px;
+    background: rgba(178,58,46,0.12);
+    color: var(--stamp); font-weight:800; font-style:italic; font-size:11px;
+    white-space:nowrap;
+  }
   .entry-row .del{
-    flex:0 0 16px; color:#b7b2a0; font-size:12px; cursor:pointer;
+    flex:0 0 14px; color:#c3bfae; font-size:12px; cursor:pointer;
   }
   .memo-row{
-    padding: 0 0 4px 54px;
+    padding: 0 0 6px 21px;
     color: var(--ink-soft);
     font-size:12.5px;
     display:flex; gap:8px; align-items:flex-start;
@@ -453,6 +496,7 @@
   </div>
 
   <div class="toolbar" style="margin-top:10px;">
+    <button class="secondary" id="btn-sync-now">🔄 동기화</button>
     <button class="secondary" id="btn-reset-day">이 날짜 초기화</button>
   </div>
 
@@ -599,6 +643,9 @@
   function categoryColor(cat){
     return { study:"var(--cat-study)", work:"var(--cat-work)", exercise:"var(--cat-exercise)", other:"var(--cat-other)" }[cat] || "var(--cat-other)";
   }
+  function categorySoftColor(cat){
+    return { study:"var(--cat-study-soft)", work:"var(--cat-work-soft)", exercise:"var(--cat-exercise-soft)", other:"var(--cat-other-soft)" }[cat] || "var(--cat-other-soft)";
+  }
   function getActivityCategory(activityId){
     const act = state.activities.find(a=>a.id===activityId);
     return (act && act.category) || "other";
@@ -679,19 +726,27 @@
   }
 
   function fbSave(data){
-    if(!fbApp) return;
-    firebase.database().ref(FB_PATH).set(data).catch(e=>{
-      console.error("Firebase 저장 실패", e);
-    });
+    if(!fbApp) return Promise.resolve(false);
+    return firebase.database().ref(FB_PATH).set(data)
+      .then(()=>true)
+      .catch(e=>{
+        console.error("Firebase 저장 실패", e);
+        return false;
+      });
   }
   function fbLoad(){
+    // Resolves { ok, data }. ok=false means the read itself failed
+    // (offline, network hiccup, etc.) — the caller must NOT treat that
+    // the same as "path is genuinely empty", or a flaky read on one
+    // device could push its stale local cache up and clobber whatever
+    // another device just saved.
     return new Promise(resolve=>{
-      if(!fbApp){ resolve(null); return; }
+      if(!fbApp){ resolve({ok:false, data:null}); return; }
       firebase.database().ref(FB_PATH).once("value")
-        .then(snap=> resolve(snap.val()))
+        .then(snap=> resolve({ok:true, data:snap.val()}))
         .catch(e=>{
           console.error("Firebase 불러오기 실패", e);
-          resolve(null);
+          resolve({ok:false, data:null});
         });
     });
   }
@@ -1017,39 +1072,93 @@
       container.innerHTML = `<div class="empty-hint">아직 기록이 없어요. 위 버튼을 눌러 시작하세요.</div>`;
       return;
     }
-    // sort chronologically by time, stable by insertion for same time
-    const sorted = day.entries.slice().sort((a,b)=>{
-      if(a.time===b.time) return 0;
-      return a.time < b.time ? -1 : 1;
-    });
 
-    sorted.forEach(e=>{
-      const row = document.createElement("div");
-      row.className = "entry-row";
-      let label = e.name;
-      if(e.kind==="start") label += " 시작";
-      if(e.kind==="end"){
-        label += " 완료";
-        const startEl = day.entries.find(x=>x.id===e.startId);
-        if(startEl){
-          const dur = minutesBetween(startEl.time, e.time);
-          label = `${e.name} 완료 <span class="dur">(${dur}분)</span>`;
-        }
-      }
-      row.innerHTML = `<div class="t" data-id="${e.id}">${e.time}</div><div class="a">${label}</div><div class="del" data-id="${e.id}">✕</div>`;
-      row.querySelector(".t").onclick = ()=>openEditTimeModal(e.id);
-      row.querySelector(".a").onclick = ()=>openMemoModal(e.id, memoModalTitle(e));
-      row.querySelector(".del").onclick = ()=>deleteEntry(e.id);
-      container.appendChild(row);
-
-      if(e.memo){
-        const memoRow = document.createElement("div");
-        memoRow.className = "memo-row";
-        memoRow.innerHTML = `<div>→ ${escapeHtml(e.memo)}</div>`;
-        memoRow.onclick = ()=>openMemoModal(e.id, memoModalTitle(e));
-        container.appendChild(memoRow);
+    // Group each session's start+end into one row (anchored by its start
+    // time) so a session takes one line instead of two. Point events
+    // (기상, 귀가 등) stay as their own single-line row.
+    const rows = [];
+    const consumed = new Set();
+    day.entries.forEach(e=>{
+      if(e.kind==="start"){
+        const endEntry = e.endedBy ? day.entries.find(x=>x.id===e.endedBy) : null;
+        rows.push({ type:"session", anchorTime:e.time, start:e, end:endEntry });
+        consumed.add(e.id);
+        if(endEntry) consumed.add(endEntry.id);
       }
     });
+    day.entries.forEach(e=>{
+      if(e.kind==="point"){
+        rows.push({ type:"point", anchorTime:e.time, entry:e });
+        consumed.add(e.id);
+      }
+    });
+    // Safety net: an "end" with no matching "start" shouldn't normally
+    // happen, but show it rather than silently dropping it.
+    day.entries.forEach(e=>{
+      if(e.kind==="end" && !consumed.has(e.id)){
+        rows.push({ type:"point", anchorTime:e.time, entry:e });
+      }
+    });
+
+    rows.sort((a,b)=> a.anchorTime < b.anchorTime ? -1 : (a.anchorTime > b.anchorTime ? 1 : 0));
+
+    rows.forEach(r=>{
+      if(r.type==="point") renderPointRow(container, r.entry);
+      else renderSessionRow(container, r.start, r.end);
+    });
+  }
+
+  function renderMemoRowFor(container, holderEntry){
+    if(!holderEntry || !holderEntry.memo) return;
+    const memoRow = document.createElement("div");
+    memoRow.className = "memo-row";
+    memoRow.innerHTML = `<div>→ ${escapeHtml(holderEntry.memo)}</div>`;
+    memoRow.onclick = ()=>openMemoModal(holderEntry.id, memoModalTitle(holderEntry));
+    container.appendChild(memoRow);
+  }
+
+  function renderPointRow(container, e){
+    const row = document.createElement("div");
+    row.className = "entry-row";
+    const catColor = categoryColor(getActivityCategory(e.activityId));
+    row.innerHTML = `<span class="cat-dot" style="background:${catColor}"></span><div class="t" data-id="${e.id}">${e.time}</div><div class="a">${escapeHtml(e.name)}</div><div class="del" data-id="${e.id}">✕</div>`;
+    row.querySelector(".t").onclick = ()=>openEditTimeModal(e.id);
+    row.querySelector(".a").onclick = ()=>openMemoModal(e.id, memoModalTitle(e));
+    row.querySelector(".del").onclick = ()=>deleteEntry(e.id);
+    container.appendChild(row);
+    renderMemoRowFor(container, e);
+  }
+
+  function renderSessionRow(container, start, end){
+    const row = document.createElement("div");
+    row.className = "entry-row session-row";
+    const cat = getActivityCategory(start.activityId);
+    const catColor = categoryColor(cat);
+    const catSoft = categorySoftColor(cat);
+    let rangeHtml, durHtml;
+    if(end){
+      const dur = minutesBetween(start.time, end.time);
+      rangeHtml = `<span class="t-start" data-id="${start.id}">${start.time}</span>–<span class="t-end-time" data-id="${end.id}">${end.time}</span>`;
+      durHtml = `<span class="dur-badge" style="background:${catSoft};color:${catColor};">${dur}분</span>`;
+    }else{
+      rangeHtml = `<span class="t-start" data-id="${start.id}">${start.time}</span>–<span class="t-end-time open">지금</span>`;
+      durHtml = `<span class="in-progress">진행중</span>`;
+    }
+    row.innerHTML = `
+      <span class="cat-dot" style="background:${catColor}"></span>
+      <div class="t-range">${rangeHtml}</div>
+      <div class="a">${escapeHtml(start.name)}</div>
+      ${durHtml}
+      <div class="del">✕</div>`;
+    row.querySelector(".t-start").onclick = ()=>openEditTimeModal(start.id);
+    if(end){
+      row.querySelector(".t-end-time").onclick = ()=>openEditTimeModal(end.id);
+    }
+    const memoHolder = end || start;
+    row.querySelector(".a").onclick = ()=>openMemoModal(memoHolder.id, memoModalTitle(memoHolder));
+    row.querySelector(".del").onclick = ()=>deleteEntry(start.id); // cascades to remove the matched end too
+    container.appendChild(row);
+    renderMemoRowFor(container, end && end.memo ? end : (start.memo ? start : null));
   }
 
   function memoModalTitle(e){
@@ -1066,25 +1175,26 @@
   function renderSummary(){
     const day = ensureDay(currentDate);
     const summaryEl = document.getElementById("summary");
-    const totals = {}; // activityId -> minutes
+    const catTotals = {}; // category -> minutes
     day.entries.forEach(e=>{
       if(e.kind==="end" && e.startId){
         const startEl = day.entries.find(x=>x.id===e.startId);
         if(startEl){
           const dur = minutesBetween(startEl.time, e.time);
-          totals[e.name] = (totals[e.name]||0) + dur;
+          const cat = getActivityCategory(e.activityId);
+          catTotals[cat] = (catTotals[cat]||0) + dur;
         }
       }
     });
-    const names = Object.keys(totals);
+    const catKeys = CATEGORY_ORDER.filter(c=>catTotals[c]);
     let html = "";
     let grand = 0;
-    names.forEach(n=>{
-      html += `<div class="line"><span>${n}</span><b>${totals[n]}분</b></div>`;
-      grand += totals[n];
+    catKeys.forEach(cat=>{
+      html += `<div class="line"><span>${CATEGORY_LABELS[cat]}</span><b>${catTotals[cat]}분</b></div>`;
+      grand += catTotals[cat];
     });
     html += renderMoodPickerHtml(day.mood);
-    if(names.length>0){
+    if(catKeys.length>0){
       html += `<div class="total"><span>총 순공/활동 시간</span><span>${Math.floor(grand/60)}시간 ${grand%60}분</span></div>`;
     }
     const wastedInfo = computeWastedTime(day);
@@ -1099,7 +1209,7 @@
     summaryEl.querySelectorAll(".mood-btn").forEach(btn=>{
       btn.onclick = ()=> setMood(btn.dataset.mood);
     });
-    if(names.length>0){
+    if(catKeys.length>0){
       document.getElementById("stamp").classList.add("show");
     }else{
       document.getElementById("stamp").classList.remove("show");
@@ -1425,6 +1535,17 @@
   // ---- wire up static buttons ----
   document.getElementById("btn-capture").onclick = captureTicket;
   wireResetButton(document.getElementById("btn-reset-day"));
+  document.getElementById("btn-sync-now").onclick = ()=>{
+    const btn = document.getElementById("btn-sync-now");
+    const original = btn.textContent;
+    btn.textContent = "동기화 중...";
+    syncFromFirebase().then(result=>{
+      if(result==="updated") btn.textContent = "✅ 최신으로 갱신됨";
+      else if(result==="seeded") btn.textContent = "✅ 첫 동기화 완료";
+      else btn.textContent = "⚠️ 동기화 실패 (인터넷 확인)";
+      setTimeout(()=>{ btn.textContent = original; }, 2200);
+    });
+  };
   document.getElementById("memo-skip").onclick = closeMemoModal;
   document.getElementById("memo-save").onclick = saveMemo;
   document.getElementById("edit-time-cancel").onclick = closeEditTimeModal;
@@ -1446,20 +1567,34 @@
 
   // Pull the latest synced data from Firebase after the first (instant,
   // local-cache) paint. If another device has newer data, it wins here.
-  fbLoad().then(remote=>{
-    if(remote){
-      state = remote;
-      if(!state.activities) state.activities = DEFAULT_ACTIVITIES.slice();
-      if(!state.days) state.days = {};
-      migrateActivityCategories();
-      migrateAddMissingDefaults();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      render();
-    }else{
-      // Nothing in Firebase yet — seed it with whatever's stored locally.
+  function applyRemoteState(remoteData){
+    state = remoteData;
+    if(!state.activities) state.activities = DEFAULT_ACTIVITIES.slice();
+    if(!state.days) state.days = {};
+    migrateActivityCategories();
+    migrateAddMissingDefaults();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+  }
+  function syncFromFirebase(){
+    return fbLoad().then(result=>{
+      if(!result.ok){
+        // Read failed (offline / network hiccup) — keep showing what we
+        // already have. Do NOT push local data up in this case, or a
+        // flaky read on this device could overwrite another device's
+        // newer save.
+        return "error";
+      }
+      if(result.data){
+        applyRemoteState(result.data);
+        return "updated";
+      }
+      // Read succeeded and the path is genuinely empty — first-ever sync.
       fbSave(state);
-    }
-  });
+      return "seeded";
+    });
+  }
+  syncFromFirebase();
 })();
 </script>
 </body>
