@@ -166,6 +166,13 @@
   .chip.addnew{
     background:transparent; border-style:dashed; color:var(--ink-soft);
   }
+  .chip.chip-anchor{
+    background: var(--ink); border-color: var(--ink); color:#fff;
+  }
+  .chip.cat-study{ background: var(--cat-study); border-color: var(--cat-study); color:#fff; }
+  .chip.cat-work{ background: var(--cat-work); border-color: var(--cat-work); color:#fff; }
+  .chip.cat-exercise{ background: var(--cat-exercise); border-color: var(--cat-exercise); color:#fff; }
+  .chip.cat-other{ background: var(--cat-other); border-color: var(--cat-other); color:#fff; }
 
   /* ---- the receipt / ticket ---- */
   #ticket-wrap{ display:flex; justify-content:center; }
@@ -224,6 +231,7 @@
     flex:1;
     color: var(--ink);
     cursor:pointer;
+    font-weight:800;
   }
   .entry-row .a .dur{
     color: var(--accent); font-weight:700; margin-left:4px;
@@ -961,7 +969,15 @@
     state.activities.forEach(act=>{
       const chip = document.createElement("div");
       const running = act.session && getRunningEntry(act.id);
-      chip.className = "chip" + (running ? " running" : "");
+      let cls = "chip";
+      if(running){
+        cls += " running";
+      }else if(act.name==="기상" || act.name==="취침"){
+        cls += " chip-anchor";
+      }else{
+        cls += " cat-" + (act.category || "other");
+      }
+      chip.className = cls;
       chip.innerHTML = running
         ? `<span class="dot"></span>${act.name} 진행중`
         : `${act.name}`;
