@@ -17,7 +17,7 @@ input:focus{outline:none}
 
 :root{
   --g1:#16a34a;--g2:#22c55e;--g3:#86efac;--g4:#dcfce7;
-  --bg:#f0f2f5;--card:#fff;--border:#e5e7eb;
+  --bg:#eef0f4;--card:#fff;--border:#e2e6eb;
   --text:#111827;--sub:#6b7280;--sub2:#9ca3af;
   --bm:#3b82f6;--cp:#ef4444;
   --bebas:'Bebas Neue',display;
@@ -30,13 +30,13 @@ input:focus{outline:none}
 .hdr{display:flex;align-items:center;justify-content:space-between}
 .hdr-title{display:flex;align-items:center;gap:10px}
 .hdr-dot{width:12px;height:12px;border-radius:50%;background:var(--g2);box-shadow:0 0 0 3px #bbf7d0}
-.hdr-name{font-size:22px;font-weight:900;letter-spacing:-.5px}
+.hdr-name{font-size:22px;font-weight:900;letter-spacing:-.5px;background:linear-gradient(135deg,#111827,#374151);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hdr-r{display:flex;align-items:center;gap:8px}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#d1d5db}
 .sync-dot.ok{background:var(--g2)}.sync-dot.err{background:#ef4444}
 
 /* CALENDAR */
-.cal-card{background:#fff;border-radius:var(--r);padding:12px 12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.cal-card{background:#fff;border-radius:var(--r);padding:14px 14px;box-shadow:0 2px 12px rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.04)}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .cal-nav-inner{display:flex;align-items:center;gap:10px}
 .cal-title{font-size:18px;font-weight:900;letter-spacing:-.3px}
@@ -44,13 +44,13 @@ input:focus{outline:none}
 .cal-nbtn{background:none;border:1.5px solid var(--border);border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:13px;color:var(--sub);display:flex;align-items:center;justify-content:center}
 .cal-nbtn:hover{border-color:var(--g2);color:var(--g1)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;min-width:0}
-.cal-dow{text-align:center;font-size:10px;font-weight:700;color:var(--sub2);padding:3px 0}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:var(--sub2);padding:4px 0;border-bottom:1px solid #f3f4f6;margin-bottom:3px}
 .cal-dow.s{color:#ef4444}.cal-dow.sa{color:#3b82f6}
 .cal-day{border-radius:7px;padding:4px 2px;min-height:44px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .12s}
 .cal-day:hover{background:#f9fafb}
 .cal-day.inc{background:#dcfce7}
 .cal-day.inc:hover{background:#bbf7d0}
-.cal-day.today{outline:2px solid var(--g2);outline-offset:-2px}
+.cal-day.today{outline:2px solid var(--g2);outline-offset:-2px;background:#f0fdf4}
 .cal-day.sel{outline:2px solid var(--g1);outline-offset:-2px;background:#f0fdf4}
 .cal-day.dim{opacity:.25}
 .cal-day.dow-sun .cal-dn{color:#ef4444}
@@ -64,20 +64,20 @@ input:focus{outline:none}
 @media(max-width:580px){.main{grid-template-columns:1fr}}
 
 /* CARD */
-.card{background:#fff;border-radius:var(--r);padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-.sec-title{font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;gap:5px;margin-bottom:10px}
+.card{background:#fff;border-radius:var(--r);padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.04)}
+.sec-title{font-size:10px;font-weight:700;color:var(--sub);letter-spacing:.8px;text-transform:uppercase;display:flex;align-items:center;gap:6px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f3f4f6}
 .sec-dot{width:7px;height:7px;border-radius:50%}
 
 /* 수입 2열 그리드 */
 .inc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
 .inc-box{background:#f9fafb;border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;gap:6px}
-.inc-box.bm{background:#eff6ff;border:1.5px solid #bfdbfe}
-.inc-box.bm-m{background:#f0f9ff;border:1.5px solid #bae6fd}
-.inc-box.cp{background:#fff1f2;border:1.5px solid #fecdd3}
-.inc-box.cp-m{background:#fff7ed;border:1.5px solid #fed7aa}
+.inc-box.bm{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd}
+.inc-box.bm-m{background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1.5px solid #7dd3fc}
+.inc-box.cp{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fca5a5}
+.inc-box.cp-m{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1.5px solid #fdba74}
 .inc-box-lbl{font-size:10px;font-weight:700;display:flex;align-items:center;gap:4px}
 .inc-box-row{display:flex;align-items:center;gap:5px}
-.inc-inp{flex:1;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 8px;font-family:var(--bebas);font-size:17px;letter-spacing:.5px;color:var(--text);min-width:0;transition:border-color .15s;text-align:right}
+.inc-inp{flex:1;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:6px 8px;font-family:var(--bebas);font-size:20px;letter-spacing:.5px;color:var(--text);min-width:0;transition:border-color .15s;text-align:right}
 .inc-inp:focus{border-color:var(--g2)}
 .inc-inp.bm-inp:focus{border-color:#3b82f6}
 .inc-inp.cp-inp:focus{border-color:#ef4444}
@@ -86,14 +86,14 @@ input:focus{outline:none}
 
 /* 실수령 + 목표 행 */
 .sum-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.sum-box{background:#f0fdf4;border-radius:10px;padding:10px 12px}
+.sum-box{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:10px;padding:11px 13px;border:1px solid #bbf7d0}
 .sum-box-lbl{font-size:9px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.sum-box-val{font-family:var(--bebas);font-size:22px;color:var(--g1);letter-spacing:.5px;line-height:1}
+.sum-box-val{font-family:var(--bebas);font-size:26px;color:var(--g1);letter-spacing:.5px;line-height:1}
 .sum-box-sub{font-size:9px;color:var(--sub2);margin-top:2px}
 .mission-bar{height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin-top:5px}
 .mission-fill{height:100%;border-radius:3px;background:var(--g2);transition:width .4s}
-.save-btn{width:100%;background:var(--g2);border:none;border-radius:9px;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:700;padding:10px;cursor:pointer;transition:background .15s;margin-bottom:12px}
-.save-btn:hover{background:var(--g1)}
+.save-btn{width:100%;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:10px;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;padding:12px;cursor:pointer;transition:all .15s;margin-bottom:12px;box-shadow:0 3px 10px rgba(34,197,94,.35);letter-spacing:.3px}
+.save-btn:hover{background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 14px rgba(34,197,94,.45);transform:translateY(-1px)}
 
 /* 오토바이 */
 .moto-km{display:flex;align-items:center;gap:8px;margin-bottom:10px}
@@ -113,14 +113,14 @@ input:focus{outline:none}
 .part-del-btn:hover{color:#ef4444}
 
 /* 채무 */
-.debt-total-box{background:#fff1f2;border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.debt-total-box{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fca5a5;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .debt-total-lbl{font-size:11px;color:#ef4444;font-weight:700}
-.debt-total-val{font-family:var(--bebas);font-size:18px;color:#ef4444;letter-spacing:.3px}
+.debt-total-val{font-family:var(--bebas);font-size:22px;color:#dc2626;letter-spacing:.3px}
 .loan-item{padding:7px 0;border-bottom:1px solid #f3f4f6}
 .loan-item:last-child{border-bottom:none}
 .loan-top{display:flex;justify-content:space-between;align-items:baseline}
-.loan-nm{font-size:11px;font-weight:700}
-.loan-rem{font-family:var(--bebas);font-size:14px;letter-spacing:.3px}
+.loan-nm{font-size:12px;font-weight:700;color:#111827}
+.loan-rem{font-family:var(--bebas);font-size:16px;letter-spacing:.3px}
 .loan-bar{height:4px;background:#f3f4f6;border-radius:2px;overflow:hidden;margin:3px 0}
 .loan-fill{height:100%;border-radius:2px}
 .loan-sub{font-size:9px;color:var(--sub2)}
@@ -170,7 +170,7 @@ input:focus{outline:none}
           <div class="inc-box bm">
             <div class="inc-box-lbl" style="color:#2563eb">🛵 배민 수입</div>
             <div class="inc-box-row">
-              <input class="inc-inp bm-inp" id="inBaemin" type="number" placeholder="0" oninput="updatePreview()">
+              <input class="inc-inp bm-inp" id="inBaemin" type="number" placeholder="0" oninput="updatePreview();autoSaveIncome()">
               <span class="inc-unit">원</span>
             </div>
           </div>
@@ -178,7 +178,7 @@ input:focus{outline:none}
           <div class="inc-box bm-m">
             <div class="inc-box-lbl" style="color:#0284c7">🎯 배민 미션</div>
             <div class="inc-box-row">
-              <input class="inc-inp mission" id="inBaeminM" type="number" placeholder="0" oninput="updatePreview()">
+              <input class="inc-inp mission" id="inBaeminM" type="number" placeholder="0" oninput="updatePreview();autoSaveIncome()">
               <span class="inc-unit">원</span>
             </div>
           </div>
@@ -186,7 +186,7 @@ input:focus{outline:none}
           <div class="inc-box cp">
             <div class="inc-box-lbl" style="color:#dc2626">📦 쿠팡 수입</div>
             <div class="inc-box-row">
-              <input class="inc-inp cp-inp" id="inCoupang" type="number" placeholder="0" oninput="updatePreview()">
+              <input class="inc-inp cp-inp" id="inCoupang" type="number" placeholder="0" oninput="updatePreview();autoSaveIncome()">
               <span class="inc-unit">원</span>
             </div>
           </div>
@@ -194,7 +194,7 @@ input:focus{outline:none}
           <div class="inc-box cp-m">
             <div class="inc-box-lbl" style="color:#ea580c">🎯 쿠팡 미션</div>
             <div class="inc-box-row">
-              <input class="inc-inp mission" id="inCoupangM" type="number" placeholder="0" oninput="updatePreview()">
+              <input class="inc-inp mission" id="inCoupangM" type="number" placeholder="0" oninput="updatePreview();autoSaveIncome()">
               <span class="inc-unit">원</span>
             </div>
           </div>
@@ -204,14 +204,14 @@ input:focus{outline:none}
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <div style="flex:1;display:flex;align-items:center;gap:5px;background:#f9fafb;border-radius:8px;padding:7px 10px">
             <span style="font-size:10px;font-weight:700;color:var(--sub);flex-shrink:0">건수</span>
-            <input style="flex:1;background:none;border:none;font-family:var(--bebas);font-size:16px;color:var(--text);min-width:0;text-align:right" id="inDel" type="number" placeholder="0">
+            <input style="flex:1;background:none;border:none;font-family:var(--bebas);font-size:16px;color:var(--text);min-width:0;text-align:right" id="inDel" type="number" placeholder="0" oninput="autoSaveIncome()">
             <span class="inc-unit">건</span>
           </div>
           <div style="flex:1;display:flex;align-items:center;gap:4px;background:#f9fafb;border-radius:8px;padding:7px 10px">
             <span style="font-size:10px;font-weight:700;color:var(--sub);flex-shrink:0">근무</span>
-            <input style="width:36px;background:none;border:none;font-family:var(--bebas);font-size:16px;color:var(--text);text-align:center" id="inWH" type="number" placeholder="0">
+            <input style="width:36px;background:none;border:none;font-family:var(--bebas);font-size:16px;color:var(--text);text-align:center" id="inWH" type="number" placeholder="0" oninput="autoSaveIncome()">
             <span class="inc-unit">h</span>
-            <input style="width:36px;background:none;border:none;font-family:var(--bebas);font-size:16px;color:var(--text);text-align:center" id="inWM" type="number" placeholder="0">
+            <input style="width:36px;background:none;border:none;font-family:var(--bebas);font-size:16px;color:var(--text);text-align:center" id="inWM" type="number" placeholder="0" oninput="autoSaveIncome()">
             <span class="inc-unit">m</span>
           </div>
         </div>
@@ -223,7 +223,7 @@ input:focus{outline:none}
             <div class="sum-box-val" id="todayNet">–</div>
             <div class="sum-box-sub" id="todayGross"></div>
           </div>
-          <div class="sum-box" style="background:#fefce8;position:relative">
+          <div class="sum-box" style="background:linear-gradient(135deg,#fefce8,#fef9c3);border:1px solid #fde68a;position:relative">
             <div class="sum-box-lbl" style="color:#92400e">이번달 목표</div>
             <div style="display:flex;align-items:baseline;gap:4px">
               <input style="background:none;border:none;font-family:var(--bebas);font-size:18px;color:#d97706;width:80px;min-width:0" id="missionGoal" type="number" placeholder="200" oninput="saveMission()">
@@ -234,12 +234,12 @@ input:focus{outline:none}
           </div>
         </div>
 
-        <button class="save-btn" onclick="saveIncome()">저장</button>
+        <button class="save-btn" onclick="saveIncome()" style="display:none"></button>
       </div>
 
       <!-- 오토바이 카드 -->
       <div class="card">
-        <div class="sec-title"><div class="sec-dot" style="background:#f59e0b"></div>오토바이 정비</div>
+        <div class="sec-title" style="margin-top:4px"><div class="sec-dot" style="background:#f59e0b"></div>오토바이 정비</div>
         <div class="moto-km">
           <span style="font-size:11px;font-weight:700;color:var(--sub)">현재 주행거리</span>
           <input id="motoKm" type="number" placeholder="0" oninput="updateMotoKm()">
@@ -421,6 +421,11 @@ function updateMission(){
   document.getElementById('mFill').style.width=pct+'%';
   document.getElementById('mPct').textContent=goal>0?`${(net(adjusted)/10000).toFixed(1)}만 / 목표 ${(net(goal)/10000).toFixed(0)}만 (${pct}%)`:'';
 }
+let _saveTimer=null;
+function autoSaveIncome(){
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(saveIncome,500);
+}
 function saveIncome(){
   const bm=Number(document.getElementById('inBaemin').value)||0;
   const bmM=Number(document.getElementById('inBaeminM').value)||0;
@@ -451,18 +456,34 @@ function loanRemain(i){
   const l=LOANS[i];
   return Math.max(0,l.p-(Number(l.repaid)||0));
 }
-function saveRepaid(i,val){
+// 월 납입액 계산 (마통 아닌 경우) — 원리금균등상환
+function calcMonthlyPayment(remain, annualRate, months){
+  if(!months||!annualRate||!remain) return 0;
+  const r=annualRate/100/12;
+  if(r===0) return Math.round(remain/months);
+  return Math.round(remain*r*Math.pow(1+r,months)/(Math.pow(1+r,months)-1));
+}
+function saveRemain(i, remainVal){
+  // 잔여금액 입력 → 상환액으로 자동 변환
+  const remain = Number(remainVal)||0;
+  const repaid = Math.max(0, LOANS[i].p - remain);
   if(!db._loans) db._loans=[...DEFAULT_LOANS];
-  db._loans[i].repaid=Number(val)||0;
+  db._loans[i].repaid = repaid;
+  syncLoans(); save(); renderDebt();
+}
+function saveMonths(i, months){
+  if(!db._loans) db._loans=[...DEFAULT_LOANS];
+  db._loans[i].months = Number(months)||0;
   syncLoans(); save(); renderDebt();
 }
 function addLoan(){
   const nm=document.getElementById('loanAddName').value.trim();
   const p=(Number(document.getElementById('loanAddP').value)||0)*10000;
   const r=Number(document.getElementById('loanAddR').value)||0;
+  const type=document.getElementById('loanAddType').value;
   if(!nm||!p) return;
   if(!db._loans) db._loans=[...DEFAULT_LOANS];
-  db._loans.push({name:nm, p, r, repaid:0});
+  db._loans.push({name:nm, p, r, repaid:0, type, months:0});
   syncLoans();
   document.getElementById('loanAddName').value='';
   document.getElementById('loanAddP').value='';
@@ -481,36 +502,72 @@ function renderDebt(){
   let h='';
   LOANS.forEach((l,i)=>{
     const repaid=Number(l.repaid)||0;
-    const r=loanRemain(i);
+    const remain=loanRemain(i);
     const repPct=l.p>0?Math.min(100,Math.round(repaid/l.p*100)):0;
     const clr=l.r>12?'#ef4444':l.r>8?'#f59e0b':'#22c55e';
+    const isMatong = (l.type==='matong') || (!l.type && l.name.includes('마통'));
+
+    // 월납입 계산 (마통 아닌 경우)
+    const months=Number(l.months)||0;
+    const monthly=(!isMatong&&months>0)?calcMonthlyPayment(remain,l.r,months):0;
+    const totalPay=monthly*months;
+    const totalInterest=totalPay-remain;
+
     h+=`<div class="loan-item">
       <div class="loan-top">
-        <span class="loan-nm">${l.name}</span>
+        <span class="loan-nm">${l.name}${isMatong?'<span style="font-size:9px;color:#6b7280;font-weight:400;margin-left:4px">마통</span>':''}</span>
         <div style="display:flex;align-items:center;gap:6px">
-          <span class="loan-rem" style="color:${clr}">${(r/10000).toFixed(1)}만</span>
+          <span class="loan-rem" style="color:${clr}">${(remain/10000).toFixed(1)}만</span>
           <button onclick="delLoan(${i})" style="background:none;border:none;color:#d1d5db;cursor:pointer;font-size:10px;padding:0" title="삭제">✕</button>
         </div>
       </div>
-      <div class="loan-bar"><div class="loan-fill" style="width:${repPct}%;background:${clr}88"></div></div>
-      <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
+      <div class="loan-bar" style="margin:4px 0"><div class="loan-fill" style="width:${repPct}%;background:${clr}88"></div></div>
+
+      <div style="display:flex;align-items:center;gap:5px">
         <span class="loan-sub" style="flex:1">${l.r}% · 원금 ${(l.p/10000).toFixed(0)}만 · 상환 ${repPct}%</span>
-        <div style="display:flex;align-items:center;gap:3px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 7px">
-          <span style="font-size:9px;color:#6b7280;flex-shrink:0">상환</span>
-          <input type="number" value="${repaid>0?repaid/10000:''}" placeholder="0"
-            style="width:50px;background:none;border:none;font-family:'Bebas Neue',display;font-size:14px;color:${clr};text-align:right;min-width:0"
-            onchange="saveRepaid(${i},this.value*10000)">
-          <span style="font-size:9px;color:#6b7280;flex-shrink:0">만원</span>
-        </div>
       </div>
+
+      <!-- 잔여금액 입력 (원 단위) -->
+      <div style="display:flex;align-items:center;gap:5px;margin-top:6px">
+        <div style="flex:1;display:flex;align-items:center;gap:3px;background:#f9fafb;border:1.5px solid #e2e6eb;border-radius:7px;padding:4px 8px">
+          <span style="font-size:9px;color:#6b7280;flex-shrink:0">잔여</span>
+          <input type="number" value="${remain>0?remain:''}" placeholder="${(l.p/10000).toFixed(0)*10000}"
+            style="flex:1;background:none;border:none;font-family:'Bebas Neue',display;font-size:15px;color:${clr};text-align:right;min-width:0"
+            oninput="saveRemain(${i},this.value)">
+          <span style="font-size:9px;color:#6b7280;flex-shrink:0">원</span>
+        </div>
+        ${!isMatong?`<div style="display:flex;align-items:center;gap:3px;background:#f9fafb;border:1.5px solid #e2e6eb;border-radius:7px;padding:4px 8px;width:80px">
+          <span style="font-size:9px;color:#6b7280;flex-shrink:0">남은</span>
+          <input type="number" value="${months||''}" placeholder="0"
+            style="width:30px;background:none;border:none;font-family:'Bebas Neue',display;font-size:15px;color:#374151;text-align:center;min-width:0"
+            oninput="saveMonths(${i},this.value)">
+          <span style="font-size:9px;color:#6b7280;flex-shrink:0">개월</span>
+        </div>`:''}
+      </div>
+
+      ${!isMatong&&monthly>0?`<div style="margin-top:5px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0;border-radius:7px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:9px;color:#16a34a;font-weight:700">월 납입액</div>
+          <div style="font-family:'Bebas Neue',display;font-size:18px;color:#15803d;letter-spacing:.3px">${monthly.toLocaleString()}원</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:9px;color:#6b7280">총 이자</div>
+          <div style="font-family:'Bebas Neue',display;font-size:14px;color:#ef4444">${(totalInterest/10000).toFixed(1)}만원</div>
+        </div>
+      </div>`:''}
     </div>`;
   });
-  // 대출 추가 인풋
-  h+=`<div style="display:flex;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6">
-    <input id="loanAddName" type="text" placeholder="대출명" style="flex:1.5;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 8px;font-size:11px;color:#111827;min-width:0">
-    <input id="loanAddP" type="number" placeholder="원금(만)" style="width:62px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 7px;font-family:'Bebas Neue',display;font-size:14px;color:#111827">
-    <input id="loanAddR" type="number" placeholder="금리%" step="0.1" style="width:54px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 7px;font-family:'Bebas Neue',display;font-size:14px;color:#111827">
-    <button onclick="addLoan()" style="background:#22c55e;border:none;border-radius:7px;color:#fff;font-size:13px;font-weight:700;padding:0 11px;cursor:pointer;flex-shrink:0">+</button>
+
+  // 대출 추가
+  h+=`<div style="display:flex;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6;flex-wrap:wrap">
+    <input id="loanAddName" type="text" placeholder="대출명" style="flex:2;min-width:80px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 8px;font-size:11px;color:#111827">
+    <input id="loanAddP" type="number" placeholder="원금(만)" style="width:64px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 7px;font-family:'Bebas Neue',display;font-size:14px;color:#111827">
+    <input id="loanAddR" type="number" placeholder="금리%" step="0.1" style="width:56px;background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 7px;font-family:'Bebas Neue',display;font-size:14px;color:#111827">
+    <select id="loanAddType" style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:7px;padding:5px 6px;font-size:11px;color:#374151;-webkit-appearance:none">
+      <option value="installment">할부</option>
+      <option value="matong">마통</option>
+    </select>
+    <button onclick="addLoan()" style="background:#22c55e;border:none;border-radius:7px;color:#fff;font-size:13px;font-weight:700;padding:0 12px;cursor:pointer">+</button>
   </div>`;
   document.getElementById('loanList').innerHTML=h;
 }
