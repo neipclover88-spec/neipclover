@@ -30,7 +30,7 @@ input:focus{outline:none}
 .hdr{display:flex;align-items:center;justify-content:space-between}
 .hdr-title{display:flex;align-items:center;gap:10px}
 .hdr-dot{width:12px;height:12px;border-radius:50%;background:var(--g2);box-shadow:0 0 0 3px #c8dda0}
-.hdr-name{font-size:22px;font-weight:900;letter-spacing:-.5px;color:#e2e4ea}
+.hdr-name{font-size:22px;font-weight:900;letter-spacing:-.5px;color:#2c2016}
 .hdr-r{display:flex;align-items:center;gap:8px}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#d1d5db}
 .sync-dot.ok{background:var(--g2)}.sync-dot.err{background:#ef4444}
@@ -69,15 +69,15 @@ input:focus{outline:none}
 .sec-dot{width:7px;height:7px;border-radius:50%}
 
 /* 수입 2열 그리드 */
-.inc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
-.inc-box{background:#f0ebe0;border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;gap:6px}
+.inc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;min-width:0;width:100%}
+.inc-box{background:#f0ebe0;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px;min-width:0;overflow:hidden}
 .inc-box.bm{background:linear-gradient(135deg,#edf2f8,#e2ebf5);border:1.5px solid #93b4cc}
 .inc-box.bm-m{background:linear-gradient(135deg,#e8f4fa,#dcecf5);border:1.5px solid #80b0cc}
 .inc-box.cp{background:linear-gradient(135deg,#f8edec,#f5e2e0);border:1.5px solid #c89090}
 .inc-box.cp-m{background:linear-gradient(135deg,#faf0e6,#f5e8d8);border:1.5px solid #c8a880}
 .inc-box-lbl{font-size:10px;font-weight:700;display:flex;align-items:center;gap:4px}
-.inc-box-row{display:flex;align-items:center;gap:5px}
-.inc-inp{flex:1;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:6px 8px;font-family:var(--bebas);font-size:20px;letter-spacing:.5px;color:#2c2016;min-width:0;transition:border-color .15s;text-align:right}
+.inc-box-row{display:flex;align-items:center;gap:3px;min-width:0;overflow:hidden}
+.inc-inp{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:7px;padding:5px 8px;font-family:var(--bebas);font-size:18px;letter-spacing:.5px;color:#2c2016;min-width:0;box-sizing:border-box;transition:border-color .15s;text-align:right}
 .inc-inp:focus{border-color:var(--g2)}
 .inc-inp.bm-inp:focus{border-color:#3b82f6}
 .inc-inp.cp-inp:focus{border-color:#ef4444}
